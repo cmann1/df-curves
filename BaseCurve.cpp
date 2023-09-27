@@ -33,6 +33,10 @@ class BaseCurve
 	/// Only applicable for CatmullRom splines with `end_controls` set to `Manual`.
 	[persist] CurveVertex control_point_end;
 	
+	/// Controls the global tension for CatmullRom splines.
+	[persist] float tension = 1;
+	
+	/// If true the start and end points of this path will automatically connect to each other.
 	[persist] bool closed;
 	
 	/// The smoothness of the b-spline. Must b > 1 and <= `vertex_count`.
@@ -274,7 +278,6 @@ class BaseCurve
 		normal_y = -dx / length;
 	}
 	
-	float tension = 1;
 	void calc_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 2)
