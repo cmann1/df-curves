@@ -33,7 +33,7 @@ class script
 		@editor = get_editor_api();
 		mouse.use_input(input);
 		
-		curve.type = CatmullRom;
+		curve.type = BSpline;
 		calc_spline();
 		
 		@cam = get_active_camera();
@@ -101,24 +101,24 @@ class script
 		{
 			CurveVertex@ p = curve.vertices[i];
 			//p.type = Square;
-			p.weight = curve.type == CubicBezier
-				? map(sin((t + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
-				: map(sin((t + PI * 1.5) * 0.4), -1, 1, -0.65, 6);
+			//p.weight = curve.type == CubicBezier
+			//	? map(sin((t + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
+			//	: map(sin((t + PI * 1.5) * 0.4), -1, 1, 0.01, 12);
+			break;
 		}
-		for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
-		{
-			CurveVertex@ p = curve.cubic_bezier_control_points[i];
-			p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
-		}
-		curve.tension = map(sin((t + PI) * 0.5), -1, 1, 0.2, 2);
-		curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
+		//for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
+		//{
+		//	CurveVertex@ p = curve.cubic_bezier_control_points[i];
+		//	//p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
+		//}
+		//curve.tension = map(sin((t + PI) * 0.5), -1, 1, 0.2, 2);
+		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
 		t += speed * DT;
 	}
 	
 	void editor_draw(float _)
 	{
-		
 		if(curve.type == QuadraticBezier)
 		{
 			for(uint i = 0; i < curve.quadratic_bezier_control_points.length; i++)
@@ -222,10 +222,14 @@ class script
 		{
 			const float bx = 500;
 			const float by = 0;
-			curve.add_vertex(bx - 100, by - 100);
-			curve.add_vertex(bx + 100, by - 100);
-			curve.add_vertex(bx + 100, by + 100);
-			curve.add_vertex(bx - 100, by + 100);
+			//curve.add_vertex(bx - 100, by - 100);
+			//curve.add_vertex(bx + 100, by - 100);
+			//curve.add_vertex(bx + 100, by + 100);
+			//curve.add_vertex(bx - 100, by + 100);
+			curve.add_vertex(bx - 100, by - 0);
+			curve.add_vertex(bx +0, by - 100);
+			curve.add_vertex(bx + 100, by + 0);
+			//curve.add_vertex(bx - 300, by + 300);
 		}
 		
 		curve.calc_bezier_control_points(true);
