@@ -425,45 +425,46 @@ class BaseCurve
 		const float uuu = uu * u;
 		
 		// Normal.
-		x = uuu * p1.x + 3 * uu * ti * cp1x + 3 * u * tt * cp2x + tt3 * p2.x;
-		y = uuu * p1.y + 3 * uu * ti * cp1y + 3 * u * tt * cp2y + tt3 * p2.y;
-		// Calculate the normal vector.
-		normal_x = -3 * p1.y * uu + 3 * cp1y * (3 * uu - 2 * u) + 3 * cp2y * (2 * ti - 3 * tt) + 3 * p2.y * tt;
-		normal_y = -(-3 * p1.x * uu + 3 * cp1x * (3 * uu - 2 * u) + 3 * cp2x * (2 * ti - 3 * tt) + 3 * p2.x * tt);
-		
-		// Rational.
-		const float f0 = uuu * p1.weight;
-		const float f1 = 3 * uu * ti * cp1.weight;
-		const float f2 = 3 * u * tt * cp2.weight;
-		const float f3 = tt3 * p2.weight;
-		const float basis = f0 + f1 + f2 + f3;
-		if(f0 + f1 + f2 + f3 == 0)
-		 puts(f0 + f1 + f2 + f3);
-		x = (f0 * p1.x + f1 * cp1x + f2 * cp2x + f3 * p2.x) / basis;
-		y = (f0 * p1.y + f1 * cp1y + f2 * cp2y + f3 * p2.y) / basis;
-		
-		//f0 = ((1-t)^3A1)
-		//f1 = (3(1-t)^2tA2)
-		//f2 = (3(1 - t)t^2A3)
-		//f3 = (t^3A4)
-		//(((1-t)^3*A1)*P1 + (3*(1-t)^2*t*A2)*P2 + (3*(1 - t)*t^2*A3)*P3 + (t^3*A4)*P4) / (((1-t)^3*A1) + (3*(1-t)^2*t*A2) + (3*(1 - t)*t^2*A3) + (t^3*A4))
-		
-		normal_x =
-			(-3 * p1.y * p1.weight * uu + 3 * cp1y * cp1.weight * uu - 6 * cp1y * cp1.weight * ti * u - 3 * cp2y * cp2.weight * tt + 6 * cp2y * cp2.weight * ti * u + 3 * p2.y * p2.weight * tt)
-			/
-			basis
-			-
-			((-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) * (p1.y * p1.weight * uuu + 3 * cp1y * cp1.weight * ti * uu + 3 * cp2y * cp2.weight * tt * u + p2.y * p2.weight * tt3))
-			/
-			(basis * basis);
-		normal_y = -(
-			(-3 * p1.x * p1.weight * uu + 3 * cp1x * cp1.weight * uu - 6 * cp1x * cp1.weight * ti * u - 3 * cp2x * cp2.weight * tt + 6 * cp2x * cp2.weight * ti * u + 3 * p2.x * p2.weight * tt)
-			/
-			basis
-			-
-			((-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) * (p1.x * p1.weight * uuu + 3 * cp1x * cp1.weight * ti * uu + 3 * cp2x * cp2.weight * tt * u + p2.x * p2.weight * tt3))
-			/
-			(basis * basis));
+		if(p1.weight == 1 && p2.weight == 1 && cp1.weight == 1 && cp2.weight == 1)
+		{
+			x = uuu * p1.x + 3 * uu * ti * cp1x + 3 * u * tt * cp2x + tt3 * p2.x;
+			y = uuu * p1.y + 3 * uu * ti * cp1y + 3 * u * tt * cp2y + tt3 * p2.y;
+			// Calculate the normal vector.
+			normal_x = -3 * p1.y * uu + 3 * cp1y * (3 * uu - 2 * u) + 3 * cp2y * (2 * ti - 3 * tt) + 3 * p2.y * tt;
+			normal_y = -(-3 * p1.x * uu + 3 * cp1x * (3 * uu - 2 * u) + 3 * cp2x * (2 * ti - 3 * tt) + 3 * p2.x * tt);
+		}
+		// Weighted
+		else
+		{
+			const float f0 = uuu * p1.weight;
+			const float f1 = 3 * uu * ti * cp1.weight;
+			const float f2 = 3 * u * tt * cp2.weight;
+			const float f3 = tt3 * p2.weight;
+			const float basis = f0 + f1 + f2 + f3;
+			if(f0 + f1 + f2 + f3 == 0)
+			 puts(f0 + f1 + f2 + f3);
+			x = (f0 * p1.x + f1 * cp1x + f2 * cp2x + f3 * p2.x) / basis;
+			y = (f0 * p1.y + f1 * cp1y + f2 * cp2y + f3 * p2.y) / basis;
+			
+			normal_x =
+				(
+					-3 * p1.y * p1.weight * uu + 3 * cp1y * cp1.weight * uu - 6 * cp1y * cp1.weight * ti * u -
+					3 * cp2y * cp2.weight * tt + 6 * cp2y * cp2.weight * ti * u + 3 * p2.y * p2.weight * tt
+				) / basis
+				- (
+					(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
+					(p1.y * p1.weight * uuu + 3 * cp1y * cp1.weight * ti * uu + 3 * cp2y * cp2.weight * tt * u + p2.y * p2.weight * tt3))
+				/ (basis * basis);
+			normal_y = -(
+				(
+					-3 * p1.x * p1.weight * uu + 3 * cp1x * cp1.weight * uu - 6 * cp1x * cp1.weight * ti * u -
+					3 * cp2x * cp2.weight * tt + 6 * cp2x * cp2.weight * ti * u + 3 * p2.x * p2.weight * tt
+				) / basis
+				- (
+					(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
+					(p1.x * p1.weight * uuu + 3 * cp1x * cp1.weight * ti * uu + 3 * cp2x * cp2.weight * tt * u + p2.x * p2.weight * tt3)
+				) / (basis * basis));
+		}
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
 		normal_x /= length;

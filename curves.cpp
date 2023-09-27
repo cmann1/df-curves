@@ -105,7 +105,6 @@ class script
 				: map(sin((t + PI * 1.5) * 0.4), -1, 1, -0.65, 6);
 		}
 		for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
-		//for(uint i = 1; i < 3; i++)
 		{
 			CurveVertex@ p = curve.cubic_bezier_control_points[i];
 			p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
