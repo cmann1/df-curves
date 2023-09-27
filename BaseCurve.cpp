@@ -4,7 +4,7 @@ class BaseCurve
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
 	// TODO: Move debug drawing methods into here.
-	// TODO: curve x and y;
+	// TODO: curve x/y, scale x/y, and rotation.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -274,6 +274,7 @@ class BaseCurve
 		normal_y = -dx / length;
 	}
 	
+	float tension = 1;
 	void calc_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 2)
@@ -320,22 +321,30 @@ class BaseCurve
 		const float t2 = ti * ti;
 		const float t3 = t2 * ti;
 		
-		const float c0 = -0.5 * t3 + t2 - 0.5 * ti;
-		const float c1 = 1.5 * t3 - 2.5 * t2 + 1.0;
-		const float c2 = -1.5 * t3 + 2.0 * t2 + 0.5 * ti;
-		const float c3 = 0.5 * t3 - 0.5 * t2;
+		const float st = (tension * p1.tension) * 2;
 		
-		x = (p0.x * c0 + p1.x * c1 + p2.x * c2 + p3.x * c3);
-		y = (p0.y * c0 + p1.y * c1 + p2.y * c2 + p3.y * c3);
+		const float dv1x = (p2.x - p0.x) / st;
+		const float dv1y = (p2.y - p0.y) / st;
+		const float dv2x = (p3.x - p1.x) / st;
+		const float dv2y = (p3.y - p1.y) / st;
 		
-		// Calculate the normal vector.
-		const float v0 = (-1.5 * t2 + 2 * ti - 0.5);
-		const float v1 = (4.5 * t2 - 5 * ti);
-		const float v2 = (-4.5 * t2 + 4 * ti + 0.5);
-		const float v3 = (1.5 * t2 - ti);
-
-		normal_x = 0.5 * (p0.y * v0 + p1.y * v1 + p2.y * v2 + p3.y * v3);
-		normal_y = -0.5 * (p0.x * v0 + p1.x * v1 + p2.x * v2 + p3.x * v3);
+		const float c0 = 2 * t3 - 3 * t2 + 1;
+		const float c1 = t3 - 2 * t2 + ti;
+		const float c2 = -2 * t3 + 3 * t2;
+		const float c3 = t3 - t2;
+		x = c0 * p1.x + c1 * dv1x + c2 * p2.x + c3 * dv2x;
+		y = c0 * p1.y + c1 * dv1y + c2 * p2.y + c3 * dv2y;
+		
+		// Calculate the normal.
+		normal_x =
+			((3 * t2 - 4 * ti + 1) * (p2.y - p0.y)) / st +
+			((3 * t2 - 2 * ti) * (p3.y - p1.y)) / st +
+			p1.y * (6 * t2 - 6 * ti) + p2.y * (6 * ti - 6 * t2);
+		normal_y = -(
+		((3 * t2 - 4 * ti + 1) * (p2.x - p0.x)) / st +
+			((3 * t2 - 2 * ti) * (p3.x - p1.x)) / st +
+			p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
+		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
 		normal_x /= length;
 		normal_y /= length;
@@ -628,6 +637,8 @@ class CurveVertex : Point
 	[option,1:Square,Manual,Smooth,Mirror] CurveVertexType type = Smooth;
 	/// The weight for either conic quadratic beziers or b-splines for the segment starting at this vertex.
 	[persist] float weight = 1;
+	/// A per-segment tension for CatmullRom splines/
+	[persist] float tension = 1;
 	
 	/// Has the segment starting with this segment been invalidated/changed, meaning that the arc length
 	/// and look up table need to be recalculated.

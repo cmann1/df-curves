@@ -33,7 +33,7 @@ class script
 		@editor = get_editor_api();
 		mouse.use_input(input);
 		
-		curve.type = CubicBezier;
+		curve.type = CatmullRom;
 		calc_spline();
 		
 		@cam = get_active_camera();
@@ -100,6 +100,7 @@ class script
 		for(uint i = 0; i < curve.vertices.length; i++)
 		{
 			CurveVertex@ p = curve.vertices[i];
+			//p.type = Square;
 			p.weight = curve.type == CubicBezier
 				? map(sin((t + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
 				: map(sin((t + PI * 1.5) * 0.4), -1, 1, -0.65, 6);
@@ -109,6 +110,8 @@ class script
 			CurveVertex@ p = curve.cubic_bezier_control_points[i];
 			p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
 		}
+		curve.tension = map(sin((t + PI) * 0.5), -1, 1, 0.2, 2);
+		curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
 		t += speed * DT;
 	}
