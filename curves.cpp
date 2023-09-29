@@ -222,14 +222,14 @@ class script
 		{
 			const float bx = 500;
 			const float by = 0;
+			curve.add_vertex(bx - 100, by - 100);
+			curve.add_vertex(bx + 100, by - 100);
+			curve.add_vertex(bx + 100, by + 100);
+			curve.add_vertex(bx - 100, by + 100);
+			curve.add_vertex(bx - 300, by + 300);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
-			//curve.add_vertex(bx - 100, by + 100);
-			curve.add_vertex(bx - 100, by - 0);
-			curve.add_vertex(bx +0, by - 100);
-			curve.add_vertex(bx + 100, by + 0);
-			//curve.add_vertex(bx - 300, by + 300);
 		}
 		
 		curve.calc_bezier_control_points(true);
