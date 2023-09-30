@@ -4,7 +4,8 @@ class BaseCurve
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
 	// TODO: Move debug drawing methods into here.
-	// TODO: curve x/y, scale x/y, and rotation.
+	// TODO: Curve x/y, scale x/y, and rotation.
+	// TODO: Cache and recalculate knot vectors only when needed.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -271,8 +272,11 @@ class BaseCurve
 		
 		// Calculate the normal vector.
 		const float length = sqrt(dx * dx + dy * dy);
-		normal_x = dy / length;
-		normal_y = -dx / length;
+		if(length != 0)
+		{
+			normal_x = dy / length;
+			normal_y = -dx / length;
+		}
 	}
 	
 	void calc_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
@@ -346,8 +350,11 @@ class BaseCurve
 			p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		normal_x /= length;
-		normal_y /= length;
+		if(length != 0)
+		{
+			normal_x /= length;
+			normal_y /= length;
+		}
 	}
 	
 	void calc_quadratic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
@@ -399,8 +406,11 @@ class BaseCurve
 		}
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		normal_x /= length;
-		normal_y /= length;
+		if(length != 0)
+		{
+			normal_x /= length;
+			normal_y /= length;
+		}
 	}
 	
 	void calc_cubic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
@@ -476,41 +486,51 @@ class BaseCurve
 		}
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		normal_x /= length;
-		normal_y /= length;
+		if(length != 0)
+		{
+			normal_x /= length;
+			normal_y /= length;
+		}
 	}
 	
 	/// The smoothness of the b-spline. Must be > 1 and < `vertex_count`.
 	[persist] int b_spline_degree = 2;
+	/// If true the curve will pass touch the first and last vertices.
 	[persist] bool b_spline_clamped = true;
 	
-	private array<float> knots;
-	private array<CurveVertex> v;
-	private array<CurveVertex> curve_wders;
-	private array<CurveVertex> curve_ders;
+	private array<float> knots(32);
+	private array<PointW> vertices_weighted(32);
+	private array<PointW> curve_wders(32);
+	private array<PointW> curve_ders(32);
 	private array<array<float>> ndu;
 	private array<array<float>> ders;
 	private array<array<float>> b_a;
-	private array<float> n;
-	private array<Point> v_ders;
-	private array<float> w_ders;
-	private array<float> left, right;
+	private array<float> basis_list(32);
+	private array<Point> v_ders(32);
+	private array<float> w_ders(32);
+	private array<float> left(32);
+	private array<float> right(32);
 	private int knots_length;
 	
 	/// https://github.com/pradeep-pyro/tinynurbs/tree/master
 	void calc_b_spline(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
-		closed = true;
+		if(b_spline_degree <= 1)
+		{
+			calc_linear(t, x, y, normal_x, normal_y);
+			return;
+		}
+		
 		const int v_count = closed ? vertex_count + 3 : vertex_count;
 		const int clamp_val = b_spline_clamped && !closed ? 0 : 1;
 		const int degree = clamp(b_spline_degree, 2, v_count - 1);
-		const float u = clamp_val + t * (v_count - degree - clamp_val);
+		const float u = clamp_val + t * (v_count - degree - (closed ? clamp_val : 0));
 		
 		// Generate knots.
-		knots_length = v_count + degree + 1;// + (closed ? 3 : 0);
-		if(int(knots.length) < knots_length)
+		knots_length = v_count + degree + 1;
+		while(int(knots.length) < knots_length)
 		{
-			knots.resize(knots_length);
+			knots.resize(knots.length * 2);
 		}
 		
 		for(int i = 0; i < knots_length; i++)
@@ -521,18 +541,18 @@ class BaseCurve
 		}
 		
 		// Compute points using homogenous coordinates.
-		if(int(v.length) < v_count)
+		while(int(vertices_weighted.length) < v_count)
 		{
-			v.resize(v_count);
+			vertices_weighted.resize(vertices_weighted.length * 2);
 		}
 		
 		for(int i = 0; i < v_count; i++)
 		{
-			CurveVertex@ vp = @v[i];
+			PointW@ vp = @vertices_weighted[i];
 			CurveVertex@ p = @vertices[i % vertex_count];
 			vp.x = p.x * p.weight;
 			vp.y = p.y * p.weight;
-			vp.weight = p.weight;
+			vp.w = p.weight;
 		}
 		
 		// Find span and corresponding non-zero basis functions
@@ -547,24 +567,81 @@ class BaseCurve
 		// Compute point.
 		for(int i = 0; i <= degree; i++)
 		{
-			CurveVertex@ p = v[span - degree + i];
-			const float ni = n[i];
+			PointW@ p = vertices_weighted[span - degree + i];
+			const float ni = basis_list[i];
 			x += p.x * ni;
 			y += p.y * ni;
-			w += p.weight * ni;
+			w += p.w * ni;
 		}
 		
 		// Convert back to cartesian coordinates.
 		x /= w;
 		y /= w;
 		
-		calc_b_spline_tangent(t, normal_x, normal_y);
-		const float temp = normal_x;
-		normal_x = normal_y;
-		normal_y = -temp;
+		// Calculate the normal vector.
+		b_spline_curve_derivatives_rational(u, 1, degree, @vertices_weighted);
+
+		PointW@ du = @curve_ders[1];
+		normal_x = du.y;
+		normal_y = -du.x;
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
+		{
+			normal_x /= length;
+			normal_y /= length;
+		}
 	}
 	
-	void curve_derivatives(const int num_ders, const int degree, const float u)
+	private void b_spline_curve_derivatives_rational(const float u, const int num_ders, const int degree, array<PointW>@ vertices_weighted)
+	{
+		const int v_count = closed ? vertex_count + 3 : vertex_count;
+		
+		// Derivatives of Cw.
+		b_spline_curve_derivatives(num_ders, degree, u, vertices_weighted);
+		
+		// Split into coordinates and weights.
+		while(v_ders.length < vertices_weighted.length)
+		{
+			v_ders.resize(v_ders.length * 2);
+			w_ders.resize(w_ders.length * 2);
+		}
+		for(uint i = 0; i < curve_wders.length; i++)
+		{
+			const PointW@ vp = @curve_wders[i];
+			Point@ vdp = v_ders[i];
+			
+			vdp.x = vp.x;
+			vdp.y = vp.y;
+			w_ders[i] = vp.w;
+		}
+		
+		// Compute rational derivatives.
+		
+		while(int(curve_ders.length) < num_ders + 1)
+		{
+			curve_ders.resize(curve_ders.length * 2);
+		}
+		
+		const float w0 = w_ders[0];
+		for(int i = 0; i <= num_ders; i++)
+		{
+			Point@ v = v_ders[i];
+			for(int j = 1; j <= i; j++)
+			{
+				PointW@ cd = @curve_ders[i - j];
+				const float w = w_ders[j];
+				const float binomial = b_spline_binomial(i, j) * w;
+				v.x -= binomial * cd.x;
+				v.y -= binomial * cd.y;
+			}
+			
+			PointW@ cd = @curve_ders[i];
+			cd.x = v.x / w0;
+			cd.y = v.y / w0;
+		}
+	}
+	
+	void b_spline_curve_derivatives(const int num_ders, const int degree, const float u, array<PointW>@ vertices_weighted)
 	{
 		if(int(curve_wders.length) < num_ders + 1)
 		{
@@ -574,10 +651,10 @@ class BaseCurve
 		// Assign higher order derivatives to zero.
 		for(int i = degree + 1; i <= num_ders; i++)
 		{
-			CurveVertex@ cd = @curve_wders[i];
+			PointW@ cd = @curve_wders[i];
 			cd.x = 0;
 			cd.y = 0;
-			cd.weight = 0;
+			cd.w = 0;
 		}
 		
 		// Find the span and corresponding non-zero basis functions & derivatives.
@@ -588,117 +665,36 @@ class BaseCurve
 		const int du = num_ders < degree ? num_ders : degree;
 		for(int i = 0; i <= du; i++)
 		{
-			CurveVertex@ cd = @curve_wders[i];
+			PointW@ cd = @curve_wders[i];
 			cd.x = 0;
 			cd.y = 0;
-			cd.weight = 0;
+			cd.w = 0;
 			
 			for (int j = 0; j <= degree; j++)
 			{
-				CurveVertex@ p = @v[span - degree + j];
+				PointW@ p = @vertices_weighted[span - degree + j];
 				const float der = ders[i][j];
 				
 				cd.x += p.x * der;
 				cd.y += p.y * der;
-				cd.weight += p.weight * der;
+				cd.w += p.w * der;
 			}
-		}
-	}
-	
-	void curve_derivatives_rational(const int num_ders, const int degree, const float u)
-	{
-		const int v_count = closed ? vertex_count + 3 : vertex_count;
-		
-		if(int(curve_ders.length) < num_ders + 1)
-		{
-			curve_ders.resize(num_ders + 1);
-		}
-		
-		// Compute homogenous coordinates of control points.
-		if(int(v.length) < v_count)
-		{
-			v.resize(v_count);
-		}
-		for(int i = 0; i < v_count; i++)
-		{
-			const CurveVertex@ p = @vertices[i % vertex_count];
-			CurveVertex@ vp = @v[i];
-			vp.x = p.x * p.weight;
-			vp.y = p.y * p.weight;
-			vp.weight = p.weight;
-		}
-		
-		// Derivatives of Cw.
-		curve_derivatives(num_ders, degree, u);
-		
-		// Split into coordinates and weights.
-		if(v_ders.length < curve_wders.length)
-		{
-			v_ders.resize(v.length);
-			w_ders.resize(v.length);
-		}
-		for(uint i = 0; i < curve_wders.length; i++)
-		{
-			const CurveVertex@ vp = @curve_wders[i];
-			Point@ vdp = v_ders[i];
-			
-			vdp.x = vp.x;
-			vdp.y = vp.y;
-			w_ders[i] = vp.weight;
-		}
-		
-		// Compute rational derivatives.
-		const float w0 = w_ders[0];
-		for(int i = 0; i <= num_ders; i++)
-		{
-			Point@ v = v_ders[i];
-			for(int j = 1; j <= i; j++)
-			{
-				CurveVertex@ cd = @curve_ders[i - j];
-				const float w = w_ders[j];
-				const float binomial = b_spline_binomial(i, j) * w;
-				v.x -= binomial * cd.x;
-				v.y -= binomial * cd.y;
-			}
-			
-			CurveVertex@ cd = @curve_ders[i];
-			cd.x = v.x / w0;
-			cd.y = v.y / w0;
-		}
-	}
-	
-	void calc_b_spline_tangent(const float t, float &out tangent_x, float &out tangent_y)
-	{
-		const int v_count = closed ? vertex_count + 3 : vertex_count;
-		const int clamp_val = b_spline_clamped && !closed ? 0 : 1;
-		const int degree = clamp(b_spline_degree, 2, v_count - 1);
-		const float u = clamp_val + t * (v_count - degree - clamp_val);
-		
-		curve_derivatives_rational(1, degree, u);
-
-		CurveVertex@ du = @curve_ders[1];
-		tangent_x = du.x;
-		tangent_y = du.y;
-		
-		const float length = sqrt(tangent_x * tangent_x + tangent_y * tangent_y);
-		if(length != 0)
-		{
-			tangent_x /= length;
-			tangent_y /= length;
 		}
 	}
 	
 	private int b_spline_binomial(const int n, const int k)
 	{
-		int result = 1;
 		if(k > n)
 			return 0;
+		
+		int result = 1;
 		
 		for(int i = 1; i <= k; ++i)
 		{
 			result *= (n + 1 - i);
 			result /= i;
 		}
+		
 		return result;
 	}
 	
@@ -736,32 +732,29 @@ class BaseCurve
 	
 	private void b_spline_basis(const int degree, const int span, const float u)
 	{
-		const int size = degree + 1;
+		const uint size = degree + 1;
 		
-		if(int(n.length) < size)
+		while(left.length < size)
 		{
-			n.resize(size);
+			left.resize(left.length * 2);
+			right.resize(right.length * 2);
 		}
-		if(int(left.length) < size)
+		
+		while(basis_list.length < size)
 		{
-			left.resize(size);
-		}
-		if(int(right.length) < size)
-		{
-			right.resize(size);
+			basis_list.resize(basis_list.length * 2);
 		}
 		
 		float saved = 0;
-		//float temp = 0;
 		
-		for(int i = 0; i < size; i++)
+		for(uint i = 0; i < size; i++)
 		{
 			left[i] = 0;
 			right[i] = 0;
-			n[i] = 0;
+			basis_list[i] = 0;
 		}
 		
-		n[0] = 1.0;
+		basis_list[0] = 1.0;
 		
 		for(int j = 1; j <= degree; j++)
 		{
@@ -771,25 +764,22 @@ class BaseCurve
 			
 			for(int r = 0; r < j; r++)
 			{
-				const float temp = n[r] / (right[r + 1] + left[j - r]);
-				n[r] = saved + right[r + 1] * temp;
+				const float temp = basis_list[r] / (right[r + 1] + left[j - r]);
+				basis_list[r] = saved + right[r + 1] * temp;
 				saved = left[j - r] * temp;
 			}
-			n[j] = saved;
+			basis_list[j] = saved;
 		}
 	}
 	
 	private void b_spline_der_basis(const int degree, const int span, const float u, const int num_ders)
 	{
-		const int size = degree + 1;
+		const uint size = degree + 1;
 		
-		if(int(left.length) < size)
+		while(left.length < size)
 		{
-			left.resize(size);
-		}
-		if(int(right.length) < size)
-		{
-			right.resize(size);
+			left.resize(left.length * 2);
+			right.resize(right.length * 2);
 		}
 		
 		float saved = 0;
@@ -824,7 +814,7 @@ class BaseCurve
 			ders[0][i] = ndu[i][degree];
 		}
 		
-		ensure_array_2(@b_a,2, degree + 1);
+		ensure_array_2(@b_a, 2, degree + 1);
 		
 		for(int r = 0; r <= degree; r++)
 		{
@@ -881,23 +871,6 @@ class BaseCurve
 		}
 	}
 	
-	private void ensure_array_2(array<array<float>>@ arr, const uint n1, const uint n2)
-	{
-		if(arr.length >= n1)
-			return;
-		
-		const uint si = arr.length;
-		arr.resize(n1);
-		
-		for(uint i = si; i < n1; i++)
-		{
-			if(arr[i].length < n2)
-			{
-				arr[i].resize(n2);
-			}
-		}
-	}
-	
 	CurveVertex@ get_auto_control_start(CurveVertex@ p_out, const CurveEndControl type)
 	{
 		if(vertex_count == 0)
@@ -947,6 +920,28 @@ class BaseCurve
 		i = int(tt);
 		ti = i < max_i ? tt % 1 : 1.0;
 		i = i < max_i ? i : max_i - 1;
+	}
+	
+	private void ensure_array_2(array<array<float>>@ arr, const uint n1, const uint n2)
+	{
+		if(arr.length >= n1)
+			return;
+		
+		const uint si = arr.length;
+		
+		while(arr.length < n1)
+		{
+			arr.resize(arr.length >= 32 ? arr.length * 2 : 32);
+		}
+		
+		for(uint i = si; i < n1; i++)
+		{
+			array<float>@ arr2 = @arr[i];
+			while(arr2.length < n2)
+			{
+				arr2.resize(arr2.length >= 32 ? arr2.length * 2 : 32);
+			}
+		}
 	}
 	
 }
@@ -1017,6 +1012,14 @@ class Point
 	
 }
 
+/// A point with a weight.
+class PointW : Point
+{
+	
+	float w;
+	
+}
+
 class CurveVertex : Point
 {
 	
@@ -1027,12 +1030,12 @@ class CurveVertex : Point
 	[persist] float tension = 1;
 	
 	/// Has the segment starting with this segment been invalidated/changed, meaning that the arc length
-	/// and look up table need to be recalculated.
+	/// and segments look up table need to be recalculated.
 	bool invalidated = true;
 	/// The approximated length of curve the segment starting with this vertex.
-	float arch_length;
-	/// The lookup table mapping raw t values to real distances/uniform t values along the curve.
-	array<float> arc_lengths;
+	float length;
+	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
+	array<CurveSegment> segments;
 	
 	CurveVertex()
 	{
@@ -1075,5 +1078,15 @@ class CurveVertex : Point
 		y = p.y;
 		return this;
 	}
+	
+}
+
+class CurveSegment
+{
+	
+	/// The real/raw t value of this point relative to its segment.
+	float t_real;
+	/// The uniform t value based on the approximated distance of this point from the start of the segment.
+	float t_uniform;
 	
 }

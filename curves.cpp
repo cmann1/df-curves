@@ -101,20 +101,19 @@ class script
 		{
 			CurveVertex@ p = curve.vertices[i];
 			//p.type = Square;
-			//p.weight = curve.type == CubicBezier
-			//	? map(sin((t + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
-			//	: map(sin((t + PI * 1.5) * 0.4), -1, 1, 0.01, 12);
-			break;
+			p.weight = curve.type == CubicBezier
+				? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
+				: map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.01, 12);
 		}
 		//for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
 		//{
 		//	CurveVertex@ p = curve.cubic_bezier_control_points[i];
-		//	//p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
+		//	p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
 		//}
-		//curve.tension = map(sin((t + PI) * 0.5), -1, 1, 0.2, 2);
+		curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 2);
 		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
-		t += speed * DT;
+		t += speed * 0.25 * DT;
 	}
 	
 	void editor_draw(float _)
@@ -201,13 +200,15 @@ class script
 		}
 		
 		float x, y, nx, ny;
-		curve.calc(abs((t * 0.25) % 2 - 1), x, y, nx, ny);
+		curve.calc(abs(t % 2 - 1), x, y, nx, ny);
+		//curve.calc(t % 1, x, y, nx, ny);
 		draw_dot(g, 22, 22, x, y, 4 * view_mult, 0xffffffff, 45);
 	}
 	
 	void calc_spline()
 	{
 		curve.clear();
+		//curve.closed = false;
 		
 		if(is_rand)
 		{
@@ -226,7 +227,7 @@ class script
 			curve.add_vertex(bx + 100, by - 100);
 			curve.add_vertex(bx + 100, by + 100);
 			curve.add_vertex(bx - 100, by + 100);
-			curve.add_vertex(bx - 300, by + 300);
+			//curve.add_vertex(bx - 300, by + 300);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
