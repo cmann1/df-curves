@@ -1,5 +1,3 @@
-#include '../lib/std.cpp';
-
 #include 'BSplineEvaluator.cpp';
 #include 'CurveTypes.cpp';
 #include 'CurveVertex.cpp';
@@ -10,9 +8,7 @@ class BaseCurve
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
-	// TODO: Move debug drawing methods into here.
 	// TODO: Curve x/y, scale x/y, and rotation.
-	// TODO: Cache and recalculate knot vectors only when needed.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -22,16 +18,6 @@ class BaseCurve
 	
 	/// Do not set directly.
 	[persist] array<CurveVertex> vertices;
-	
-	/// The control points for the quadratic bezier. Will always have `vertex_count` length
-	/// and each item represents the control points to the "right" of corresponding vertex.
-	/// Do not set directly.
-	[persist] array<CurveVertex> quadratic_bezier_control_points;
-	
-	/// The control points for the cubic bezier. Will always have `vertex_count * 2` length
-	/// and each pair represents the corresponding vertex left and right control points.
-	/// Do not set directly.
-	[persist] array<CurveVertex> cubic_bezier_control_points;
 	
 	[persist] CurveEndControl _end_controls = AutomaticAngle;
 	
@@ -56,6 +42,26 @@ class BaseCurve
 	/// The total (approximate) length of this curve.
 	/// Is only valid after the `update` is called.
 	float length;
+	
+	// -- Debug drawing stuff.
+	
+	float db_control_point_size = 2;
+	float db_control_point_line_width = 1;
+	float db_line_width = 1;
+	float db_normal_width = 1;
+	float db_normal_length = 12;
+	float db_outline_width = 1;
+	float db_vertex_size = 3;
+	int curve_segments = 18;
+	uint db_line_clr = 0xffffffff;
+	uint db_normal_clr = 0xaaff0000;
+	uint db_outline_clr = 0x88999999;
+	uint db_vertex_clr = 0xffff00ff;
+	uint db_quad_cp_clr = 0xffff0000;
+	uint db_cubic_cp1_clr = 0xffff0000;
+	uint db_cubic_cp2_clr = 0xff0000ff;
+	
+	// -
 	
 	/// One or more segments on this curve have been changed and need to be updated.
 	private bool invalidated;
@@ -103,7 +109,7 @@ class BaseCurve
 			
 			_type = value;
 			
-			calc_bezier_control_points();
+			init_bezier_control_points();
 		}
 	}
 	
@@ -156,11 +162,11 @@ class BaseCurve
 		get { return vertex_count > 0 ? vertices[vertex_count - 1] : null; }
 	}
 	
+	// --
+	
 	void clear()
 	{
 		vertices.resize(0);
-		cubic_bezier_control_points.resize(0);
-		quadratic_bezier_control_points.resize(0);
 		vertex_count = 0;
 		
 		control_point_start.type = None;
@@ -174,14 +180,10 @@ class BaseCurve
 		vertices.insertLast(CurveVertex(x, y));
 		vertex_count++;
 		
-		cubic_bezier_control_points.insertLast(CurveVertex(NAN, NAN));
-		cubic_bezier_control_points.insertLast(CurveVertex(NAN, NAN));
-		quadratic_bezier_control_points.insertLast(CurveVertex(NAN, NAN));
-		
-		calc_bezier_control_points();
+		init_bezier_control_points();
 		
 		invalidated = true;
-		invalidated_knots = true;
+		invalidate_b_spline(true);
 	}
 	
 	/// Call after changing anything about this curve to trigger an `update`.
@@ -201,59 +203,34 @@ class BaseCurve
 		invalidate_b_spline();
 	}
 	
-	private void invalidate_b_spline(const bool also_invalidate_knots=false)
-	{
-		if(also_invalidate_knots)
-		{
-			invalidated_knots = true;
-		}
-		
-		if(@b_spline != null)
-		{
-			b_spline.invalidate_vertices();
-		}
-	}
-	
-	/// 
-	void calc_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
+	/// Call to update/calcualte some simple initial positions for new control points.
+	/// Make sure to call this or manually set control points after adding vertices as control points default to NAN.
+	/// If `force` is true all control points will be recalculated, otherwise only newly added ones will be.
+	void init_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
 		switch(_type)
 		{
 			case CurveType::CubicBezier:
-				calc_cubic_bezier_control_points(force, from_index, count);
+				init_cubic_bezier_control_points(force, from_index, count);
 				break;
 			case CurveType::QuadraticBezier:
-				calc_quadratic_bezier_control_points(force, from_index, count);
+				init_quadratic_bezier_control_points(force, from_index, count);
 				break;
 		}
 	}
 	
-	/// 
-	void calc_cubic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
+	/// Use `init_bezier_control_points` instead to intialise control points for the current type.
+	void init_cubic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
-		if(vertex_count == 1 && from_index == 0)
-		{
-			CurveVertex@ cp1 = @cubic_bezier_control_points[0];
-			CurveVertex@ cp2 = @cubic_bezier_control_points[1];
-			if(force || is_nan(cp1.x))
-			{
-				cp1.x = -50;
-				cp1.y = -25;
-			}
-			if(force || is_nan(cp2.x))
-			{
-				cp2.x = 50;
-				cp2.y = 25;
-			}
+		if(vertex_count <= 1)
 			return;
-		}
 		
 		const int end = from_index + count < vertex_count ? from_index + count : vertex_count;
 		for(int i = from_index; i < end; i++)
 		{
-			const CurveVertex@ p1 = @vertices[i];
-			CurveVertex@ cp1 = @cubic_bezier_control_points[i * 2];
-			CurveVertex@ cp2 = @cubic_bezier_control_points[i * 2 + 1];
+			CurveVertex@ p1 = @vertices[i];
+			CurveControlPoint@ cp1 = p1.cubic_control_point_1;
+			CurveControlPoint@ cp2 = p1.cubic_control_point_2;
 			
 			if(!force && !is_nan(cp1.x) && !is_nan(cp2.x))
 				continue;
@@ -277,14 +254,14 @@ class BaseCurve
 		}
 	}
 	
-	/// 
-	void calc_quadratic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
+	/// Use `init_bezier_control_points` instead to intialise control points for the current type.
+	void init_quadratic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
 		const int end = from_index + count < vertex_count ? from_index + count : vertex_count;
 		for(int i = from_index; i < end; i++)
 		{
-			const CurveVertex@ p1 = @vertices[i];
-			CurveVertex@ cp = @quadratic_bezier_control_points[i];
+			CurveVertex@ p1 = @vertices[i];
+			CurveControlPoint@ cp = p1.quad_control_point;
 			
 			if(!force && !is_nan(cp.x))
 				continue;
@@ -302,7 +279,8 @@ class BaseCurve
 		}
 	}
 	
-	void calc(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	/// Evaluate the curve at the given t value and return the position and normal.
+	void eval(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 0)
 		{
@@ -325,19 +303,19 @@ class BaseCurve
 		switch(_type)
 		{
 			case Linear:
-				calc_linear(t, x, y, normal_x, normal_y);
+				eval_linear(t, x, y, normal_x, normal_y);
 				break;
 			case QuadraticBezier:
-				calc_quadratic_bezier(t, x, y, normal_x, normal_y);
+				eval_quadratic_bezier(t, x, y, normal_x, normal_y);
 				break;
 			case CubicBezier:
-				calc_cubic_bezier(t, x, y, normal_x, normal_y);
+				eval_cubic_bezier(t, x, y, normal_x, normal_y);
 				break;
 			case CatmullRom:
-				calc_catmull_rom(t, x, y, normal_x, normal_y);
+				eval_catmull_rom(t, x, y, normal_x, normal_y);
 				break;
 			case BSpline:
-				calc_b_spline(t, x, y, normal_x, normal_y);
+				eval_b_spline(t, x, y, normal_x, normal_y);
 				break;
 			default:
 				x = 0;
@@ -348,7 +326,7 @@ class BaseCurve
 		}
 	}
 	
-	void calc_linear(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_linear(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -373,7 +351,7 @@ class BaseCurve
 		}
 	}
 	
-	void calc_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 2)
 		{
@@ -398,7 +376,7 @@ class BaseCurve
 		const CurveVertex@ p2 = vert(i, 1);
 		
 		// Get control points.
-		const CurveVertex@ p0 = p1.type != Square
+		const CurveControlPoint@ p0 = p1.type != Square
 			? closed || i > 0
 				? vert(i, -1)
 				: _end_controls != Manual
@@ -406,7 +384,7 @@ class BaseCurve
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
 					: check_control_point_start()
 			: p1;
-		const CurveVertex@ p3 = p2.type != Square
+		const CurveControlPoint@ p3 = p2.type != Square
 			? closed || i < vertex_count - 2
 				? vert(i, 2)
 				: _end_controls != Manual
@@ -451,7 +429,7 @@ class BaseCurve
 		}
 	}
 	
-	void calc_quadratic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_quadratic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -462,7 +440,7 @@ class BaseCurve
 		const CurveVertex@ p2 = vert(i, 1);
 		
 		// Get control points.
-		const CurveVertex@ cp = quadratic_bezier_control_points[i];
+		const CurveControlPoint@ cp = p1.quad_control_point;
 		const float cpx = p1.x + cp.x;
 		const float cpy = p1.y + cp.y;
 		
@@ -507,7 +485,7 @@ class BaseCurve
 		}
 	}
 	
-	void calc_cubic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_cubic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -519,11 +497,11 @@ class BaseCurve
 		const CurveVertex@ p2 = vert(i, 1);
 		
 		// Get control points.
-		const CurveVertex@ cp1 = p1.type != Square
-			? cubic_bezier_control_points[i2 + 1]
+		const CurveControlPoint@ cp1 = p1.type != Square
+			? p1.cubic_control_point_2
 			: p1;
-		const CurveVertex@ cp2 = p2.type != Square
-			? cubic_bezier_control_points[mod(i + 1, vertex_count) * 2]
+		const CurveControlPoint@ cp2 = p2.type != Square
+			? p2.cubic_control_point_1
 			: p2;
 		const float cp1x = p1.x + cp1.x;
 		const float cp1y = p1.y + cp1.y;
@@ -587,11 +565,11 @@ class BaseCurve
 		}
 	}
 	
-	void calc_b_spline(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_b_spline(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(b_spline_degree <= 1)
 		{
-			calc_linear(t, x, y, normal_x, normal_y);
+			eval_linear(t, x, y, normal_x, normal_y);
 			return;
 		}
 		
@@ -611,6 +589,8 @@ class BaseCurve
 			@vertices, vertex_count,
 			b_spline_degree, b_spline_clamped, closed);
 	}
+	
+	// 
 	
 	CurveVertex@ get_auto_control_start(CurveVertex@ p_out, const CurveEndControl type)
 	{
@@ -641,6 +621,178 @@ class BaseCurve
 		return vertices[((i + offset) % vertex_count + vertex_count) % vertex_count];
 	}
 	
+	/// Simple method to draw the curve, vertices, control points, and normals.
+	/// Use the `db_**` fields to control how drawing is done.
+	/// Setting any of the size < 0 will disable drawing of that element.
+	void debug_draw(
+		canvas@ c,
+		const float draw_zoom=1)
+	{
+		if(db_control_point_size > 0)
+		{
+			for(int i = 0; i < vertex_count; i++)
+			{
+				if(type == CurveType::QuadraticBezier)
+				{
+					if(!closed && i == vertex_count - 1)
+						continue;
+					
+					CurveVertex@ p = vertices[i];
+					CurveControlPoint@ cp = p.quad_control_point;
+					
+					if(db_control_point_line_width > 0)
+					{
+						c.draw_line(p.x, p.y, p.x + cp.x, p.y + cp.y, db_control_point_line_width * draw_zoom, multiply_alpha(db_quad_cp_clr, 0.5));
+						
+						if(int(i) < vertex_count - 1 || closed)
+						{
+							CurveVertex@ p2 = vert(i, 1);
+							c.draw_line(p2.x, p2.y, p.x + cp.x, p.y + cp.y, 1 * draw_zoom, multiply_alpha(db_quad_cp_clr, 0.5));
+						}
+					}
+					
+					if(db_control_point_size > 0)
+					{
+						c.draw_rectangle(
+							p.x + cp.x - db_control_point_size, p.y + cp.y - db_control_point_size * draw_zoom,
+							p.x + cp.x + db_control_point_size, p.y + cp.y + db_control_point_size * draw_zoom,
+							45, db_quad_cp_clr);
+					}
+				}
+				else if(type == CurveType::CubicBezier)
+				{
+					CurveVertex@ p = vertices[i];
+					Point@ cp1 = p.cubic_control_point_1;
+					Point@ cp2 = p.cubic_control_point_2;
+					
+					if(closed || i > 0)
+					{
+						c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, db_control_point_line_width * draw_zoom, multiply_alpha(db_cubic_cp1_clr, 0.5));
+						c.draw_rectangle(
+							p.x + cp1.x - db_control_point_size * draw_zoom, p.y + cp1.y - db_control_point_size * draw_zoom,
+							p.x + cp1.x + db_control_point_size * draw_zoom, p.y + cp1.y + db_control_point_size * draw_zoom,
+							45, db_cubic_cp1_clr);
+					}
+					if(closed || i < vertex_count - 1)
+					{
+						c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, db_control_point_line_width * draw_zoom, multiply_alpha(db_cubic_cp2_clr, 0.5));
+						c.draw_rectangle(
+							p.x + cp2.x - db_control_point_size * draw_zoom, p.y + cp2.y - db_control_point_size * draw_zoom,
+							p.x + cp2.x + db_control_point_size * draw_zoom, p.y + cp2.y + db_control_point_size * draw_zoom,
+							45, db_cubic_cp1_clr);
+					}
+				}
+			}
+			
+			if(type == CatmullRom && !closed && (db_control_point_line_width > 0 || db_control_point_size > 0))
+			{
+				if(end_controls == CurveEndControl::Manual)
+				{
+					if(db_control_point_line_width > 0)
+					{
+						c.draw_line(
+							first_vertex.x, first_vertex.y, control_point_start.x, control_point_start.y, db_control_point_line_width * draw_zoom,
+							multiply_alpha(db_cubic_cp1_clr, 0.85));
+						c.draw_line(
+							last_vertex.x, last_vertex.y, control_point_end.x, control_point_end.y, db_control_point_line_width * draw_zoom,
+							multiply_alpha(db_cubic_cp1_clr, 0.85));
+					}
+					
+					if(db_control_point_size > 0)
+					{
+						c.draw_rectangle(
+							control_point_start.x - db_control_point_size * draw_zoom, control_point_start.y - db_control_point_size * draw_zoom,
+							control_point_start.x + db_control_point_size * draw_zoom, control_point_start.y + db_control_point_size * draw_zoom,
+							45, multiply_alpha(db_cubic_cp1_clr, 0.5));
+						c.draw_rectangle(
+							control_point_end.x - db_control_point_size * draw_zoom, control_point_end.y - db_control_point_size * draw_zoom,
+							control_point_end.x + db_control_point_size * draw_zoom, control_point_end.y + db_control_point_size * draw_zoom,
+							45, multiply_alpha(db_cubic_cp1_clr, 0.5));
+					}
+				}
+				else
+				{
+					get_auto_control_start(p0, end_controls);
+					get_auto_control_end(p3, end_controls);
+					
+					if(db_control_point_line_width > 0)
+					{
+						c.draw_line(first_vertex.x, first_vertex.y, p0.x, p0.y, db_control_point_line_width * draw_zoom, multiply_alpha(db_cubic_cp1_clr, 0.5));
+						c.draw_line(last_vertex.x, last_vertex.y, p3.x, p3.y, db_control_point_line_width * draw_zoom, multiply_alpha(db_cubic_cp1_clr, 0.5));
+					}
+					
+					if(db_control_point_size > 0)
+					{
+						c.draw_rectangle(
+							p0.x - db_control_point_size * draw_zoom, p0.y - db_control_point_size * draw_zoom,
+							p0.x + db_control_point_size * draw_zoom, p0.y + db_control_point_size * draw_zoom,
+							45, multiply_alpha(db_cubic_cp1_clr, 0.5));
+						c.draw_rectangle(
+							p3.x - db_control_point_size * draw_zoom, p3.y - db_control_point_size * draw_zoom,
+							p3.x + db_control_point_size * draw_zoom, p3.y + db_control_point_size * draw_zoom,
+							45, multiply_alpha(db_cubic_cp1_clr, 0.5));
+					}
+				}
+			}
+		}
+		
+		if(db_line_width > 0 && curve_segments > 0)
+		{
+			float x1 = 0;
+			float y1 = 0;
+			const int count = curve_segments * (vertex_count - (closed ? 0 : 1));
+			
+			for(int i = 0; i <= count; i++)
+			{
+				const float t = float(i) / count;
+				float x2, y2, nx, ny;
+				eval(t, x2, y2, nx, ny);
+				
+				if(db_normal_width > 0 && db_normal_length > 0)
+				{
+					const float l = db_normal_length * draw_zoom;
+					c.draw_line(x2, y2, x2 + nx * l, y2 + ny * l, db_normal_width * draw_zoom, db_normal_clr);
+				}
+				
+				if(i > 0)
+				{
+					c.draw_line(x1, y1, x2, y2, db_line_width * draw_zoom, db_line_clr);
+				}
+				
+				x1 = x2;
+				y1 = y2;
+			}
+		}
+		
+		if(db_outline_width > 0 && vertex_count > 0 && type != CurveType::Linear)
+		{
+			CurveVertex@ p1 = vertices[0];
+			
+			for(int i = 1; i < vertex_count; i++)
+			{
+				CurveVertex@ p2 = vertices[i];
+				
+				c.draw_line(p1.x, p1.y, p2.x, p2.y, db_outline_width * draw_zoom, db_outline_clr);
+				
+				@p1 = p2;
+			}
+		}
+		
+		if(db_vertex_size > 0)
+		{
+			for(int i = 0; i < vertex_count; i++)
+			{
+				CurveVertex@ p = vertices[i];
+				c.draw_rectangle(
+					p.x - db_vertex_size * draw_zoom, p.y - db_vertex_size * draw_zoom,
+					p.x + db_vertex_size * draw_zoom, p.y + db_vertex_size * draw_zoom,
+					45, db_vertex_clr);
+			}
+		}
+	}
+	
+	// --
+	
 	private CurveVertex@ check_control_point_start()
 	{
 		if(control_point_start.type != None)
@@ -659,13 +811,35 @@ class BaseCurve
 		return get_auto_control_end(control_point_end, CurveEndControl::AutomaticAngle);
 	}
 	
+	private void invalidate_b_spline(const bool also_invalidate_knots=false)
+	{
+		if(also_invalidate_knots)
+		{
+			invalidated_knots = true;
+		}
+		
+		if(@b_spline != null)
+		{
+			b_spline.invalidate_vertices();
+		}
+	}
+	
 	/// Recalculates all values on all invalidated segments when necessary.
 	private void update()
 	{
 		if(!invalidated)
 			return;
 		
-		
+		for(int i = 0; i < vertex_count; i++)
+		{
+			CurveVertex@ v = vertices[i];
+			
+			if(v.invalidated)
+			{
+				
+				v.invalidated = false;
+			}
+		}
 		
 		invalidated = false;
 	}

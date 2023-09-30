@@ -14,9 +14,10 @@ class script
 	input_api@ input;
 	editor_api@ editor;
 	camera@ cam;
+	canvas@ c;
 	Mouse mouse;
 	float zoom;
-	float view_mult;
+	float draw_zoom = 1;
 	
 	[persist] float speed = 1;
 	BaseCurve curve;
@@ -31,6 +32,7 @@ class script
 		@g = get_scene();
 		@input = get_input_api();
 		@editor = get_editor_api();
+		@c = create_canvas(false, 22, 22);
 		mouse.use_input(input);
 		
 		curve.type = BSpline;
@@ -42,7 +44,7 @@ class script
 	void editor_step()
 	{
 		zoom = cam.editor_zoom();
-		view_mult = 1 / zoom;
+		draw_zoom = 1 / zoom;
 		
 		const bool space = input.key_check_gvb(GVB::Space);
 		const bool block_mouse = editor.mouse_in_gui() || space;
@@ -119,91 +121,12 @@ class script
 	
 	void editor_draw(float _)
 	{
-		if(curve.type == QuadraticBezier)
-		{
-			for(uint i = 0; i < curve.quadratic_bezier_control_points.length; i++)
-			{
-				if(!curve.closed && i == curve.quadratic_bezier_control_points.length - 1)
-					continue;
-				
-				const uint clr = 0xffff0000;
-				CurveVertex@ p = curve.vertices[i];
-				Point@ cp = @curve.quadratic_bezier_control_points[i];
-				g.draw_line_world(22, 22, p.x, p.y, p.x + cp.x, p.y + cp.y, 1 * view_mult, multiply_alpha(clr, 0.5));
-				if(int(i) < curve.vertex_count - 1 || curve.closed)
-				{
-					CurveVertex@ p2 = curve.vert(i, 1);
-					g.draw_line_world(22, 22, p2.x, p2.y, p.x + cp.x, p.y + cp.y, 1 * view_mult, multiply_alpha(clr, 0.5));
-				}
-				draw_dot(g, 22, 22, p.x + cp.x, p.y + cp.y, 2 * view_mult, clr, 45);
-			}
-		}
-		else if(curve.type == CubicBezier)
-		{
-			for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
-			{
-				if(!curve.closed && (i == 0 || i == curve.cubic_bezier_control_points.length - 1))
-					continue;
-				
-				const uint clr = i % 2 == 0 ? 0xffff0000 : 0xff0000ff;
-				CurveVertex@ p = curve.vertices[i / 2];
-				Point@ cp = @curve.cubic_bezier_control_points[i];
-				g.draw_line_world(22, 22, p.x, p.y, p.x + cp.x, p.y + cp.y, 1 * view_mult, multiply_alpha(clr, 0.5));
-				draw_dot(g, 22, 22, p.x + cp.x, p.y + cp.y, 2 * view_mult, clr, 45);
-			}
-		}
-		
-		float x1 = 0;
-		float y1 = 0;
-		const int count = 18 * (curve.vertices.length - (curve.closed ? 0 : 1));
-		for(int i = 0; i <= count; i++)
-		{
-			const float t = float(i) / count;
-			float x2, y2, nx, ny;
-			curve.calc(t, x2, y2, nx, ny);
-			
-			const float l = 12 * view_mult;
-			g.draw_line_world(22, 22, x2 - nx * l * 0.0, y2 - ny * l * 0.0, x2 + nx * l, y2 + ny * l, 1 * view_mult, 0xaaff0000);
-			
-			if(i > 0)
-			{
-				g.draw_line_world(22, 22, x1, y1, x2, y2, 1 * view_mult, 0xffffffff);
-			}
-			
-			x1 = x2;
-			y1 = y2;
-		}
-		
-		for(uint i = 0; i < curve.vertices.length; i++)
-		{
-			draw_dot(g, 22, 22, curve.vertices[i].x, curve.vertices[i].y, 3 * view_mult, 0xffff00ff, 45);
-		}
-		
-		if(curve.type == CatmullRom && !curve.closed)
-		{
-			if(curve.end_controls == CurveEndControl::Manual)
-			{
-				draw_dot(g, 22, 22, curve.control_point_start.x, curve.control_point_start.y, 3 * view_mult, 0xffff00ff, 45);
-				draw_dot(g, 22, 22, curve.control_point_end.x, curve.control_point_end.y, 3 * view_mult, 0xffff00ff, 45);
-				g.draw_line_world(22, 22, curve.first_vertex.x, curve.first_vertex.y, curve.control_point_start.x, curve.control_point_start.y, 1 * view_mult, 0x99ffffff);
-				g.draw_line_world(22, 22, curve.last_vertex.x, curve.last_vertex.y, curve.control_point_end.x, curve.control_point_end.y, 1 * view_mult, 0x99ffffff);
-			}
-			else
-			{
-				CurveVertex p;
-				curve.get_auto_control_start(p, curve.end_controls);
-				draw_dot(g, 22, 22, p.x, p.y, 2 * view_mult, 0xaaff00ff, 45);
-				g.draw_line_world(22, 22, curve.first_vertex.x, curve.first_vertex.y, p.x, p.y, 1 * view_mult, 0x55ffffff);
-				curve.get_auto_control_end(p, curve.end_controls);
-				draw_dot(g, 22, 22, p.x, p.y, 2 * view_mult, 0xaaff00ff, 45);
-				g.draw_line_world(22, 22, curve.last_vertex.x, curve.last_vertex.y, p.x, p.y, 1 * view_mult, 0x55ffffff);
-			}
-		}
+		curve.debug_draw(c, draw_zoom);
 		
 		float x, y, nx, ny;
-		curve.calc(abs(t % 2 - 1), x, y, nx, ny);
+		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
 		//curve.calc(t % 1, x, y, nx, ny);
-		draw_dot(g, 22, 22, x, y, 4 * view_mult, 0xffffffff, 45);
+		draw_dot(g, 22, 22, x, y, 4 * draw_zoom, 0xffffffff, 45);
 	}
 	
 	void calc_spline()
@@ -234,7 +157,7 @@ class script
 			//curve.add_vertex(bx + 100, by + 100);
 		}
 		
-		curve.calc_bezier_control_points(true);
+		curve.init_bezier_control_points(true);
 	}
 	
 }

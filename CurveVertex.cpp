@@ -1,11 +1,34 @@
-class CurveVertex : Point
+class CurveControlPoint : Point
 {
 	
-	[option,1:Square,Manual,Smooth,Mirror] CurveVertexType type = Smooth;
 	/// The weight for either conic quadratic beziers or b-splines for the segment starting at this vertex.
 	[persist] float weight = 1;
+	
+	CurveControlPoint() { }
+	
+	CurveControlPoint(const float x, const float y)
+	{
+		this.x = x;
+		this.y = y;
+	}
+	
+}
+
+class CurveVertex : CurveControlPoint
+{
+	
+	[option,1:Square,Manual,Smooth,Mirror]
+	CurveVertexType type = Smooth;
 	/// A per-segment tension for CatmullRom splines/
 	[persist] float tension = 1;
+	
+	/// The right hand side control point for this vertex. Only applicable to quadratic bezier curves.
+	[persist] CurveControlPoint quad_control_point(NAN, NAN);
+	
+	/// The left hand side control point for this vertex. Only applicable to cubic bezier curves.
+	[persist] CurveControlPoint cubic_control_point_1(NAN, NAN);
+	/// The right hand side control point for this vertex. Only applicable to cubic bezier curves.
+	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
 	
 	/// Has the segment starting with this segment been invalidated/changed, meaning that the arc length
 	/// and segments look up table need to be recalculated.
@@ -13,6 +36,7 @@ class CurveVertex : Point
 	
 	/// The approximated length of curve the segment starting with this vertex.
 	float length;
+	
 	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
 	array<CurveSegment> segments;
 	int segments_count;
