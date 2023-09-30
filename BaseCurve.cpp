@@ -116,7 +116,7 @@ class BaseCurve
 				return;
 			
 			_closed = value;
-			invalidated_knots = true;
+			invalidate_b_spline(true);
 		}
 	}
 	
@@ -129,7 +129,7 @@ class BaseCurve
 				return;
 			
 			_b_spline_degree = value;
-			invalidated_knots = true;
+			invalidate_b_spline(true);
 		}
 	}
 	
@@ -142,7 +142,7 @@ class BaseCurve
 				return;
 			
 			_b_spline_clamped = value;
-			invalidated_knots = true;
+			invalidate_b_spline(true);
 		}
 	}
 	
@@ -165,6 +165,8 @@ class BaseCurve
 		
 		control_point_start.type = None;
 		control_point_end.type = None;
+		
+		invalidate();
 	}
 	
 	void add_vertex(const float x, const float y)
@@ -194,6 +196,21 @@ class BaseCurve
 		for(int i = start; i < end; i++)
 		{
 			vertices[i].invalidated = true;
+		}
+		
+		invalidate_b_spline();
+	}
+	
+	private void invalidate_b_spline(const bool also_invalidate_knots=false)
+	{
+		if(also_invalidate_knots)
+		{
+			invalidated_knots = true;
+		}
+		
+		if(@b_spline != null)
+		{
+			b_spline.invalidate_vertices();
 		}
 	}
 	

@@ -16,6 +16,8 @@ class BSpline
 	private array<float> left(32);
 	private array<float> right(32);
 	
+	private bool invalidated_weights = true;
+	
 	void calc(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		array<CurveVertex>@ vertices, const int vertex_count,
@@ -25,19 +27,24 @@ class BSpline
 		init_params(v_count, clamp_val, degree, vertex_count, degrees, clamped, closed);
 		const float u = clamp_val + t * (v_count - degree - (closed ? clamp_val : 0));
 		
-		// Compute points using homogenous coordinates.
-		while(int(vertices_weighted.length) < v_count)
+		if(invalidated_weights)
 		{
-			vertices_weighted.resize(vertices_weighted.length * 2);
-		}
-		
-		for(int i = 0; i < v_count; i++)
-		{
-			PointW@ vp = @vertices_weighted[i];
-			CurveVertex@ p = @vertices[i % vertex_count];
-			vp.x = p.x * p.weight;
-			vp.y = p.y * p.weight;
-			vp.w = p.weight;
+			// Compute points using homogenous coordinates.
+			while(int(vertices_weighted.length) < v_count)
+			{
+				vertices_weighted.resize(vertices_weighted.length * 2);
+			}
+			
+			for(int i = 0; i < v_count; i++)
+			{
+				PointW@ vp = @vertices_weighted[i];
+				CurveVertex@ p = @vertices[i % vertex_count];
+				vp.x = p.x * p.weight;
+				vp.y = p.y * p.weight;
+				vp.w = p.weight;
+			}
+			
+			invalidated_weights = false;
 		}
 		
 		// Find span and corresponding non-zero basis functions
@@ -98,6 +105,12 @@ class BSpline
 			// To do this make sure the first and last knot are repeated `degree + 1` times.
 			knots[i] = min(max(i - degree_valid + clamp_val, 0), knots_length - (degree_valid - clamp_val) * 2 - 1);
 		}
+	}
+	
+	/// Call any time the number of, position, or weight of any vertices changes.
+	void invalidate_vertices()
+	{
+		invalidated_weights = true;
 	}
 	
 	private void init_params(

@@ -105,6 +105,7 @@ class script
 				? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
 				: map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.01, 12);
 		}
+		curve.invalidate();
 		//for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
 		//{
 		//	CurveVertex@ p = curve.cubic_bezier_control_points[i];
