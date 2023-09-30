@@ -1,12 +1,11 @@
 
 	/// The smoothness of the b-spline. Must be > 1 and < `vertex_count`.
-	[persist] int b_spline_degree = 3;
+	[persist] int b_spline_degree = 2;
 	
 	private array<float> knots;
 	private array<CurveVertex> v;
 	private array<CurveVertex> curve_wders;
 	private array<CurveVertex> curve_ders;
-	private array<CurveVertex> curve_ders_o;
 	private array<array<float>> ndu;
 	private array<array<float>> ders;
 	private array<array<float>> b_a;
@@ -29,14 +28,11 @@
 			knots.resize(knots_length);
 		}
 		
-		//if(t==0) puts('--');
 		for(int i = 0; i < knots_length; i++)
 		{
 			// A clamped b-spline touches the first and last vertices.
 			// To do this make sure the first and last knot are repeated `degree + 1` times.
 			knots[i] = min(max(i - degree, 0), knots_length - (degree) * 2 - 1);
-			//if(t==0) puts('  '+i+' '+knots[i]);
-			//knots[i] = i;
 		}
 		//knots[0] = 0;
 		//knots[1] = 0;
@@ -46,16 +42,6 @@
 		//knots[5] = 3;
 		//knots[6] = 3;
 		//knots[7] = 3;
-		
-		knots[0] = 0;
-		knots[1] = 0;
-		knots[2] = 0;
-		knots[3] = 0;
-		knots[4] = 1;
-		knots[5] = 2;
-		knots[6] = 2;
-		knots[7] = 2;
-		knots[8] = 2;
 		
 		// Compute points using homogenous coordinates.
 		if(int(v.length) < vertex_count)
@@ -148,10 +134,6 @@
 		{
 			curve_ders.resize(num_ders + 1);
 		}
-		if(int(curve_ders_o.length) < num_ders + 1)
-		{
-			curve_ders_o.resize(num_ders + 1);
-		}
 		
 		// Compute homogenous coordinates of control points.
 		if(int(v.length) < vertex_count)
@@ -200,7 +182,7 @@
 				v.y -= binomial * cd.y;
 			}
 			
-			CurveVertex@ cd = @curve_ders_o[i];
+			CurveVertex@ cd = @curve_ders[i];
 			cd.x = v.x / w0;
 			cd.y = v.y / w0;
 		}
@@ -213,7 +195,7 @@
 		
 		curve_derivatives_rational(1, degree, u);
 
-		CurveVertex@ du = @curve_ders_o[1];
+		CurveVertex@ du = @curve_ders[1];
 		tangent_x = du.x;
 		tangent_y = du.y;
 		
