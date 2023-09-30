@@ -83,7 +83,6 @@ class BSpline
 		array<CurveVertex>@ vertices, const int vertex_count,
 		const int degree, const bool clamped, const bool closed)
 	{
-		puts('GENERATING KNOTS');
 		int v_count, clamp_val, degree_valid;
 		init_params(v_count, clamp_val, degree_valid, vertex_count, degree, clamped, closed);
 		
