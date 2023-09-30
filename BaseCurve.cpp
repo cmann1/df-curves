@@ -1,6 +1,6 @@
 #include '../lib/std.cpp';
 
-#include 'BSpline.cpp';
+#include 'BSplineEvaluator.cpp';
 #include 'CurveTypes.cpp';
 #include 'CurveVertex.cpp';
 #include 'Point.cpp';
@@ -63,7 +63,7 @@ class BaseCurve
 	/// THe knot vector requires regneration after vertices are added/removed.
 	private bool invalidated_knots;
 	
-	private BSpline@ b_spline;
+	private BSplineEvaluator@ b_spline;
 	
 	/// Temp points used when calculating automatic end control points.
 	private CurveVertex p0;
@@ -587,7 +587,6 @@ class BaseCurve
 		}
 	}
 	
-	/// https://github.com/pradeep-pyro/tinynurbs/tree/master
 	void calc_b_spline(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(b_spline_degree <= 1)
@@ -598,7 +597,7 @@ class BaseCurve
 		
 		if(@b_spline == null)
 		{
-			@b_spline= BSpline();
+			@b_spline = BSplineEvaluator();
 		}
 		
 		if(invalidated_knots)

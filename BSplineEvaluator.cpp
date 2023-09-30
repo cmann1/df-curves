@@ -1,4 +1,5 @@
-class BSpline
+/// https://github.com/pradeep-pyro/tinynurbs/tree/master
+class BSplineEvaluator
 {
 	
 	private array<float> knots(32);
@@ -93,6 +94,7 @@ class BSpline
 		int v_count, clamp_val, degree_valid;
 		init_params(v_count, clamp_val, degree_valid, vertex_count, degree, clamped, closed);
 		
+		const uint st = get_time_us();
 		knots_length = v_count + degree_valid + 1;
 		while(int(knots.length) < knots_length)
 		{
