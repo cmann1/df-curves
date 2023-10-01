@@ -121,7 +121,7 @@ class script
 	
 	void editor_draw(float _)
 	{
-		curve.debug_draw(c, draw_zoom);
+		debug_draw.draw(c, curve, draw_zoom);
 		
 		float x, y, nx, ny;
 		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
