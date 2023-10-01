@@ -348,6 +348,7 @@ class BaseCurve
 		}
 	}
 	
+	/// https://pomax.github.io/bezierinfo/#catmullconv
 	void eval_catmull_rom(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const EvalReturnType return_type=EvalReturnType::Both)
