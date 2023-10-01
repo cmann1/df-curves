@@ -1,7 +1,6 @@
-class CurveControlPoint : Point
+class CurveControlPoint : CurvePoint
 {
 	
-	/// The weight for either conic quadratic beziers or b-splines for the segment starting at this vertex.
 	[persist] float weight = 1;
 	
 	CurveControlPoint() { }

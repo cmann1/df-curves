@@ -5,14 +5,14 @@ class BSplineEvaluator
 	private array<float> knots(32);
 	private int knots_length;
 	
-	private array<PointW> vertices_weighted(32);
-	private array<PointW> curve_wders(32);
-	private array<PointW> curve_ders(32);
+	private array<CurvePointW> vertices_weighted(32);
+	private array<CurvePointW> curve_wders(32);
+	private array<CurvePointW> curve_ders(32);
 	private array<array<float>> ndu;
 	private array<array<float>> ders;
 	private array<array<float>> b_a;
 	private array<float> basis_list(32);
-	private array<Point> v_ders(32);
+	private array<CurvePoint> v_ders(32);
 	private array<float> w_ders(32);
 	private array<float> left(32);
 	private array<float> right(32);
@@ -38,7 +38,7 @@ class BSplineEvaluator
 			
 			for(int i = 0; i < v_count; i++)
 			{
-				PointW@ vp = @vertices_weighted[i];
+				CurvePointW@ vp = @vertices_weighted[i];
 				CurveVertex@ p = @vertices[i % vertex_count];
 				vp.x = p.x * p.weight;
 				vp.y = p.y * p.weight;
@@ -60,7 +60,7 @@ class BSplineEvaluator
 		// Compute point.
 		for(int i = 0; i <= degree; i++)
 		{
-			PointW@ p = vertices_weighted[span - degree + i];
+			CurvePointW@ p = vertices_weighted[span - degree + i];
 			const float ni = basis_list[i];
 			x += p.x * ni;
 			y += p.y * ni;
@@ -76,7 +76,7 @@ class BSplineEvaluator
 			vertex_count,
 			u, 1, degree, closed);
 
-		PointW@ du = @curve_ders[1];
+		CurvePointW@ du = @curve_ders[1];
 		normal_x = du.y;
 		normal_y = -du.x;
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
@@ -141,8 +141,8 @@ class BSplineEvaluator
 		}
 		for(uint i = 0; i < curve_wders.length; i++)
 		{
-			const PointW@ vp = @curve_wders[i];
-			Point@ vdp = v_ders[i];
+			const CurvePointW@ vp = @curve_wders[i];
+			CurvePoint@ vdp = v_ders[i];
 			
 			vdp.x = vp.x;
 			vdp.y = vp.y;
@@ -159,23 +159,23 @@ class BSplineEvaluator
 		const float w0 = w_ders[0];
 		for(int i = 0; i <= num_ders; i++)
 		{
-			Point@ v = v_ders[i];
+			CurvePoint@ v = v_ders[i];
 			for(int j = 1; j <= i; j++)
 			{
-				PointW@ cd = @curve_ders[i - j];
+				CurvePointW@ cd = @curve_ders[i - j];
 				const float w = w_ders[j];
 				const float binomial = calc_binomial(i, j) * w;
 				v.x -= binomial * cd.x;
 				v.y -= binomial * cd.y;
 			}
 			
-			PointW@ cd = @curve_ders[i];
+			CurvePointW@ cd = @curve_ders[i];
 			cd.x = v.x / w0;
 			cd.y = v.y / w0;
 		}
 	}
 	
-	private void curve_derivatives(array<PointW>@ vertices_weighted, const int num_ders, const int degree, const float u)
+	private void curve_derivatives(array<CurvePointW>@ vertices_weighted, const int num_ders, const int degree, const float u)
 	{
 		if(int(curve_wders.length) < num_ders + 1)
 		{
@@ -185,7 +185,7 @@ class BSplineEvaluator
 		// Assign higher order derivatives to zero.
 		for(int i = degree + 1; i <= num_ders; i++)
 		{
-			PointW@ cd = @curve_wders[i];
+			CurvePointW@ cd = @curve_wders[i];
 			cd.x = 0;
 			cd.y = 0;
 			cd.w = 0;
@@ -199,14 +199,14 @@ class BSplineEvaluator
 		const int du = num_ders < degree ? num_ders : degree;
 		for(int i = 0; i <= du; i++)
 		{
-			PointW@ cd = @curve_wders[i];
+			CurvePointW@ cd = @curve_wders[i];
 			cd.x = 0;
 			cd.y = 0;
 			cd.w = 0;
 			
 			for (int j = 0; j <= degree; j++)
 			{
-				PointW@ p = @vertices_weighted[span - degree + j];
+				CurvePointW@ p = @vertices_weighted[span - degree + j];
 				const float der = ders[i][j];
 				
 				cd.x += p.x * der;

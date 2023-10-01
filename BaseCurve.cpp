@@ -1,7 +1,7 @@
 #include 'BSplineEvaluator.cpp';
+#include 'CurvePoint.cpp';
 #include 'CurveTypes.cpp';
 #include 'CurveVertex.cpp';
-#include 'Point.cpp';
 
 class BaseCurve
 {
@@ -662,8 +662,8 @@ class BaseCurve
 				else if(type == CurveType::CubicBezier)
 				{
 					CurveVertex@ p = vertices[i];
-					Point@ cp1 = p.cubic_control_point_1;
-					Point@ cp2 = p.cubic_control_point_2;
+					CurveControlPoint@ cp1 = p.cubic_control_point_1;
+					CurveControlPoint@ cp2 = p.cubic_control_point_2;
 					
 					if(closed || i > 0)
 					{

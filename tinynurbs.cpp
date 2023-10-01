@@ -10,7 +10,7 @@
 	private array<array<float>> ders;
 	private array<array<float>> b_a;
 	private array<float> n;
-	private array<Point> v_ders;
+	private array<CurvePoint> v_ders;
 	private array<float> w_ders;
 	private array<float> left, right;
 	private int knots_length;

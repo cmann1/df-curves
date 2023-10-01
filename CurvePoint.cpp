@@ -1,12 +1,12 @@
-class Point
+class CurvePoint
 {
 	
 	[persist] float x;
 	[persist] float y;
 	
-	Point() { }
+	CurvePoint() { }
 	
-	Point(const float x, const float y)
+	CurvePoint(const float x, const float y)
 	{
 		this.x = x;
 		this.y = y;
@@ -15,7 +15,7 @@ class Point
 }
 
 /// A point with a weight.
-class PointW : Point
+class CurvePointW : CurvePoint
 {
 	
 	float w;
