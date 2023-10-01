@@ -52,7 +52,7 @@ class BaseCurve
 	float db_normal_length = 12;
 	float db_outline_width = 1;
 	float db_vertex_size = 3;
-	int curve_segments = 18;
+	int curve_segments = 15;
 	uint db_line_clr = 0xffffffff;
 	uint db_normal_clr = 0xaaff0000;
 	uint db_outline_clr = 0x88999999;
@@ -280,7 +280,9 @@ class BaseCurve
 	}
 	
 	/// Evaluate the curve at the given t value and return the position and normal.
-	void eval(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		if(vertex_count == 0)
 		{
@@ -303,19 +305,19 @@ class BaseCurve
 		switch(_type)
 		{
 			case Linear:
-				eval_linear(t, x, y, normal_x, normal_y);
+				eval_linear(t, x, y, normal_x, normal_y, return_type);
 				break;
 			case QuadraticBezier:
-				eval_quadratic_bezier(t, x, y, normal_x, normal_y);
+				eval_quadratic_bezier(t, x, y, normal_x, normal_y, return_type);
 				break;
 			case CubicBezier:
-				eval_cubic_bezier(t, x, y, normal_x, normal_y);
+				eval_cubic_bezier(t, x, y, normal_x, normal_y, return_type);
 				break;
 			case CatmullRom:
-				eval_catmull_rom(t, x, y, normal_x, normal_y);
+				eval_catmull_rom(t, x, y, normal_x, normal_y, return_type);
 				break;
 			case BSpline:
-				eval_b_spline(t, x, y, normal_x, normal_y);
+				eval_b_spline(t, x, y, normal_x, normal_y, return_type);
 				break;
 			default:
 				x = 0;
@@ -326,7 +328,9 @@ class BaseCurve
 		}
 	}
 	
-	void eval_linear(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_linear(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		int i;
 		float ti;
@@ -339,19 +343,28 @@ class BaseCurve
 		// Calculate the point.
 		const float dx = p2.x - p1.x;
 		const float dy = p2.y - p1.y;
-		x = p1.x + dx * ti;
-		y = p1.y + dy * ti;
+		
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+		{
+			x = p1.x + dx * ti;
+			y = p1.y + dy * ti;
+		}
 		
 		// Calculate the normal vector.
-		const float length = sqrt(dx * dx + dy * dy);
-		if(length != 0)
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			normal_x = dy / length;
-			normal_y = -dx / length;
+			const float length = sqrt(dx * dx + dy * dy);
+			if(length != 0)
+			{
+				normal_x = dy / length;
+				normal_y = -dx / length;
+			}
 		}
 	}
 	
-	void eval_catmull_rom(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_catmull_rom(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		if(vertex_count == 2)
 		{
@@ -399,37 +412,45 @@ class BaseCurve
 		
 		const float st = (tension * p1.tension) * 2;
 		
-		const float dv1x = (p2.x - p0.x) / st;
-		const float dv1y = (p2.y - p0.y) / st;
-		const float dv2x = (p3.x - p1.x) / st;
-		const float dv2y = (p3.y - p1.y) / st;
-		
-		const float c0 = 2 * t3 - 3 * t2 + 1;
-		const float c1 = t3 - 2 * t2 + ti;
-		const float c2 = -2 * t3 + 3 * t2;
-		const float c3 = t3 - t2;
-		x = c0 * p1.x + c1 * dv1x + c2 * p2.x + c3 * dv2x;
-		y = c0 * p1.y + c1 * dv1y + c2 * p2.y + c3 * dv2y;
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+		{
+			const float dv1x = (p2.x - p0.x) / st;
+			const float dv1y = (p2.y - p0.y) / st;
+			const float dv2x = (p3.x - p1.x) / st;
+			const float dv2y = (p3.y - p1.y) / st;
+			
+			const float c0 = 2 * t3 - 3 * t2 + 1;
+			const float c1 = t3 - 2 * t2 + ti;
+			const float c2 = -2 * t3 + 3 * t2;
+			const float c3 = t3 - t2;
+			x = c0 * p1.x + c1 * dv1x + c2 * p2.x + c3 * dv2x;
+			y = c0 * p1.y + c1 * dv1y + c2 * p2.y + c3 * dv2y;
+		}
 		
 		// Calculate the normal.
-		normal_x =
-			((3 * t2 - 4 * ti + 1) * (p2.y - p0.y)) / st +
-			((3 * t2 - 2 * ti) * (p3.y - p1.y)) / st +
-			p1.y * (6 * t2 - 6 * ti) + p2.y * (6 * ti - 6 * t2);
-		normal_y = -(
-		((3 * t2 - 4 * ti + 1) * (p2.x - p0.x)) / st +
-			((3 * t2 - 2 * ti) * (p3.x - p1.x)) / st +
-			p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
-		
-		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		if(length != 0)
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			normal_x /= length;
-			normal_y /= length;
+			normal_x =
+				((3 * t2 - 4 * ti + 1) * (p2.y - p0.y)) / st +
+				((3 * t2 - 2 * ti) * (p3.y - p1.y)) / st +
+				p1.y * (6 * t2 - 6 * ti) + p2.y * (6 * ti - 6 * t2);
+			normal_y = -(
+			((3 * t2 - 4 * ti + 1) * (p2.x - p0.x)) / st +
+				((3 * t2 - 2 * ti) * (p3.x - p1.x)) / st +
+				p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
+			
+			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+			if(length != 0)
+			{
+				normal_x /= length;
+				normal_y /= length;
+			}
 		}
 	}
 	
-	void eval_quadratic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_quadratic_bezier(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		int i;
 		float ti;
@@ -454,27 +475,40 @@ class BaseCurve
 		// Normal
 		if(p1.weight == 1)
 		{
-			x = uu * p1.x + ut2 * cpx + tt * p2.x;
-			y = uu * p1.y + ut2 * cpy + tt * p2.y;
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+			{
+				x = uu * p1.x + ut2 * cpx + tt * p2.x;
+				y = uu * p1.y + ut2 * cpy + tt * p2.y;
+			}
 			
-			normal_x =  2 * (u * (cpy - p1.y) + ti * (p2.y - cpy));
-			normal_y = -2 * (u * (cpx - p1.x) + ti * (p2.x - cpx));
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
+			{
+				normal_x =  2 * (u * (cpy - p1.y) + ti * (p2.y - cpy));
+				normal_y = -2 * (u * (cpx - p1.x) + ti * (p2.x - cpx));
+			}
 		}
 		// Conic
 		else
 		{
 			const float w = p1.weight;
 			const float denominator = uu + ut2 * w + tt;
-			x = (uu * p1.x + ut2 * w * cpx + tt * p2.x) / denominator;
-			y = (uu * p1.y + ut2 * w * cpy + tt * p2.y) / denominator;
 			
-			const float prime = 2 * u * w - 2 * ti * w - 2 * u + 2 * ti;
-			normal_x =
-				(-2 * p1.y * u + 2 * cpy * u * w - 2 * cpy * ti * w + 2 * p2.y * ti) / denominator -
-				(prime * (p1.y * uu + cpy * ut2 * w + p2.y * tt)) / (denominator * denominator);
-			normal_y =
-				-((-2 * p1.x * u + 2 * cpx * u * w - 2 * cpx * ti * w + 2 * p2.x * ti) / denominator -
-				(prime * (p1.x * uu + cpx * ut2 * w + p2.x * tt)) / (denominator * denominator));
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+			{
+				x = (uu * p1.x + ut2 * w * cpx + tt * p2.x) / denominator;
+				y = (uu * p1.y + ut2 * w * cpy + tt * p2.y) / denominator;
+			}
+			
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
+			{
+				const float prime = 2 * u * w - 2 * ti * w - 2 * u + 2 * ti;
+				normal_x =
+					(-2 * p1.y * u + 2 * cpy * u * w - 2 * cpy * ti * w + 2 * p2.y * ti) / denominator -
+					(prime * (p1.y * uu + cpy * ut2 * w + p2.y * tt)) / (denominator * denominator);
+				normal_y =
+					-((-2 * p1.x * u + 2 * cpx * u * w - 2 * cpx * ti * w + 2 * p2.x * ti) / denominator -
+					(prime * (p1.x * uu + cpx * ut2 * w + p2.x * tt)) / (denominator * denominator));
+			}
 		}
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
@@ -485,7 +519,9 @@ class BaseCurve
 		}
 	}
 	
-	void eval_cubic_bezier(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_cubic_bezier(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		int i;
 		float ti;
@@ -515,14 +551,19 @@ class BaseCurve
 		const float uu = u * u;
 		const float uuu = uu * u;
 		
-		// Normal.
+		// Normal
 		if(p1.weight == 1 && p2.weight == 1 && cp1.weight == 1 && cp2.weight == 1)
 		{
-			x = uuu * p1.x + 3 * uu * ti * cp1x + 3 * u * tt * cp2x + tt3 * p2.x;
-			y = uuu * p1.y + 3 * uu * ti * cp1y + 3 * u * tt * cp2y + tt3 * p2.y;
-			// Calculate the normal vector.
-			normal_x = -3 * p1.y * uu + 3 * cp1y * (3 * uu - 2 * u) + 3 * cp2y * (2 * ti - 3 * tt) + 3 * p2.y * tt;
-			normal_y = -(-3 * p1.x * uu + 3 * cp1x * (3 * uu - 2 * u) + 3 * cp2x * (2 * ti - 3 * tt) + 3 * p2.x * tt);
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+			{
+				x = uuu * p1.x + 3 * uu * ti * cp1x + 3 * u * tt * cp2x + tt3 * p2.x;
+				y = uuu * p1.y + 3 * uu * ti * cp1y + 3 * u * tt * cp2y + tt3 * p2.y;
+			}
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
+			{
+				normal_x = -3 * p1.y * uu + 3 * cp1y * (3 * uu - 2 * u) + 3 * cp2y * (2 * ti - 3 * tt) + 3 * p2.y * tt;
+				normal_y = -(-3 * p1.x * uu + 3 * cp1x * (3 * uu - 2 * u) + 3 * cp2x * (2 * ti - 3 * tt) + 3 * p2.x * tt);
+			}
 		}
 		// Weighted
 		else
@@ -532,40 +573,50 @@ class BaseCurve
 			const float f2 = 3 * u * tt * cp2.weight;
 			const float f3 = tt3 * p2.weight;
 			const float basis = f0 + f1 + f2 + f3;
-			if(f0 + f1 + f2 + f3 == 0)
-			 puts(f0 + f1 + f2 + f3);
-			x = (f0 * p1.x + f1 * cp1x + f2 * cp2x + f3 * p2.x) / basis;
-			y = (f0 * p1.y + f1 * cp1y + f2 * cp2y + f3 * p2.y) / basis;
 			
-			normal_x =
-				(
-					-3 * p1.y * p1.weight * uu + 3 * cp1y * cp1.weight * uu - 6 * cp1y * cp1.weight * ti * u -
-					3 * cp2y * cp2.weight * tt + 6 * cp2y * cp2.weight * ti * u + 3 * p2.y * p2.weight * tt
-				) / basis
-				- (
-					(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
-					(p1.y * p1.weight * uuu + 3 * cp1y * cp1.weight * ti * uu + 3 * cp2y * cp2.weight * tt * u + p2.y * p2.weight * tt3))
-				/ (basis * basis);
-			normal_y = -(
-				(
-					-3 * p1.x * p1.weight * uu + 3 * cp1x * cp1.weight * uu - 6 * cp1x * cp1.weight * ti * u -
-					3 * cp2x * cp2.weight * tt + 6 * cp2x * cp2.weight * ti * u + 3 * p2.x * p2.weight * tt
-				) / basis
-				- (
-					(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
-					(p1.x * p1.weight * uuu + 3 * cp1x * cp1.weight * ti * uu + 3 * cp2x * cp2.weight * tt * u + p2.x * p2.weight * tt3)
-				) / (basis * basis));
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
+			{
+				x = (f0 * p1.x + f1 * cp1x + f2 * cp2x + f3 * p2.x) / basis;
+				y = (f0 * p1.y + f1 * cp1y + f2 * cp2y + f3 * p2.y) / basis;
+			}
+			
+			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
+			{
+				normal_x =
+					(
+						-3 * p1.y * p1.weight * uu + 3 * cp1y * cp1.weight * uu - 6 * cp1y * cp1.weight * ti * u -
+						3 * cp2y * cp2.weight * tt + 6 * cp2y * cp2.weight * ti * u + 3 * p2.y * p2.weight * tt
+					) / basis
+					- (
+						(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
+						(p1.y * p1.weight * uuu + 3 * cp1y * cp1.weight * ti * uu + 3 * cp2y * cp2.weight * tt * u + p2.y * p2.weight * tt3))
+					/ (basis * basis);
+				normal_y = -(
+					(
+						-3 * p1.x * p1.weight * uu + 3 * cp1x * cp1.weight * uu - 6 * cp1x * cp1.weight * ti * u -
+						3 * cp2x * cp2.weight * tt + 6 * cp2x * cp2.weight * ti * u + 3 * p2.x * p2.weight * tt
+					) / basis
+					- (
+						(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
+						(p1.x * p1.weight * uuu + 3 * cp1x * cp1.weight * ti * uu + 3 * cp2x * cp2.weight * tt * u + p2.x * p2.weight * tt3)
+					) / (basis * basis));
+			}
 		}
 		
-		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		if(length != 0)
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			normal_x /= length;
-			normal_y /= length;
+			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+			if(length != 0)
+			{
+				normal_x /= length;
+				normal_y /= length;
+			}
 		}
 	}
 	
-	void eval_b_spline(const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+	void eval_b_spline(
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		if(b_spline_degree <= 1)
 		{
@@ -584,10 +635,20 @@ class BaseCurve
 			invalidated_knots = false;
 		}
 		
-		b_spline.calc(
+		b_spline.eval(
 			t, x, y, normal_x, normal_y,
 			@vertices, vertex_count,
-			b_spline_degree, b_spline_clamped, closed);
+			b_spline_degree, b_spline_clamped, closed, return_type);
+		
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
+		{
+			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+			if(length != 0)
+			{
+				normal_x /= length;
+				normal_y /= length;
+			}
+		}
 	}
 	
 	// 
@@ -736,25 +797,30 @@ class BaseCurve
 			}
 		}
 		
-		if(db_line_width > 0 && curve_segments > 0)
+		const bool draw_curve = db_line_width > 0;
+		const bool draw_normal = db_normal_width > 0 && db_normal_length > 0;
+		
+		if(curve_segments > 0 && (draw_curve || draw_normal))
 		{
 			float x1 = 0;
 			float y1 = 0;
 			const int count = curve_segments * (vertex_count - (closed ? 0 : 1));
+			const EvalReturnType eval_type = draw_curve && draw_normal || draw_normal
+				? EvalReturnType::Both : EvalReturnType::Point;
 			
 			for(int i = 0; i <= count; i++)
 			{
 				const float t = float(i) / count;
 				float x2, y2, nx, ny;
-				eval(t, x2, y2, nx, ny);
+				eval(t, x2, y2, nx, ny, eval_type);
 				
-				if(db_normal_width > 0 && db_normal_length > 0)
+				if(draw_normal)
 				{
 					const float l = db_normal_length * draw_zoom;
 					c.draw_line(x2, y2, x2 + nx * l, y2 + ny * l, db_normal_width * draw_zoom, db_normal_clr);
 				}
 				
-				if(i > 0)
+				if(i > 0 && draw_curve)
 				{
 					c.draw_line(x1, y1, x2, y2, db_line_width * draw_zoom, db_line_clr);
 				}

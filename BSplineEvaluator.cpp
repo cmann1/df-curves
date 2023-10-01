@@ -19,10 +19,11 @@ class BSplineEvaluator
 	
 	private bool invalidated_weights = true;
 	
-	void calc(
+	void eval(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		array<CurveVertex>@ vertices, const int vertex_count,
-		const int degrees, const bool clamped, const bool closed)
+		const int degrees, const bool clamped, const bool closed,
+		const EvalReturnType return_type=EvalReturnType::Both)
 	{
 		int v_count, clamp_val, degree;
 		init_params(v_count, clamp_val, degree, vertex_count, degrees, clamped, closed);
@@ -48,42 +49,47 @@ class BSplineEvaluator
 			invalidated_weights = false;
 		}
 		
-		// Find span and corresponding non-zero basis functions
-		const int span = find_span(degree, u);
-		calc_basis(degree, span, u);
-		
-		// Initialize result to 0s
-		x = 0;
-		y = 0;
-		float w = 0;
-		
-		// Compute point.
-		for(int i = 0; i <= degree; i++)
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 		{
-			CurvePointW@ p = vertices_weighted[span - degree + i];
-			const float ni = basis_list[i];
-			x += p.x * ni;
-			y += p.y * ni;
-			w += p.w * ni;
+			// Find span and corresponding non-zero basis functions
+			const int span = find_span(degree, u);
+			calc_basis(degree, span, u);
+			
+			// Initialize result to 0s
+			x = 0;
+			y = 0;
+			float w = 0;
+			
+			// Compute point.
+			for(int i = 0; i <= degree; i++)
+			{
+				CurvePointW@ p = vertices_weighted[span - degree + i];
+				const float ni = basis_list[i];
+				x += p.x * ni;
+				y += p.y * ni;
+				w += p.w * ni;
+			}
+			
+			// Convert back to cartesian coordinates.
+			x /= w;
+			y /= w;
+		}
+		else
+		{
+			x = 0;
+			y = 0;
 		}
 		
-		// Convert back to cartesian coordinates.
-		x /= w;
-		y /= w;
-		
 		// Calculate the normal vector.
-		curve_derivatives_rational(
-			vertex_count,
-			u, 1, degree, closed);
-
-		CurvePointW@ du = @curve_ders[1];
-		normal_x = du.y;
-		normal_y = -du.x;
-		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-		if(length != 0)
+		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			normal_x /= length;
-			normal_y /= length;
+			curve_derivatives_rational(
+				vertex_count,
+				u, 1, degree, closed);
+
+			CurvePointW@ du = @curve_ders[1];
+			normal_x = du.y;
+			normal_y = -du.x;
 		}
 	}
 	
