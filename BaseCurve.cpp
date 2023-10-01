@@ -398,13 +398,13 @@ class BaseCurve
 		
 		const float st = (tension * p1.tension) * 2;
 		
+		const float dv1x = (p2.x - p0.x) / st;
+		const float dv1y = (p2.y - p0.y) / st;
+		const float dv2x = (p3.x - p1.x) / st;
+		const float dv2y = (p3.y - p1.y) / st;
+		
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 		{
-			const float dv1x = (p2.x - p0.x) / st;
-			const float dv1y = (p2.y - p0.y) / st;
-			const float dv2x = (p3.x - p1.x) / st;
-			const float dv2y = (p3.y - p1.y) / st;
-			
 			const float c0 = 2 * t3 - 3 * t2 + 1;
 			const float c1 = t3 - 2 * t2 + ti;
 			const float c2 = -2 * t3 + 3 * t2;
@@ -417,12 +417,12 @@ class BaseCurve
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
 			normal_x =
-				((3 * t2 - 4 * ti + 1) * (p2.y - p0.y)) / st +
-				((3 * t2 - 2 * ti) * (p3.y - p1.y)) / st +
+				(3 * t2 - 4 * ti + 1) * dv1y +
+				(3 * t2 - 2 * ti) * dv2y +
 				p1.y * (6 * t2 - 6 * ti) + p2.y * (6 * ti - 6 * t2);
 			normal_y = -(
-			((3 * t2 - 4 * ti + 1) * (p2.x - p0.x)) / st +
-				((3 * t2 - 2 * ti) * (p3.x - p1.x)) / st +
+				(3 * t2 - 4 * ti + 1) * dv1x +
+				(3 * t2 - 2 * ti) * dv2x +
 				p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
 			
 			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
