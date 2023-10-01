@@ -8,6 +8,7 @@ class BaseCurve
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
+	// TODO: Calculate bounding box for entire curve and per segment.
 	// TODO: Curve x/y, scale x/y, and rotation.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
@@ -359,6 +360,10 @@ class BaseCurve
 				normal_x = dy / length;
 				normal_y = -dx / length;
 			}
+			else
+			{
+				normal_x = normal_y = 0;
+			}
 		}
 	}
 	
@@ -470,7 +475,6 @@ class BaseCurve
 		const float tt = ti * ti;
 		const float uu = u * u;
 		const float ut2 = 2 * u * ti;
-		
 		
 		// Normal
 		if(p1.weight == 1)
@@ -685,21 +689,20 @@ class BaseCurve
 	/// Simple method to draw the curve, vertices, control points, and normals.
 	/// Use the `db_**` fields to control how drawing is done.
 	/// Setting any of the size < 0 will disable drawing of that element.
-	void debug_draw(
-		canvas@ c,
-		const float draw_zoom=1)
+	void debug_draw(canvas@ c, const float draw_zoom=1)
 	{
 		if(db_control_point_size > 0)
 		{
 			for(int i = 0; i < vertex_count; i++)
 			{
+				CurveVertex@ p = vertices[i];
+				
 				if(type == CurveType::QuadraticBezier)
 				{
 					if(!closed && i == vertex_count - 1)
 						continue;
 					
-					CurveVertex@ p = vertices[i];
-					CurveControlPoint@ cp = p.quad_control_point;
+					CurvePoint@ cp = p.quad_control_point;
 					
 					if(db_control_point_line_width > 0)
 					{
@@ -722,7 +725,6 @@ class BaseCurve
 				}
 				else if(type == CurveType::CubicBezier)
 				{
-					CurveVertex@ p = vertices[i];
 					CurveControlPoint@ cp1 = p.cubic_control_point_1;
 					CurveControlPoint@ cp2 = p.cubic_control_point_2;
 					

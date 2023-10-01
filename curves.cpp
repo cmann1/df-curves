@@ -15,7 +15,7 @@ class script
 	editor_api@ editor;
 	camera@ cam;
 	canvas@ c;
-	Mouse mouse;
+	Mouse mouse(false);
 	float zoom;
 	float draw_zoom = 1;
 	
