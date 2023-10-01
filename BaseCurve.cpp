@@ -446,8 +446,6 @@ class BaseCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p2 = vert(i, 1);
-		
-		// Get control points.
 		const CurveControlPoint@ cp = p1.quad_control_point;
 		const float cpx = p1.x + cp.x;
 		const float cpy = p1.y + cp.y;
@@ -459,7 +457,7 @@ class BaseCurve
 		const float ut2 = 2 * u * ti;
 		
 		// Normal
-		if(p1.weight == 1)
+		if(cp.weight == 1)
 		{
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 			{
@@ -476,24 +474,40 @@ class BaseCurve
 		// Conic
 		else
 		{
-			const float w = p1.weight;
-			const float denominator = uu + ut2 * w + tt;
+			const float f0 = p1.weight * uu;
+			const float f1 = cp.weight * ut2;
+			const float f2 = p2.weight * tt;
+			const float basis = f0 + f1 + f2;
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 			{
-				x = (uu * p1.x + ut2 * w * cpx + tt * p2.x) / denominator;
-				y = (uu * p1.y + ut2 * w * cpy + tt * p2.y) / denominator;
+				x = (f0 * p1.x + f1 * cpx + f2 * p2.x) / basis;
+				y = (f0 * p1.y + f1 * cpy + f2 * p2.y) / basis;
 			}
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float prime = 2 * u * w - 2 * ti * w - 2 * u + 2 * ti;
+				const float prime = 2 * u * cp.weight - 2 * ti * cp.weight - 2 * u + 2 * ti;
 				normal_x =
-					(-2 * p1.y * u + 2 * cpy * u * w - 2 * cpy * ti * w + 2 * p2.y * ti) / denominator -
-					(prime * (p1.y * uu + cpy * ut2 * w + p2.y * tt)) / (denominator * denominator);
-				normal_y =
-					-((-2 * p1.x * u + 2 * cpx * u * w - 2 * cpx * ti * w + 2 * p2.x * ti) / denominator -
-					(prime * (p1.x * uu + cpx * ut2 * w + p2.x * tt)) / (denominator * denominator));
+					(
+						-2 * p1.y * u +
+						2 * cpy * u * cp.weight -
+						2 * cpy * ti * cp.weight +
+						2 * p2.y * ti) / basis -
+					(prime * (
+						p1.y * uu +
+						cpy * ut2 * cp.weight +
+						p2.y * tt)) / (basis * basis);
+				normal_y = -(
+					(
+						-2 * p1.x * u +
+						2 * cpx * u * cp.weight -
+						2 * cpx * ti * cp.weight +
+						2 * p2.x * ti) / basis -
+					(prime * (
+						p1.x * uu +
+						cpx * ut2 * cp.weight +
+						p2.x * tt)) / (basis * basis));
 			}
 		}
 		
@@ -514,11 +528,8 @@ class BaseCurve
 		calc_segment_t(t, ti, i);
 		int i2 = i * 2;
 		
-		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p2 = vert(i, 1);
-		
-		// Get control points.
 		const CurveControlPoint@ cp1 = p1.type != Square
 			? p1.cubic_control_point_2
 			: p1;
@@ -547,8 +558,16 @@ class BaseCurve
 			}
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				normal_x = -3 * p1.y * uu + 3 * cp1y * (3 * uu - 2 * u) + 3 * cp2y * (2 * ti - 3 * tt) + 3 * p2.y * tt;
-				normal_y = -(-3 * p1.x * uu + 3 * cp1x * (3 * uu - 2 * u) + 3 * cp2x * (2 * ti - 3 * tt) + 3 * p2.x * tt);
+				normal_x =
+					-3 * p1.y * uu +
+					3 * cp1y * (3 * uu - 2 * u) +
+					3 * cp2y * (2 * ti - 3 * tt) +
+					3 * p2.y * tt;
+				normal_y = -(
+					-3 * p1.x * uu +
+					3 * cp1x * (3 * uu - 2 * u) +
+					3 * cp2x * (2 * ti - 3 * tt) +
+					3 * p2.x * tt);
 			}
 		}
 		// Weighted
@@ -568,23 +587,34 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
+				const float prime =
+					-3 * p1.weight * uu +
+					 3 * cp1.weight * uu
+					-6 * cp1.weight * ti * u
+					-3 * cp2.weight * tt +
+					 6 * cp2.weight * ti * u +
+					 3 * p2.weight * tt;
 				normal_x =
 					(
-						-3 * p1.y * p1.weight * uu + 3 * cp1y * cp1.weight * uu - 6 * cp1y * cp1.weight * ti * u -
-						3 * cp2y * cp2.weight * tt + 6 * cp2y * cp2.weight * ti * u + 3 * p2.y * p2.weight * tt
+						-3 * p1.y * p1.weight * uu +
+						3 * cp1y * cp1.weight * uu -
+						6 * cp1y * cp1.weight * ti * u -
+						3 * cp2y * cp2.weight * tt +
+						6 * cp2y * cp2.weight * ti * u +
+						3 * p2.y * p2.weight * tt
 					) / basis
-					- (
-						(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
-						(p1.y * p1.weight * uuu + 3 * cp1y * cp1.weight * ti * uu + 3 * cp2y * cp2.weight * tt * u + p2.y * p2.weight * tt3))
+					- (prime * (p1.y * f0 + cp1y * f1 + cp2y * f2 + p2.y * f3))
 					/ (basis * basis);
 				normal_y = -(
 					(
-						-3 * p1.x * p1.weight * uu + 3 * cp1x * cp1.weight * uu - 6 * cp1x * cp1.weight * ti * u -
-						3 * cp2x * cp2.weight * tt + 6 * cp2x * cp2.weight * ti * u + 3 * p2.x * p2.weight * tt
+						-3 * p1.x * p1.weight * uu +
+						3 * cp1x * cp1.weight * uu -
+						6 * cp1x * cp1.weight * ti * u -
+						3 * cp2x * cp2.weight * tt +
+						6 * cp2x * cp2.weight * ti * u +
+						3 * p2.x * p2.weight * tt
 					) / basis
-					- (
-						(-3 * p1.weight * uu + 3 * cp1.weight * uu - 6 * cp1.weight * ti * u - 3 * cp2.weight * tt + 6 * cp2.weight * ti * u + 3 * p2.weight * tt) *
-						(p1.x * p1.weight * uuu + 3 * cp1x * cp1.weight * ti * uu + 3 * cp2x * cp2.weight * tt * u + p2.x * p2.weight * tt3)
+					- (prime * (p1.x * f0 + cp1x * f1 + cp2x * f2 + p2.x * f3)
 					) / (basis * basis));
 			}
 		}
