@@ -2,6 +2,7 @@
 #include 'CurvePoint.cpp';
 #include 'CurveTypes.cpp';
 #include 'CurveVertex.cpp';
+#include 'BaseCurveStatic.cpp';
 
 class BaseCurve
 {
@@ -9,7 +10,6 @@ class BaseCurve
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
 	// TODO: Calculate bounding box for entire curve and per segment.
-	// TODO: Curve x/y, scale x/y, and rotation.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -44,12 +44,22 @@ class BaseCurve
 	/// Is only valid after the `update` is called.
 	float length;
 	
+	/// This curve's bounding box.
+	/// Is only valid after the `update` is called.
+	float x1, y1, x2, y2;
+	
+	// --
 	
 	/// One or more segments on this curve have been changed and need to be updated.
 	private bool invalidated = true;
 	
 	/// The knot vector requires regneration after vertices are added/removed.
 	private bool invalidated_knots = true;
+	
+	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
+	private array<CurveSegment> segments;
+	
+	private int segments_count;
 	
 	private BSplineEvaluator@ b_spline;
 	
@@ -157,7 +167,7 @@ class BaseCurve
 		invalidate();
 	}
 	
-	void add_vertex(const float x, const float y)
+	CurveVertex@ add_vertex(const float x, const float y)
 	{
 		vertices.insertLast(CurveVertex(x, y));
 		vertex_count++;
@@ -166,6 +176,8 @@ class BaseCurve
 		
 		invalidated = true;
 		invalidate_b_spline(true);
+		
+		return @vertices[vertex_count - 1];
 	}
 	
 	/// Call after changing anything about this curve to trigger an `update`.
@@ -173,14 +185,6 @@ class BaseCurve
 	void invalidate(const int vertex_index=-1)
 	{
 		invalidated = true;
-		
-		const int start = vertex_index < 0 ? 0 : vertex_index;
-		const int end = vertex_index < 0 ? vertex_count : min(vertex_index, vertex_count);
-		
-		for(int i = start; i < end; i++)
-		{
-			vertices[i].invalidated = true;
-		}
 		
 		invalidate_b_spline();
 	}
@@ -259,6 +263,34 @@ class BaseCurve
 				cp.y = ty * 0.5;
 			}
 		}
+	}
+	
+	/// Recalculates the bounding box, length, etc. of this curve.
+	void update()
+	{
+		if(!invalidated)
+			return;
+		
+		x1 = INFINITY;
+		y1 = INFINITY;
+		x2 = -INFINITY;
+		y2 = -INFINITY;
+		
+		switch(_type)
+		{
+			case CurveType::CatmullRom:
+				calc_bounding_box_catmull_rom();
+				break;
+			case CurveType::QuadraticBezier:
+				calc_bounding_box_quadratic_bezier();
+				break;
+			case CurveType::Linear:
+			default:
+				calc_bounding_box_linear();
+				break;
+		}
+		
+		invalidated = false;
 	}
 	
 	/// Evaluate the curve at the given t value and return the position and normal.
@@ -371,33 +403,15 @@ class BaseCurve
 		float ti;
 		calc_segment_t(t, ti, i);
 		
-		// Get vertices.
-		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p2 = vert(i, 1);
+		CurveVertex@ p1, p2;
+		CurveControlPoint@ p0, p3;
+		get_segment_catmull_rom(i, p1, p2, p0, p3);
 		
-		// Get control points.
-		const CurveControlPoint@ p0 = p1.type != Square
-			? closed || i > 0
-				? vert(i, -1)
-				: _end_controls != Manual
-					? this.p0.extrapolate(p1, p2,
-						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
-					: check_control_point_start()
-			: p1;
-		const CurveControlPoint@ p3 = p2.type != Square
-			? closed || i < vertex_count - 2
-				? vert(i, 2)
-				: _end_controls != Manual
-					? this.p3.extrapolate(p2, p1,
-						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null)
-					: check_control_point_end()
-			: p2;
+		const float st = (tension * p1.tension) * 2;
 		
 		// Calculate the point.
 		const float t2 = ti * ti;
 		const float t3 = t2 * ti;
-		
-		const float st = (tension * p1.tension) * 2;
 		
 		const float dv1x = (p2.x - p0.x) / st;
 		const float dv1y = (p2.y - p0.y) / st;
@@ -653,6 +667,30 @@ class BaseCurve
 		}
 	}
 	
+	/// Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc.
+	void get_segment_catmull_rom(const int i, CurveVertex@ &out p1, CurveVertex@ &out p2, CurveControlPoint@ &out p0, CurveControlPoint@ &out p3)
+	{
+		@p1 = @vertices[i];
+		@p2 = vert(i, 1);
+		
+		@p0 = p1.type != Square
+			? closed || i > 0
+				? vert(i, -1)
+				: _end_controls != Manual
+					? this.p0.extrapolate(p1, p2,
+						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
+					: check_control_point_start()
+			: p1;
+		@p3 = p2.type != Square
+			? closed || i < vertex_count - 2
+				? vert(i, 2)
+				: _end_controls != Manual
+					? this.p3.extrapolate(p2, p1,
+						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null)
+					: check_control_point_end()
+			: p2;
+	}
+	
 	// 
 	
 	CurveVertex@ get_auto_control_start(CurveVertex@ p_out, const CurveEndControl type)
@@ -686,6 +724,83 @@ class BaseCurve
 	
 	// --
 	
+	private void calc_bounding_box_linear()
+	{
+		for(int i = 0; i < vertex_count; i++)
+		{
+			CurveVertex@ p = vertices[i];
+			
+			if(p.x < x1) x1 = p.x;
+			if(p.y < y1) y1 = p.y;
+			if(p.x > x2) x2 = p.x;
+			if(p.y > y2) y2 = p.y;
+		}
+	}
+	
+	private void calc_bounding_box_catmull_rom()
+	{
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
+		{
+			CurveVertex@ p1, p2;
+			CurveControlPoint@ p0, p3;
+			get_segment_catmull_rom(i, p1, p2, p0, p3);
+			
+			float p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y;
+			BaseCurve::catmull_rom_to_cubic_bezier(
+				p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, tension * p1.tension,
+				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y);
+			cp1x += p1_x;
+			cp1y += p1_y;
+			cp2x += p2_x;
+			cp2y += p2_y;
+			
+			float lx1, ly1, lx2, ly2;
+			BaseCurve::bounding_box_cubic_bezier(
+				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y,
+				lx1, ly1, lx2, ly2);
+			
+			if(lx1 < x1) x1 = lx1;
+			if(lx2 < x1) x1 = lx2;
+			if(ly1 < y1) y1 = ly1;
+			if(ly2 < y1) y1 = ly2;
+			if(lx1 > x2) x2 = lx1;
+			if(lx2 > x2) x2 = lx2;
+			if(ly1 > y2) y2 = ly1;
+			if(ly2 > y2) y2 = ly2;
+		}
+	}
+	
+	private void calc_bounding_box_quadratic_bezier()
+	{
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
+		{
+			const CurveVertex@ p1 = @vertices[i];
+			const CurveVertex@ p2 = vert(i, 1);
+			const CurveControlPoint@ cp = p1.quad_control_point;
+			const float cpx = p1.x + cp.x;
+			const float cpy = p1.y + cp.y;
+			
+			float lx1, ly1, lx2, ly2;
+			BaseCurve::bounding_box_quadratic_bezier(
+				p1.x, p1.y, p2.x, p2.y, cpx, cpy, cp.weight,
+				lx1, ly1, lx2, ly2);
+			
+			if(lx1 < x1) x1 = lx1;
+			if(lx2 < x1) x1 = lx2;
+			if(ly1 < y1) y1 = ly1;
+			if(ly2 < y1) y1 = ly2;
+			if(lx1 > x2) x2 = lx1;
+			if(lx2 > x2) x2 = lx2;
+			if(ly1 > y2) y2 = ly1;
+			if(ly2 > y2) y2 = ly2;
+		//break;
+		}
+	}
+	
+	// --
+	
 	private CurveVertex@ check_control_point_start()
 	{
 		if(control_point_start.type != None)
@@ -715,26 +830,6 @@ class BaseCurve
 		{
 			b_spline.invalidate_vertices();
 		}
-	}
-	
-	/// Recalculates all values on all invalidated segments when necessary.
-	private void update()
-	{
-		if(!invalidated)
-			return;
-		
-		for(int i = 0; i < vertex_count; i++)
-		{
-			CurveVertex@ v = vertices[i];
-			
-			if(v.invalidated)
-			{
-				
-				v.invalidated = false;
-			}
-		}
-		
-		invalidated = false;
 	}
 	
 	private void calc_segment_t(const float t, float & out ti, int &out i)

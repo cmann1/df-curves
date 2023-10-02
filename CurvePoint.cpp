@@ -12,6 +12,12 @@ class CurvePoint
 		this.y = y;
 	}
 	
+	void set(const float x, const float y)
+	{
+		this.x = x;
+		this.y = y;
+	}
+	
 }
 
 /// A point with a weight.

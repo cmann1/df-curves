@@ -29,16 +29,8 @@ class CurveVertex : CurveControlPoint
 	/// The right hand side control point for this vertex. Only applicable to cubic bezier curves.
 	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
 	
-	/// Has the segment starting with this segment been invalidated/changed, meaning that the arc length
-	/// and segments look up table need to be recalculated.
-	bool invalidated = true;
-	
 	/// The approximated length of curve the segment starting with this vertex.
 	float length;
-	
-	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
-	array<CurveSegment> segments;
-	int segments_count;
 	
 	CurveVertex()
 	{
@@ -85,6 +77,9 @@ class CurveVertex : CurveControlPoint
 
 class CurveSegment
 {
+	
+	float x;
+	float y;
 	
 	/// The real/raw t value of this point relative to its segment.
 	float t_real;

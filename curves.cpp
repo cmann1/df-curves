@@ -6,6 +6,7 @@
 #include '../lib/utils/colour.cpp';
 
 #include 'BaseCurve.cpp';
+#include 'BaseCurveDebug.cpp';
 
 class script
 {
@@ -21,6 +22,7 @@ class script
 	
 	[persist] float speed = 1;
 	BaseCurve curve;
+	BaseCurveDebug debug_draw;
 	
 	uint seed = 0;
 	bool is_rand;
@@ -35,7 +37,7 @@ class script
 		@c = create_canvas(false, 22, 22);
 		mouse.use_input(input);
 		
-		curve.type = BSpline;
+		curve.type = QuadraticBezier;
 		calc_spline();
 		
 		@cam = get_active_camera();
@@ -103,24 +105,30 @@ class script
 		{
 			CurveVertex@ p = curve.vertices[i];
 			//p.type = Square;
-			p.weight = curve.type == CubicBezier
-				? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
-				: map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.01, 12);
+			//p.weight = curve.type == CubicBezier
+			//	? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
+			//	: map(sin((t * 4 + PI * 1.5 + i * 1) * 0.4), -1, 1, 0.01, 12);
+			//p.tension = map(sin((t * 4 + PI + i) * 0.5), -1, 1, 0.2, 2);
+			
+			p.quad_control_point.weight = map(sin((t * 4 + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
+			//p.cubic_control_point_1.weight = map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.0001, 6);
+			//p.cubic_control_point_2.weight = map(sin((t * 4 + PI * 1.5 + i * 2 + 1) * 0.4), -1, 1, 0.0001, 6);
 		}
-		curve.invalidate();
-		//for(uint i = 0; i < curve.cubic_bezier_control_points.length; i++)
-		//{
-		//	CurveVertex@ p = curve.cubic_bezier_control_points[i];
-		//	p.weight = map(sin((t + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
-		//}
-		curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 2);
+		//curve.vertices[1].cubic_control_point_1.weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 6);
+		//curve.vertices[0].quad_control_point.weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 12);
+		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
 		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
+		
+		curve.invalidate();
+		curve.update();
 		
 		t += speed * 0.25 * DT;
 	}
 	
 	void editor_draw(float _)
 	{
+		//curve.invalidate();
+		//curve.update();
 		debug_draw.draw(c, curve, draw_zoom);
 		
 		float x, y, nx, ny;
@@ -150,7 +158,7 @@ class script
 			curve.add_vertex(bx - 100, by - 100);
 			curve.add_vertex(bx + 100, by - 100);
 			curve.add_vertex(bx + 100, by + 100);
-			curve.add_vertex(bx - 100, by + 100);
+			curve.add_vertex(bx - 100, by + 000);
 			//curve.add_vertex(bx - 300, by + 300);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
@@ -158,6 +166,8 @@ class script
 		}
 		
 		curve.init_bezier_control_points(true);
+		curve.vertices[2].quad_control_point.set(-100, 200);
+		curve.update();
 	}
 	
 }

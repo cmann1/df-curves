@@ -10,7 +10,7 @@ class BaseCurveDebug
 	float normal_length = 12;
 	float outline_width = 1;
 	float vertex_size = 3;
-	float bounding_box_width = 2;
+	float bounding_box_width = 3;
 	
 	uint line_clr = 0xffffffff;
 	uint normal_clr = 0xaaff0000;
@@ -68,8 +68,8 @@ class BaseCurveDebug
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						p.x + cp.x - control_point_size, p.y + cp.y - control_point_size * draw_zoom,
-						p.x + cp.x + control_point_size, p.y + cp.y + control_point_size * draw_zoom,
+						p.x + cp.x - control_point_size * draw_zoom, p.y + cp.y - control_point_size * draw_zoom,
+						p.x + cp.x + control_point_size * draw_zoom, p.y + cp.y + control_point_size * draw_zoom,
 						45, quad_cp_clr);
 				}
 			}
