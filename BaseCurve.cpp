@@ -471,7 +471,7 @@ class BaseCurve
 				normal_y = -2 * (u * (cpx - p1.x) + ti * (p2.x - cpx));
 			}
 		}
-		// Conic
+		// Conic/Weighted
 		else
 		{
 			const float f0 = p1.weight * uu;
@@ -487,27 +487,13 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float prime = 2 * u * cp.weight - 2 * ti * cp.weight - 2 * u + 2 * ti;
-				normal_x =
-					(
-						-2 * p1.y * u +
-						2 * cpy * u * cp.weight -
-						2 * cpy * ti * cp.weight +
-						2 * p2.y * ti) / basis -
-					(prime * (
-						p1.y * uu +
-						cpy * ut2 * cp.weight +
-						p2.y * tt)) / (basis * basis);
-				normal_y = -(
-					(
-						-2 * p1.x * u +
-						2 * cpx * u * cp.weight -
-						2 * cpx * ti * cp.weight +
-						2 * p2.x * ti) / basis -
-					(prime * (
-						p1.x * uu +
-						cpx * ut2 * cp.weight +
-						p2.x * tt)) / (basis * basis));
+				const float basis2 = -2 * p1.weight * u + 2 * cp.weight * u - 2 * cp.weight * ti + 2 * p2.weight * ti;
+				normal_x = (
+					-2 * p1.weight * p1.y * u + 2 * cp.weight * cpy * u - 2 * cp.weight * cpy * ti + 2 * p2.weight * p2.y * ti) / basis -
+					(basis2 * (p1.weight * p1.y * uu + 2 * cp.weight * cpy * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
+				normal_y = -((
+					-2 * p1.weight * p1.x * u + 2 * cp.weight * cpx * u - 2 * cp.weight * cpx * ti + 2 * p2.weight * p2.x * ti) / basis -
+					(basis2 * (p1.weight * p1.x * uu + 2 * cp.weight * cpx * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
 			}
 		}
 		
