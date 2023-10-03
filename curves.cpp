@@ -10,6 +10,8 @@
 class script : BaseCurveDebugColourCallback
 {
 	
+	[persist] float speed = 1;
+	
 	scene@ g;
 	input_api@ input;
 	editor_api@ editor;
@@ -18,14 +20,20 @@ class script : BaseCurveDebugColourCallback
 	Mouse mouse(false);
 	float zoom;
 	float draw_zoom = 1;
+	bool mouse_in_scene;
+	bool space_down;
 	
-	[persist] float speed = 1;
+	EditState state = Idle;
+	
+	CurveControlPoint@ drag_point;
+	float drag_ox, drag_oy;
+	
 	BaseCurve curve;
 	BaseCurveDebug debug_draw;
+	bool curve_changed;
 	
 	uint seed = 0;
 	bool is_rand;
-	bool curve_changed;
 	
 	float t = 0;
 	
@@ -37,26 +45,37 @@ class script : BaseCurveDebugColourCallback
 		@c = create_canvas(false, 22, 22);
 		mouse.use_input(input);
 		
+		@cam = get_active_camera();
+		zoom = cam.editor_zoom();
+		draw_zoom = 1 / zoom;
+		
 		@debug_draw.segment_colour_callback = this;
 		
 		curve.type = BSpline;
 		curve.closed = true;
+		
 		calc_spline();
 		
-		@cam = get_active_camera();
-		zoom = cam.editor_zoom();
-		draw_zoom = 1 / zoom;
+		curve.invalidate();
+		curve.validate();
+		curve_changed = false;
 	}
 	
 	void editor_step()
 	{
 		zoom = cam.editor_zoom();
 		draw_zoom = 1 / zoom;
-		const bool mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
 		
-		const bool space = input.key_check_gvb(GVB::Space);
-		const bool block_mouse = editor.mouse_in_gui() || space;
+		mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
+		space_down = input.key_check_gvb(GVB::Space);
+		const bool block_mouse = editor.mouse_in_gui() || space_down;
 		mouse.step(block_mouse);
+		
+		switch(state)
+		{
+			case Idle: state_idle(); break;
+			case DragVertex: state_drag_vertex(); break;
+		}
 		
 		if(input.key_check_pressed_vk(VK::V))
 		{
@@ -65,8 +84,8 @@ class script : BaseCurveDebugColourCallback
 		if(input.key_check_pressed_vk(VK::M))
 		{
 			curve.closed = !curve.closed;
+			curve_changed = true;
 		}
-		
 		if(input.key_check_pressed_vk(VK::N))
 		{
 			is_rand = !is_rand;
@@ -75,36 +94,10 @@ class script : BaseCurveDebugColourCallback
 		if(input.key_check_pressed_vk(VK::OemComma))
 		{
 			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
+			curve_changed = true;
 		}
 		
-		if(curve.end_controls == CurveEndControl::Manual && curve.type == CatmullRom)
-		{
-			if(mouse_in_scene && mouse.left_down)
-			{
-				curve.control_point_start.x = mouse.x;
-				curve.control_point_start.y = mouse.y;
-				input.key_clear_gvb(GVB::LeftClick);
-			}
-			if(mouse_in_scene && mouse.right_down)
-			{
-				curve.control_point_end.x = mouse.x;
-				curve.control_point_end.y = mouse.y;
-				input.key_clear_gvb(GVB::RightClick);
-			}
-		}
-		else
-		{
-			if(mouse_in_scene && mouse.left_down)
-			{
-				curve.vert(2).set(mouse.x, mouse.y);
-				input.key_clear_gvb(GVB::LeftClick);
-			}
-			if(mouse_in_scene && mouse.right_down)
-			{
-				curve.vert(3).set(mouse.x, mouse.y);
-				input.key_clear_gvb(GVB::RightClick);
-			}
-		}
+		
 		if(mouse.middle_press)
 		{
 			switch(curve.end_controls)
@@ -145,12 +138,6 @@ class script : BaseCurveDebugColourCallback
 	
 	void editor_draw(float _)
 	{
-		if(curve_changed)
-		{
-			curve.invalidate();
-			curve.validate();
-		}
-		
 		//curve.invalidate();
 		//curve.update();
 		debug_draw.draw(c, curve, draw_zoom);
@@ -159,6 +146,62 @@ class script : BaseCurveDebugColourCallback
 		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
 		//curve.calc(t % 1, x, y, nx, ny);
 		draw_dot(g, 22, 22, x, y, 4 * draw_zoom, 0xffffffff, 45);
+	}
+	
+	void state_idle()
+	{
+		if(mouse_in_scene && mouse.left_press)
+		{
+			if(get_vertex_at_mouse(drag_point))
+			{
+				drag_ox = drag_point.x - mouse.x;
+				drag_oy = drag_point.y - mouse.y;
+				state = DragVertex;
+				return;
+			}
+		}
+	}
+	
+	void state_drag_vertex()
+	{
+		if(!mouse.left_down)
+		{
+			@drag_point = null;
+			state = Idle;
+			return;
+		}
+		
+		if(mouse.moved)
+		{
+			drag_point.x = mouse.x + drag_ox;
+			drag_point.y = mouse.y + drag_oy;
+			curve_changed = true;
+		}
+	}
+	
+	bool get_vertex_at_mouse(CurveControlPoint@ &out result, const float size=5)
+	{
+		const float max_dist = size * size * draw_zoom * draw_zoom;
+		@result = null;
+		float closest_dist = MAX_FLOAT;
+		
+		const int start_i = curve.end_controls == CurveEndControl::Manual && curve.type == CatmullRom
+			? -2 : 0;
+		
+		for(int i = start_i; i < curve.vertex_count; i++)
+		{
+			CurveControlPoint@ p = start_i >= 0 ?curve.vertices[i]
+				: start_i == -1 ? curve.control_point_start : curve.control_point_end;
+			const float dist = (p.x - mouse.x) * (p.x - mouse.x) + (p.y - mouse.y) * (p.y - mouse.y);
+			
+			if(dist <= max_dist && dist < closest_dist)
+			{
+				closest_dist = dist;
+				@result = p;
+			}
+		}
+		
+		return @result != null;
 	}
 	
 	void calc_spline()
@@ -202,5 +245,13 @@ class script : BaseCurveDebugColourCallback
 		return int(segment_t) % 2 == 0
 			? 0xffffcc66 : 0xff222222;
 	}
+	
+}
+
+enum EditState
+{
+	
+	Idle,
+	DragVertex,
 	
 }
