@@ -83,9 +83,7 @@ class BSplineEvaluator
 		// Calculate the normal vector.
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			curve_derivatives_rational(
-				vertex_count,
-				u, 1, degree, closed);
+			curve_derivatives_rational(u, 1, degree, closed);
 
 			CurvePointW@ du = @curve_ders[1];
 			normal_x = du.y;
@@ -128,11 +126,10 @@ class BSplineEvaluator
 	{
 		out_v_count = closed ? vertex_count + 3 : vertex_count;
 		out_clamp_val = clamped && !closed ? 0 : 1;
-		out_degree = clamp(degree, 2, out_v_count - 1);
+		out_degree = clamp(degree, 2, vertex_count - 1);
 	}
 	
 	private void curve_derivatives_rational(
-		const int vertex_count,
 		const float u, const int num_ders,
 		const int degree, const bool closed)
 	{
