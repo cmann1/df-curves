@@ -164,6 +164,12 @@ class script : BaseCurveDebugColourCallback
 				state = DragVertex;
 				return;
 			}
+			else if(get_control_point_at_mouse(drag_point))
+			{
+				drag_ox = drag_point.x - mouse.x;
+				drag_oy = drag_point.y - mouse.y;
+				state = DragVertex;
+			}
 		}
 	}
 	
@@ -195,7 +201,8 @@ class script : BaseCurveDebugColourCallback
 		
 		for(int i = start_i; i < curve.vertex_count; i++)
 		{
-			CurveControlPoint@ p = start_i >= 0 ?curve.vertices[i]
+			CurveControlPoint@ p = start_i >= 0
+				? curve.vertices[i]
 				: start_i == -1 ? curve.control_point_start : curve.control_point_end;
 			const float dist = (p.x - mouse.x) * (p.x - mouse.x) + (p.y - mouse.y) * (p.y - mouse.y);
 			
@@ -203,6 +210,45 @@ class script : BaseCurveDebugColourCallback
 			{
 				closest_dist = dist;
 				@result = p;
+			}
+		}
+		
+		return @result != null;
+	}
+	
+	bool get_control_point_at_mouse(CurveControlPoint@ &out result, const float size=4)
+	{
+		if(curve.type != QuadraticBezier && curve.type != CubicBezier)
+			return false;
+		
+		const float max_dist = size * size * draw_zoom * draw_zoom;
+		@result = null;
+		float closest_dist = MAX_FLOAT;
+		
+		const int cp_i1 = curve.type == QuadraticBezier ? -1 : 0;
+		const int cp_i2 = curve.type == QuadraticBezier ? 0 : 2;
+		
+		for(int i = 0; i < curve.vertex_count; i++)
+		{
+			CurveVertex@ p = curve.vertices[i];
+			
+			for(int j = cp_i1; j < cp_i2; j++)
+			{
+				if(!curve.closed && (i == 0 && j == 0 || i == curve.vertex_count - 1 && j == 1))
+					continue;
+				
+				CurveControlPoint@ cp = j == -1 ? p.quad_control_point
+					: j == 0 ? p.cubic_control_point_1 : p.cubic_control_point_2;
+				const float cpx = (j != -1 ? p.x : 0) + cp.x - mouse.x;
+				const float cpy = (j != -1 ? p.y : 0) + cp.y - mouse.y;
+				
+				const float dist = cpx * cpx + cpy * cpy;
+				
+				if(dist <= max_dist && dist < closest_dist)
+				{
+					closest_dist = dist;
+					@result = cp;
+				}
 			}
 		}
 		
@@ -237,7 +283,7 @@ class script : BaseCurveDebugColourCallback
 		}
 		
 		curve.init_bezier_control_points(true);
-		curve.vertices[2].quad_control_point.set(-100, 200);
+		//curve.vertices[2].quad_control_point.set(-100, 200);
 		
 		curve_changed = true;
 	}
