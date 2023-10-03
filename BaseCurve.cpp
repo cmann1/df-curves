@@ -9,7 +9,11 @@ class BaseCurve
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
-	// TODO: Calculate bounding box for entire curve and per segment.
+	// TODO: Option to not normalise returned normal (possibly saves some calculations
+	//       e.g. if you just want the angle using atan2 which doesn't need the vector to be normalised)
+	// TODO: Use de Casteljau algorithm
+	//       - Easier to get the tangent from this?
+	//       - Not sure if it works for rational curves.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -284,6 +288,10 @@ class BaseCurve
 			case CurveType::QuadraticBezier:
 				calc_bounding_box_quadratic_bezier();
 				break;
+			case CurveType::CubicBezier:
+				calc_bounding_box_cubic_bezier();
+				break;
+			case CurveType::BSpline:
 			case CurveType::Linear:
 			default:
 				calc_bounding_box_linear();
@@ -471,7 +479,7 @@ class BaseCurve
 		const float ut2 = 2 * u * ti;
 		
 		// Normal
-		if(cp.weight == 1)
+		if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
 		{
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 			{
@@ -501,13 +509,13 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float basis2 = -2 * p1.weight * u + 2 * cp.weight * u - 2 * cp.weight * ti + 2 * p2.weight * ti;
-				normal_x = (
-					-2 * p1.weight * p1.y * u + 2 * cp.weight * cpy * u - 2 * cp.weight * cpy * ti + 2 * p2.weight * p2.y * ti) / basis -
-					(basis2 * (p1.weight * p1.y * uu + 2 * cp.weight * cpy * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
-				normal_y = -((
-					-2 * p1.weight * p1.x * u + 2 * cp.weight * cpx * u - 2 * cp.weight * cpx * ti + 2 * p2.weight * p2.x * ti) / basis -
-					(basis2 * (p1.weight * p1.x * uu + 2 * cp.weight * cpx * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
+				const float d2 = -2 * p1.weight * u + 2 * cp.weight * u - 2 * cp.weight * ti + 2 * p2.weight * ti;
+				normal_x =
+					(-2 * p1.weight * p1.y * u + 2 * cp.weight * cpy * u - 2 * cp.weight * cpy * ti + 2 * p2.weight * p2.y * ti) / basis -
+					(d2 * (p1.weight * p1.y * uu + 2 * cp.weight * cpy * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
+				normal_y = -(
+					(-2 * p1.weight * p1.x * u + 2 * cp.weight * cpx * u - 2 * cp.weight * cpx * ti + 2 * p2.weight * p2.x * ti) / basis -
+					(d2 * (p1.weight * p1.x * uu + 2 * cp.weight * cpx * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
 			}
 		}
 		
@@ -587,7 +595,7 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float prime =
+				const float basis2 =
 					-3 * p1.weight * uu +
 					 3 * cp1.weight * uu
 					-6 * cp1.weight * ti * u
@@ -603,7 +611,7 @@ class BaseCurve
 						6 * cp2y * cp2.weight * ti * u +
 						3 * p2.y * p2.weight * tt
 					) / basis
-					- (prime * (p1.y * f0 + cp1y * f1 + cp2y * f2 + p2.y * f3))
+					- (basis2 * (p1.y * f0 + cp1y * f1 + cp2y * f2 + p2.y * f3))
 					/ (basis * basis);
 				normal_y = -(
 					(
@@ -614,7 +622,7 @@ class BaseCurve
 						6 * cp2x * cp2.weight * ti * u +
 						3 * p2.x * p2.weight * tt
 					) / basis
-					- (prime * (p1.x * f0 + cp1x * f1 + cp2x * f2 + p2.x * f3)
+					- (basis2 * (p1.x * f0 + cp1x * f1 + cp2x * f2 + p2.x * f3)
 					) / (basis * basis));
 			}
 		}
@@ -782,20 +790,48 @@ class BaseCurve
 			const float cpx = p1.x + cp.x;
 			const float cpy = p1.y + cp.y;
 			
-			float lx1, ly1, lx2, ly2;
-			BaseCurve::bounding_box_quadratic_bezier(
-				p1.x, p1.y, p2.x, p2.y, cpx, cpy, cp.weight,
-				lx1, ly1, lx2, ly2);
+			if(p1.x < x1) x1 = p1.x;
+			if(p1.x > x2) x2 = p1.x;
+			if(p1.y < y1) y1 = p1.y;
+			if(p1.y > y2) y2 = p1.y;
 			
-			if(lx1 < x1) x1 = lx1;
-			if(lx2 < x1) x1 = lx2;
-			if(ly1 < y1) y1 = ly1;
-			if(ly2 < y1) y1 = ly2;
-			if(lx1 > x2) x2 = lx1;
-			if(lx2 > x2) x2 = lx2;
-			if(ly1 > y2) y2 = ly1;
-			if(ly2 > y2) y2 = ly2;
-		//break;
+			if(cpx < x1) x1 = cpx;
+			if(cpx > x2) x2 = cpx;
+			if(cpy < y1) y1 = cpy;
+			if(cpy > y2) y2 = cpy;
+			
+		}
+	}
+	
+	private void calc_bounding_box_cubic_bezier()
+	{
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
+		{
+			const CurveVertex@ p1 = @vertices[i];
+			const CurveVertex@ p2 = vert(i, 1);
+			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
+			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
+			const float cp1x = p1.x + cp1.x;
+			const float cp1y = p1.y + cp1.y;
+			const float cp2x = p2.x + cp2.x;
+			const float cp2y = p2.y + cp2.y;
+			
+			if(p1.x < x1) x1 = p1.x;
+			if(p1.x > x2) x2 = p1.x;
+			if(p1.y < y1) y1 = p1.y;
+			if(p1.y > y2) y2 = p1.y;
+			
+			if(cp1x < x1) x1 = cp1x;
+			if(cp1x > x2) x2 = cp1x;
+			if(cp1y < y1) y1 = cp1y;
+			if(cp1y > y2) y2 = cp1y;
+			
+			if(cp2x < x1) x1 = cp2x;
+			if(cp2x > x2) x2 = cp2x;
+			if(cp2y < y1) y1 = cp2y;
+			if(cp2y > y2) y2 = cp2y;
+			
 		}
 	}
 	

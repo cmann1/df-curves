@@ -21,11 +21,11 @@ namespace BaseCurve
 		c2_y = -(cr_p4_y - cr_p2_y) / a;
 	}
 	
-	/// Return the bounding box enclosing the curve given the two vertices, a single control point,
-	/// and a weight defining a quadratic bezier curve.
+	/// Return the bounding box enclosing the curve given the two vertices and a single control point
+	/// defining a quadratic bezier curve.
 	void bounding_box_quadratic_bezier(
 		const float p1_x, const float p1_y, const float p2_x, const float p2_y,
-		const float cp_x, const float cp_y, const float weight,
+		const float cp_x, const float cp_y,
 		float &out x1, float &out y1, float &out x2, float &out y2)
 	{
 		x1 = p1_x < p2_x ? p1_x : p1_x;
@@ -38,14 +38,6 @@ namespace BaseCurve
 		const float b_x = 2 * (p2_x - cp_x);
 		const float b_y = 2 * (p2_y - cp_y);
 		
-		//v1 = 2(c-p1)
-		//v2 = 2(p2-c)
-		//bt=v1(1-t)+v2t
-		//  =2c(1-t)-2p1(1-t) + 2p2t-2ct
-		//  =2c-2ct-2p1+2p1t+2p2t-2ct
-		
-		const float ds = 1/ get_active_camera().editor_zoom();
-		
 		// Calculate the x/y roots.
 		const float t_x = b_x - a_x != 0 ? -a_x / (b_x - a_x) : -1;
 		const float t_y = b_y - a_y != 0 ? -a_y / (b_y - a_y) : -1;
@@ -57,12 +49,7 @@ namespace BaseCurve
 			const float uu = u * u;
 			const float ut2 = 2 * u * t_x;
 			
-			//const float rx = uu * p1_x + ut2 * cp_x + tt * p2_x;
-			//const float ry = uu * p1_y + ut2 * cp_y + tt * p2_y;
-			const float denominator = uu + ut2 * weight + tt;
-			const float rx = (uu * p1_x + ut2 * weight * cp_x + tt * p2_x) / denominator;
-			const float ry = (uu * p1_y + ut2 * weight * cp_y + tt * p2_y) / denominator;
-			draw_dot(scene, 22, 24, rx, ry, 4 * ds, 0xffff0000, 45);
+			const float rx = uu * p1_x + ut2 * cp_x + tt * p2_x;
 			
 			if(rx < x1) x1 = rx;
 			if(rx > x2) x2 = rx;
@@ -75,12 +62,7 @@ namespace BaseCurve
 			const float uu = u * u;
 			const float ut2 = 2 * u * t_y;
 			
-			//const float rx = uu * p1_x + ut2 * cp_x + tt * p2_x;
-			//const float ry = uu * p1_y + ut2 * cp_y + tt * p2_y;
-			const float denominator = uu + ut2 * weight + tt;
-			const float rx = (uu * p1_x + ut2 * weight * cp_x + tt * p2_x) / denominator;
-			const float ry = (uu * p1_y + ut2 * weight * cp_y + tt * p2_y) / denominator;
-			draw_dot(scene, 22, 24, rx, ry, 4 * ds, 0xffffff00, 45);
+			const float ry = uu * p1_y + ut2 * cp_y + tt * p2_y;
 			
 			if(ry < y1) y1 = ry;
 			if(ry > y2) y2 = ry;
@@ -121,6 +103,7 @@ namespace BaseCurve
 			const float tt3 = tt * t1_x;
 			const float uu = u * u;
 			const float uuu = uu * u;
+			
 			const float rx = uuu * p1_x + 3 * uu * t1_x * cp1_x + 3 * u * tt * cp2_x + tt3 * p2_x;
 			
 			if(rx < x1) x1 = rx;

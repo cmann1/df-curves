@@ -52,7 +52,7 @@ class BaseCurveDebug
 				if(!curve.closed && i == curve.vertex_count - 1)
 					continue;
 				
-				CurvePoint@ cp = p.quad_control_point;
+				CurveControlPoint@ cp = p.quad_control_point;
 				
 				if(control_point_line_width > 0)
 				{
