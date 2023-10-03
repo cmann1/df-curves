@@ -26,6 +26,7 @@ class script
 	
 	uint seed = 0;
 	bool is_rand;
+	bool curve_changed;
 	
 	float t = 0;
 	
@@ -125,14 +126,23 @@ class script
 		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
 		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
-		curve.invalidate();
-		curve.update();
+		if(curve_changed)
+		{
+			curve.invalidate();
+			curve.validate();
+		}
 		
 		t += speed * 0.25 * DT;
 	}
 	
 	void editor_draw(float _)
 	{
+		if(curve_changed)
+		{
+			curve.invalidate();
+			curve.validate();
+		}
+		
 		//curve.invalidate();
 		//curve.update();
 		debug_draw.draw(c, curve, draw_zoom);
@@ -146,7 +156,6 @@ class script
 	void calc_spline()
 	{
 		curve.clear();
-		//curve.closed = false;
 		
 		if(is_rand)
 		{
@@ -165,7 +174,7 @@ class script
 			curve.add_vertex(bx + 100, by - 100);
 			curve.add_vertex(bx + 100, by + 100);
 			curve.add_vertex(bx - 100, by + 000);
-			//curve.add_vertex(bx - 300, by + 300);
+			curve.add_vertex(bx - 200, by + 200);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
@@ -173,7 +182,8 @@ class script
 		
 		curve.init_bezier_control_points(true);
 		curve.vertices[2].quad_control_point.set(-100, 200);
-		curve.update();
+		
+		curve_changed = true;
 	}
 	
 }

@@ -1,3 +1,4 @@
+/// Make sure to call `set_vertices` and `generate_knots` before using, and after anything about the curve changes.
 /// https://github.com/pradeep-pyro/tinynurbs/tree/master
 class BSplineEvaluator
 {
@@ -5,6 +6,7 @@ class BSplineEvaluator
 	private array<float> knots(32);
 	private int knots_length;
 	
+	private int vertex_count;
 	private array<CurvePointW> vertices_weighted(32);
 	private array<CurvePointW> curve_wders(32);
 	private array<CurvePointW> curve_ders(32);
@@ -17,43 +19,25 @@ class BSplineEvaluator
 	private array<float> left(32);
 	private array<float> right(32);
 	
-	private bool invalidated_weights = true;
-	
+	/// Returns the point and normal at the given `t` value.
+	/// Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
+	///  - `degree` - How smooth the curve is.
+	///  - `clamped` - Whether or not the curve will touch the start and end vertices. Only applicable when open.
+	///  - `closed` - If true the start and end vertices will be smoothly connected.
 	void eval(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		array<CurveVertex>@ vertices, const int vertex_count,
-		const int degrees, const bool clamped, const bool closed,
+		const int degree, const bool clamped, const bool closed,
 		const EvalReturnType return_type=EvalReturnType::Both)
 	{
-		int v_count, clamp_val, degree;
-		init_params(v_count, clamp_val, degree, vertex_count, degrees, clamped, closed);
-		const float u = clamp_val + t * (v_count - degree - (closed ? clamp_val : 0));
-		
-		if(invalidated_weights)
-		{
-			// Compute points using homogenous coordinates.
-			while(int(vertices_weighted.length) < v_count)
-			{
-				vertices_weighted.resize(vertices_weighted.length * 2);
-			}
-			
-			for(int i = 0; i < v_count; i++)
-			{
-				CurvePointW@ vp = @vertices_weighted[i];
-				CurveVertex@ p = @vertices[i % vertex_count];
-				vp.x = p.x * p.weight;
-				vp.y = p.y * p.weight;
-				vp.w = p.weight;
-			}
-			
-			invalidated_weights = false;
-		}
+		int v_count, clamp_val, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, clamp_val, degree_c);
+		const float u = clamp_val + t * (v_count - degree_c - (closed ? clamp_val : 0));
 		
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 		{
 			// Find span and corresponding non-zero basis functions
-			const int span = find_span(degree, u);
-			calc_basis(degree, span, u);
+			const int span = find_span(degree_c, u);
+			calc_basis(degree_c, span, u);
 			
 			// Initialize result to 0s
 			x = 0;
@@ -61,9 +45,9 @@ class BSplineEvaluator
 			float w = 0;
 			
 			// Compute point.
-			for(int i = 0; i <= degree; i++)
+			for(int i = 0; i <= degree_c; i++)
 			{
-				CurvePointW@ p = vertices_weighted[span - degree + i];
+				CurvePointW@ p = vertices_weighted[span - degree_c + i];
 				const float ni = basis_list[i];
 				x += p.x * ni;
 				y += p.y * ni;
@@ -83,7 +67,7 @@ class BSplineEvaluator
 		// Calculate the normal vector.
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 		{
-			curve_derivatives_rational(u, 1, degree, closed);
+			curve_derivatives_rational(u, 1, degree_c, closed);
 
 			CurvePointW@ du = @curve_ders[1];
 			normal_x = du.y;
@@ -91,15 +75,43 @@ class BSplineEvaluator
 		}
 	}
 	
-	void generate_knots(
+	/// Sets the vertices for this spline.
+	/// Only needs to be called initially or once after the number of, position, or weight of any vertices change.
+	void set_vertices(
 		array<CurveVertex>@ vertices, const int vertex_count,
 		const int degree, const bool clamped, const bool closed)
 	{
-		int v_count, clamp_val, degree_valid;
-		init_params(v_count, clamp_val, degree_valid, vertex_count, degree, clamped, closed);
+		this.vertex_count = vertex_count;
+		
+		int v_count, _;
+		init_params(vertex_count, degree, clamped, closed, v_count, _, _);
+		
+		// Compute points using homogenous coordinates.
+		while(int(vertices_weighted.length) < v_count)
+		{
+			vertices_weighted.resize(vertices_weighted.length * 2);
+		}
+		
+		for(int i = 0; i < v_count; i++)
+		{
+			CurvePointW@ vp = @vertices_weighted[i];
+			CurveVertex@ p = @vertices[i % vertex_count];
+			vp.x = p.x * p.weight;
+			vp.y = p.y * p.weight;
+			vp.w = p.weight;
+		}
+	}
+	
+	/// Generates the correct set of uniform knots based on the given properties.
+	/// See `eval` for a description of the properties.
+	/// Must be called and when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`.
+	void generate_knots(const int degree, const bool clamped, const bool closed)
+	{
+		int v_count, clamp_val, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, clamp_val, degree_c);
 		
 		const uint st = get_time_us();
-		knots_length = v_count + degree_valid + 1;
+		knots_length = v_count + degree_c + 1;
 		while(int(knots.length) < knots_length)
 		{
 			knots.resize(knots.length * 2);
@@ -109,24 +121,20 @@ class BSplineEvaluator
 		{
 			// A clamped b-spline touches the first and last vertices.
 			// To do this make sure the first and last knot are repeated `degree + 1` times.
-			knots[i] = min(max(i - degree_valid + clamp_val, 0), knots_length - (degree_valid - clamp_val) * 2 - 1);
+			knots[i] = min(max(i - degree_c + clamp_val, 0), knots_length - (degree_c - clamp_val) * 2 - 1);
 		}
 	}
 	
-	/// Call any time the number of, position, or weight of any vertices changes.
-	void invalidate_vertices()
-	{
-		invalidated_weights = true;
-	}
+	// -
 	
 	private void init_params(
-		int &out out_v_count, int &out out_clamp_val, int &out out_degree,
 		const int vertex_count,
-		const int degree, const bool clamped, const bool closed)
+		const int degree, const bool clamped, const bool closed,
+		int &out out_v_count, int &out out_clamp_val, int &out out_degree)
 	{
-		out_v_count = closed ? vertex_count + 3 : vertex_count;
-		out_clamp_val = clamped && !closed ? 0 : 1;
 		out_degree = clamp(degree, 2, vertex_count - 1);
+		out_v_count = closed ? vertex_count + out_degree + 1 : vertex_count;
+		out_clamp_val = clamped && !closed ? 0 : 1;
 	}
 	
 	private void curve_derivatives_rational(

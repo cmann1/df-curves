@@ -4,6 +4,7 @@
 #include 'CurveVertex.cpp';
 #include 'BaseCurveStatic.cpp';
 
+/// 
 class BaseCurve
 {
 	
@@ -45,11 +46,9 @@ class BaseCurve
 	[persist] private bool _b_spline_clamped = true;
 	
 	/// The total (approximate) length of this curve.
-	/// Is only valid after the `update` is called.
 	float length;
 	
 	/// This curve's bounding box.
-	/// Is only valid after the `update` is called.
 	float x1, y1, x2, y2;
 	
 	// --
@@ -57,8 +56,11 @@ class BaseCurve
 	/// One or more segments on this curve have been changed and need to be updated.
 	private bool invalidated = true;
 	
-	/// The knot vector requires regneration after vertices are added/removed.
-	private bool invalidated_knots = true;
+	/// The b-spline knot vector requires regneration after vertices are added/removed.
+	private bool invalidated_b_spline_vertices = true;
+	
+	/// The b-spline knot vector requires regneration after vertices are added/removed.
+	private bool invalidated_b_spline_knots = true;
 	
 	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
 	private array<CurveSegment> segments;
@@ -105,7 +107,16 @@ class BaseCurve
 			
 			_type = value;
 			
+			if(_type == BSpline && @b_spline == null)
+			{
+				@b_spline = BSplineEvaluator();
+			}
+			
 			init_bezier_control_points();
+			
+			invalidated = true;
+			invalidated_b_spline_knots = true;
+			invalidated_b_spline_vertices = true;
 		}
 	}
 	
@@ -118,7 +129,10 @@ class BaseCurve
 				return;
 			
 			_closed = value;
-			invalidate_b_spline(true);
+			
+			invalidated = true;
+			invalidated_b_spline_knots = true;
+			invalidated_b_spline_vertices = true;
 		}
 	}
 	
@@ -131,7 +145,10 @@ class BaseCurve
 				return;
 			
 			_b_spline_degree = value;
-			invalidate_b_spline(true);
+			
+			invalidated = true;
+			invalidated_b_spline_knots = true;
+			invalidated_b_spline_vertices = true;
 		}
 	}
 	
@@ -144,7 +161,10 @@ class BaseCurve
 				return;
 			
 			_b_spline_clamped = value;
-			invalidate_b_spline(true);
+			
+			invalidated = true;
+			invalidated_b_spline_knots = true;
+			invalidated_b_spline_vertices = true;
 		}
 	}
 	
@@ -168,7 +188,9 @@ class BaseCurve
 		control_point_start.type = None;
 		control_point_end.type = None;
 		
-		invalidate();
+		invalidated = true;
+		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
 	}
 	
 	CurveVertex@ add_vertex(const float x, const float y)
@@ -179,18 +201,85 @@ class BaseCurve
 		init_bezier_control_points();
 		
 		invalidated = true;
-		invalidate_b_spline(true);
+		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
 		
 		return @vertices[vertex_count - 1];
 	}
 	
-	/// Call after changing anything about this curve to trigger an `update`.
-	/// If no index is passed, the all vertices/segments on the curve will be update/recalculated.
-	void invalidate(const int vertex_index=-1)
+	/// Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
+	/// Passing a vertex index in will invalidate only that vertex, potentially reducing the number of calculations.
+	/// Certain operation such as adding vertices, changing the curve type, etc. will automatically trigger invalidation, but directly setting properties
+	/// such as vertex position will require manually calling `invalidate`.
+	void invalidate()
+	{
+		invalidated = true;
+		invalidated_b_spline_vertices = true;
+	}
+	
+	/// Invalidates a single vertex, potentially reducing the number of calculations.
+	void invalidate(const int start_index, const int end_index=-1)
 	{
 		invalidated = true;
 		
-		invalidate_b_spline();
+		const int i2 = end_index < 0 ? start_index : end_index;
+		for(int i = start_index; i <= end_index; i++)
+		{
+			
+		}
+	}
+	
+	/// Must be called after `invalidate` and any time the curve is modified in any way.
+	/// Recalculates cached values such as the bounding box, curve length, etc.
+	void validate()
+	{
+		if(!invalidated)
+			return;
+		
+		// -- Calculate the bounding box.
+		
+		x1 = INFINITY;
+		y1 = INFINITY;
+		x2 = -INFINITY;
+		y2 = -INFINITY;
+		
+		switch(_type)
+		{
+			case CurveType::CatmullRom:
+				calc_bounding_box_catmull_rom();
+				break;
+			case CurveType::QuadraticBezier:
+				calc_bounding_box_quadratic_bezier();
+				break;
+			case CurveType::CubicBezier:
+				calc_bounding_box_cubic_bezier();
+				break;
+			case CurveType::BSpline:
+			case CurveType::Linear:
+			default:
+				calc_bounding_box_linear();
+				break;
+		}
+		
+		// -- Update BSplines.
+		
+		if(_type == CurveType::BSpline)
+		{
+			if(invalidated_b_spline_vertices)
+			{
+				b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
+			}
+			if(invalidated_b_spline_knots)
+			{
+				b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
+			}
+		}
+		
+		// -- Calculate arc lengths.
+		
+		length = 0;
+		
+		invalidated = false;
 	}
 	
 	/// Call to update/calcualte some simple initial positions for new control points.
@@ -209,7 +298,6 @@ class BaseCurve
 		}
 	}
 	
-	/// Use `init_bezier_control_points` instead to intialise control points for the current type.
 	void init_cubic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
 		if(vertex_count <= 1)
@@ -244,7 +332,6 @@ class BaseCurve
 		}
 	}
 	
-	/// Use `init_bezier_control_points` instead to intialise control points for the current type.
 	void init_quadratic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
 		const int end = from_index + count < vertex_count ? from_index + count : vertex_count;
@@ -267,38 +354,6 @@ class BaseCurve
 				cp.y = ty * 0.5;
 			}
 		}
-	}
-	
-	/// Recalculates the bounding box, length, etc. of this curve.
-	void update()
-	{
-		if(!invalidated)
-			return;
-		
-		x1 = INFINITY;
-		y1 = INFINITY;
-		x2 = -INFINITY;
-		y2 = -INFINITY;
-		
-		switch(_type)
-		{
-			case CurveType::CatmullRom:
-				calc_bounding_box_catmull_rom();
-				break;
-			case CurveType::QuadraticBezier:
-				calc_bounding_box_quadratic_bezier();
-				break;
-			case CurveType::CubicBezier:
-				calc_bounding_box_cubic_bezier();
-				break;
-			case CurveType::BSpline:
-			case CurveType::Linear:
-			default:
-				calc_bounding_box_linear();
-				break;
-		}
-		
-		invalidated = false;
 	}
 	
 	/// Evaluate the curve at the given t value and return the position and normal.
@@ -648,20 +703,8 @@ class BaseCurve
 			return;
 		}
 		
-		if(@b_spline == null)
-		{
-			@b_spline = BSplineEvaluator();
-		}
-		
-		if(invalidated_knots)
-		{
-			b_spline.generate_knots(@vertices, vertex_count, b_spline_degree, b_spline_clamped, closed);
-			invalidated_knots = false;
-		}
-		
 		b_spline.eval(
 			t, x, y, normal_x, normal_y,
-			@vertices, vertex_count,
 			b_spline_degree, b_spline_clamped, closed, return_type);
 		
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
@@ -859,13 +902,10 @@ class BaseCurve
 	{
 		if(also_invalidate_knots)
 		{
-			invalidated_knots = true;
+			invalidated_b_spline_knots = true;
 		}
 		
-		if(@b_spline != null)
-		{
-			b_spline.invalidate_vertices();
-		}
+		invalidated_b_spline_vertices = true;
 	}
 	
 	private void calc_segment_t(const float t, float & out ti, int &out i)
