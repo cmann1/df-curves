@@ -86,6 +86,11 @@ class script : BaseCurveDebugColourCallback
 			curve.closed = !curve.closed;
 			curve_changed = true;
 		}
+		if(input.key_check_pressed_vk(VK::K))
+		{
+			curve.b_spline_clamped = !curve.b_spline_clamped;
+			curve_changed = true;
+		}
 		if(input.key_check_pressed_vk(VK::N))
 		{
 			is_rand = !is_rand;
