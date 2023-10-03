@@ -96,12 +96,12 @@ class script : BaseCurveDebugColourCallback
 		{
 			if(mouse_in_scene && mouse.left_down)
 			{
-				curve.vertices[0].set(mouse.x, mouse.y);
+				curve.vert(2).set(mouse.x, mouse.y);
 				input.key_clear_gvb(GVB::LeftClick);
 			}
 			if(mouse_in_scene && mouse.right_down)
 			{
-				curve.vertices[1].set(mouse.x, mouse.y);
+				curve.vert(3).set(mouse.x, mouse.y);
 				input.key_clear_gvb(GVB::RightClick);
 			}
 		}

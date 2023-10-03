@@ -768,6 +768,7 @@ class BaseCurve
 			type == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null);
 	}
 	
+	/// Returns the vertex at `i + offset` wrapping around when < 0 or > vertex_count.
 	CurveVertex@ vert(const int i, const int offset=0)
 	{
 		return vertices[((i + offset) % vertex_count + vertex_count) % vertex_count];
