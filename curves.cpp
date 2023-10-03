@@ -137,6 +137,7 @@ class script : BaseCurveDebugColourCallback
 		{
 			curve.invalidate();
 			curve.validate();
+			curve_changed = false;
 		}
 		
 		t += speed * 0.25 * DT;
