@@ -32,11 +32,11 @@ class BaseCurveDebug
 	/// Draws all components of the curve based on this instance's properties.
 	void draw(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
 	{
+		draw_bounding_box(c, curve, draw_zoom);
 		draw_control_points(c, curve, draw_zoom);
 		draw_outline(c, curve, draw_zoom);
 		draw_curve(c, curve, draw_zoom);
 		draw_vertices(c, curve, draw_zoom);
-		draw_bounding_box(c, curve, draw_zoom);
 	}
 	
 	/// Draws the control points and connecting lines.
@@ -192,7 +192,9 @@ class BaseCurveDebug
 		
 		float x1 = 0;
 		float y1 = 0;
-		const int count = curve_segments * (curve.vertex_count - (curve.closed ? 0 : 1));
+		int st_prev = 0;
+		const int v_count = curve.vertex_count + (curve.closed ? 1 : 0);
+		const int count = curve_segments * v_count;
 		const EvalReturnType eval_type = draw_curve && draw_normal || draw_normal
 			? EvalReturnType::Both : EvalReturnType::Point;
 		
@@ -200,12 +202,26 @@ class BaseCurveDebug
 		{
 			const float t = float(i) / count;
 			float x2, y2, nx, ny;
-			curve.eval(t, x2, y2, nx, ny, eval_type);
 			
-			const float ti = line_alt_clr != 0
-				? (float(i - 1) / count) * (curve.vertex_count - 1 + (curve.closed ? 1 : 0))
-				: 0;
-			const uint clr = int(ti) % 2 == 0 ? line_clr : line_alt_clr;
+			// `i - 1` because we draw from the second point to the first it meaning to get the which segment we're about to draw
+			// we need to check the previous i value.
+			const int st = int((float(i) / count) * (v_count - 1));
+			
+			// Make sure we always connect at vertices.
+			if(i > 0 && draw_curve && st > st_prev)
+			{
+				curve.eval(float(st) / (v_count - 1), x2, y2, nx, ny, eval_type);
+				
+				const uint clr = (st - 1) % 2 == 0 ? line_clr : line_alt_clr;
+				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
+				
+				x1 = x2;
+				y1 = y2;
+				
+				st_prev = st;
+			}
+			
+			curve.eval(t, x2, y2, nx, ny, eval_type);
 			
 			if(draw_normal)
 			{
@@ -215,6 +231,7 @@ class BaseCurveDebug
 			
 			if(i > 0 && draw_curve)
 			{
+				const uint clr = st % 2 == 0 ? line_clr : line_alt_clr;
 				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
 			}
 			
