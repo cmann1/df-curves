@@ -162,9 +162,12 @@ class BaseCurve
 			
 			_b_spline_clamped = value;
 			
-			invalidated = true;
-			invalidated_b_spline_knots = true;
-			invalidated_b_spline_vertices = true;
+			if(!closed)
+			{
+				invalidated = true;
+				invalidated_b_spline_knots = true;
+				invalidated_b_spline_vertices = true;
+			}
 		}
 	}
 	
@@ -268,10 +271,12 @@ class BaseCurve
 			if(invalidated_b_spline_vertices)
 			{
 				b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
+				invalidated_b_spline_vertices = false;
 			}
 			if(invalidated_b_spline_knots)
 			{
 				b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
+				invalidated_b_spline_knots = false;
 			}
 		}
 		
