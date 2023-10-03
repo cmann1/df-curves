@@ -13,6 +13,8 @@ class BaseCurveDebug
 	float bounding_box_width = 3;
 	
 	uint line_clr = 0xffffffff;
+	/// If non-zero, alternate segments will be drawn with this colour.
+	uint line_alt_clr = 0;
 	uint normal_clr = 0xaaff0000;
 	uint outline_clr = 0x88999999;
 	uint vertex_clr = 0xffff00ff;
@@ -169,9 +171,9 @@ class BaseCurveDebug
 		
 		CurveVertex@ p1 = curve.vertices[0];
 		
-		for(int i = 1; i < curve.vertex_count; i++)
+		for(int i = 1, end = curve.vertex_count + (curve.closed ? 1 : 0); i < end; i++)
 		{
-			CurveVertex@ p2 = curve.vertices[i];
+			CurveVertex@ p2 = curve.vert(i);
 			
 			c.draw_line(p1.x, p1.y, p2.x, p2.y, outline_width * draw_zoom, outline_clr);
 			
@@ -200,6 +202,11 @@ class BaseCurveDebug
 			float x2, y2, nx, ny;
 			curve.eval(t, x2, y2, nx, ny, eval_type);
 			
+			const float ti = line_alt_clr != 0
+				? (float(i - 1) / count) * (curve.vertex_count - 1 + (curve.closed ? 1 : 0))
+				: 0;
+			const uint clr = int(ti) % 2 == 0 ? line_clr : line_alt_clr;
+			
 			if(draw_normal)
 			{
 				const float l = normal_length * draw_zoom;
@@ -208,7 +215,7 @@ class BaseCurveDebug
 			
 			if(i > 0 && draw_curve)
 			{
-				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, line_clr);
+				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
 			}
 			
 			x1 = x2;
