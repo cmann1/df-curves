@@ -29,9 +29,9 @@ class BSplineEvaluator
 		const int degree, const bool clamped, const bool closed,
 		const EvalReturnType return_type=EvalReturnType::Both)
 	{
-		int v_count, clamp_val, degree_c;
-		init_params(vertex_count, degree, clamped, closed, v_count, clamp_val, degree_c);
-		const float u = clamp_val + t * (v_count - degree_c - (closed ? clamp_val : 0));
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
 		
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 		{
@@ -84,7 +84,7 @@ class BSplineEvaluator
 		this.vertex_count = vertex_count;
 		
 		int v_count, _;
-		init_params(vertex_count, degree, clamped, closed, v_count, _, _);
+		init_params(vertex_count, degree, clamped, closed, v_count, _);
 		
 		// Compute points using homogenous coordinates.
 		while(int(vertices_weighted.length) < v_count)
@@ -107,8 +107,8 @@ class BSplineEvaluator
 	/// Must be called and when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`.
 	void generate_knots(const int degree, const bool clamped, const bool closed)
 	{
-		int v_count, clamp_val, degree_c;
-		init_params(vertex_count, degree, clamped, closed, v_count, clamp_val, degree_c);
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
 		
 		const uint st = get_time_us();
 		knots_length = v_count + degree_c + 1;
@@ -119,9 +119,9 @@ class BSplineEvaluator
 		
 		for(int i = 0; i < knots_length; i++)
 		{
-			// A clamped b-spline touches the first and last vertices.
-			// To do this make sure the first and last knot are repeated `degree + 1` times.
-			knots[i] = min(max(i - degree_c + clamp_val, 0), knots_length - (degree_c - clamp_val) * 2 - 1);
+			knots[i] = !closed && clamped
+				? min(max(i - degree_c, 0), knots_length - degree_c * 2 - 1)
+				: i - degree_c;
 		}
 	}
 	
@@ -130,11 +130,10 @@ class BSplineEvaluator
 	private void init_params(
 		const int vertex_count,
 		const int degree, const bool clamped, const bool closed,
-		int &out out_v_count, int &out out_clamp_val, int &out out_degree)
+		int &out out_v_count, int &out out_degree)
 	{
 		out_degree = clamp(degree, 2, vertex_count - 1);
 		out_v_count = closed ? vertex_count + out_degree + 1 : vertex_count;
-		out_clamp_val = clamped && !closed ? 0 : 1;
 	}
 	
 	private void curve_derivatives_rational(
