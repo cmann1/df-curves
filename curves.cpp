@@ -40,16 +40,19 @@ class script
 		
 		debug_draw.line_alt_clr = 0xff555555;
 		
-		curve.type = BSpline;
+		curve.type = Linear;
 		calc_spline();
 		
 		@cam = get_active_camera();
+		zoom = cam.editor_zoom();
+		draw_zoom = 1 / zoom;
 	}
 	
 	void editor_step()
 	{
 		zoom = cam.editor_zoom();
 		draw_zoom = 1 / zoom;
+		const bool mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
 		
 		const bool space = input.key_check_gvb(GVB::Space);
 		const bool block_mouse = editor.mouse_in_gui() || space;
@@ -76,26 +79,30 @@ class script
 		
 		if(curve.end_controls == CurveEndControl::Manual && curve.type == CatmullRom)
 		{
-			if(mouse.left_down)
+			if(mouse_in_scene && mouse.left_down)
 			{
 				curve.control_point_start.x = mouse.x;
 				curve.control_point_start.y = mouse.y;
+				input.key_clear_gvb(GVB::LeftClick);
 			}
-			if(mouse.right_down)
+			if(mouse_in_scene && mouse.right_down)
 			{
 				curve.control_point_end.x = mouse.x;
 				curve.control_point_end.y = mouse.y;
+				input.key_clear_gvb(GVB::RightClick);
 			}
 		}
 		else
 		{
-			if(mouse.left_down)
+			if(mouse_in_scene && mouse.left_down)
 			{
 				curve.vertices[0].set(mouse.x, mouse.y);
+				input.key_clear_gvb(GVB::LeftClick);
 			}
-			if(mouse.right_down)
+			if(mouse_in_scene && mouse.right_down)
 			{
 				curve.vertices[1].set(mouse.x, mouse.y);
+				input.key_clear_gvb(GVB::RightClick);
 			}
 		}
 		if(mouse.middle_press)
