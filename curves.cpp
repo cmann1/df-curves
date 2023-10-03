@@ -3,12 +3,11 @@
 #include '../lib/input/Mouse.cpp';
 #include '../lib/enums/GVB.cpp';
 #include '../lib/enums/VK.cpp';
-#include '../lib/utils/colour.cpp';
 
 #include 'BaseCurve.cpp';
 #include 'BaseCurveDebug.cpp';
 
-class script
+class script : BaseCurveDebugColourCallback
 {
 	
 	scene@ g;
@@ -38,9 +37,10 @@ class script
 		@c = create_canvas(false, 22, 22);
 		mouse.use_input(input);
 		
-		debug_draw.line_alt_clr = 0xff555555;
+		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = Linear;
+		curve.type = BSpline;
+		curve.closed = true;
 		calc_spline();
 		
 		@cam = get_active_camera();
@@ -191,6 +191,15 @@ class script
 		curve.vertices[2].quad_control_point.set(-100, 200);
 		
 		curve_changed = true;
+	}
+	
+	uint get_curve_line_colour(const BaseCurve@ curve, const float segment_t, const float max_t)
+	{
+		if(curve.closed && int(segment_t) == int(max_t) - 1)
+			return 0xffff6569;
+		
+		return int(segment_t) % 2 == 0
+			? 0xffffcc66 : 0xff222222;
 	}
 	
 }

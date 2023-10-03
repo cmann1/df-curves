@@ -1,3 +1,5 @@
+#include '../lib/utils/colour.cpp';
+
 /// Provides simple debug drawing for a `BaseCurve`.
 /// Setting any width/length property to <= 0 will disable drawing of that component.
 class BaseCurveDebug
@@ -5,7 +7,7 @@ class BaseCurveDebug
 	
 	float control_point_size = 2;
 	float control_point_line_width = 1;
-	float line_width = 1;
+	float line_width = 2;
 	float normal_width = 1;
 	float normal_length = 12;
 	float outline_width = 1;
@@ -13,8 +15,6 @@ class BaseCurveDebug
 	float bounding_box_width = 3;
 	
 	uint line_clr = 0xffffffff;
-	/// If non-zero, alternate segments will be drawn with this colour.
-	uint line_alt_clr = 0;
 	uint normal_clr = 0xaaff0000;
 	uint outline_clr = 0x88999999;
 	uint vertex_clr = 0xffff00ff;
@@ -22,6 +22,9 @@ class BaseCurveDebug
 	uint cubic_cp1_clr = 0xffff0000;
 	uint cubic_cp2_clr = 0xff0000ff;
 	uint bounding_box_clr = 0x66002222;
+	
+	/// If set, allows choosing the curve line colour based on the segment index and absolute t value.
+	BaseCurveDebugColourCallback@ segment_colour_callback;
 	
 	/// The precision used by `draw_curve`.
 	int curve_segments = 15;
@@ -192,7 +195,7 @@ class BaseCurveDebug
 		
 		float x1 = 0;
 		float y1 = 0;
-		int st_prev = 0;
+		float st_prev = 0;
 		const int v_count = curve.vertex_count + (curve.closed ? 1 : 0);
 		const int count = curve_segments * v_count;
 		const EvalReturnType eval_type = draw_curve && draw_normal || draw_normal
@@ -205,14 +208,14 @@ class BaseCurveDebug
 			
 			// `i - 1` because we draw from the second point to the first it meaning to get the which segment we're about to draw
 			// we need to check the previous i value.
-			const int st = int((float(i) / count) * (v_count - 1));
+			const float st = (float(i) / count) * (v_count - 1);
 			
 			// Make sure we always connect at vertices.
-			if(i > 0 && draw_curve && st > st_prev)
+			if(i > 0 && draw_curve && int(st) > int(st_prev))
 			{
-				curve.eval(float(st) / (v_count - 1), x2, y2, nx, ny, eval_type);
+				curve.eval(floor(st) / (v_count - 1), x2, y2, nx, ny, eval_type);
 				
-				const uint clr = (st - 1) % 2 == 0 ? line_clr : line_alt_clr;
+				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st_prev, v_count - 1) : line_clr;
 				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
 				
 				x1 = x2;
@@ -231,7 +234,7 @@ class BaseCurveDebug
 			
 			if(i > 0 && draw_curve)
 			{
-				const uint clr = st % 2 == 0 ? line_clr : line_alt_clr;
+				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st, v_count - 1) : line_clr;
 				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
 			}
 			
@@ -283,5 +286,12 @@ class BaseCurveDebug
 			curve.x2 + bounding_box_width * draw_zoom, curve.y2 + bounding_box_width * draw_zoom,
 			0, bounding_box_clr);
 	}
+	
+}
+
+interface BaseCurveDebugColourCallback
+{
+	
+	uint get_curve_line_colour(const BaseCurve@ curve, const float segment_t, const float max_t);
 	
 }
