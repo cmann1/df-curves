@@ -61,20 +61,20 @@ class BaseCurveDebug
 				
 				if(control_point_line_width > 0)
 				{
-					c.draw_line(p.x, p.y, p.x + cp.x, p.y + cp.y, control_point_line_width * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
+					c.draw_line(p.x, p.y, cp.x, cp.y, control_point_line_width * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
 					
 					if(int(i) < curve.vertex_count - 1 || curve.closed)
 					{
 						CurveVertex@ p2 = curve.vert(i, 1);
-						c.draw_line(p2.x, p2.y, p.x + cp.x, p.y + cp.y, 1 * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
+						c.draw_line(p2.x, p2.y, cp.x, cp.y, 1 * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
 					}
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						p.x + cp.x - control_point_size * draw_zoom, p.y + cp.y - control_point_size * draw_zoom,
-						p.x + cp.x + control_point_size * draw_zoom, p.y + cp.y + control_point_size * draw_zoom,
+						cp.x - control_point_size * draw_zoom, cp.y - control_point_size * draw_zoom,
+						cp.x + control_point_size * draw_zoom, cp.y + control_point_size * draw_zoom,
 						45, quad_cp_clr);
 				}
 			}

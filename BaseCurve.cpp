@@ -15,6 +15,7 @@ class BaseCurve
 	// TODO: Use de Casteljau algorithm
 	//       - Easier to get the tangent from this?
 	//       - Not sure if it works for rational curves.
+	// TODO: Improve auto end points for cr splines - angles g et weird and jumpy when last two vertices get close.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -201,7 +202,7 @@ class BaseCurve
 		vertices.insertLast(CurveVertex(x, y));
 		vertex_count++;
 		
-		init_bezier_control_points();
+		init_bezier_control_points(false, vertex_count - 1, 1);
 		
 		invalidated = true;
 		invalidated_b_spline_knots = true;
@@ -339,7 +340,7 @@ class BaseCurve
 	
 	void init_quadratic_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
-		const int end = from_index + count < vertex_count ? from_index + count : vertex_count;
+		const int end = from_index + count <= vertex_count ? from_index + count : vertex_count;
 		for(int i = from_index; i < end; i++)
 		{
 			CurveVertex@ p1 = @vertices[i];
@@ -355,8 +356,8 @@ class BaseCurve
 			
 			if(force || is_nan(cp.x))
 			{
-				cp.x = tx * 0.5;
-				cp.y = ty * 0.5;
+				cp.x = p1.x + tx * 0.5;
+				cp.y = p1.y + ty * 0.5;
 			}
 		}
 	}
@@ -529,8 +530,6 @@ class BaseCurve
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p2 = vert(i, 1);
 		const CurveControlPoint@ cp = p1.quad_control_point;
-		const float cpx = p1.x + cp.x;
-		const float cpy = p1.y + cp.y;
 		
 		// Calculate the point.
 		const float u = 1 - ti;
@@ -543,14 +542,14 @@ class BaseCurve
 		{
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 			{
-				x = uu * p1.x + ut2 * cpx + tt * p2.x;
-				y = uu * p1.y + ut2 * cpy + tt * p2.y;
+				x = uu * p1.x + ut2 * cp.x + tt * p2.x;
+				y = uu * p1.y + ut2 * cp.y + tt * p2.y;
 			}
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				normal_x =  2 * (u * (cpy - p1.y) + ti * (p2.y - cpy));
-				normal_y = -2 * (u * (cpx - p1.x) + ti * (p2.x - cpx));
+				normal_x =  2 * (u * (cp.y - p1.y) + ti * (p2.y - cp.y));
+				normal_y = -2 * (u * (cp.x - p1.x) + ti * (p2.x - cp.x));
 			}
 		}
 		// Conic/Weighted
@@ -563,19 +562,19 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 			{
-				x = (f0 * p1.x + f1 * cpx + f2 * p2.x) / basis;
-				y = (f0 * p1.y + f1 * cpy + f2 * p2.y) / basis;
+				x = (f0 * p1.x + f1 * cp.x + f2 * p2.x) / basis;
+				y = (f0 * p1.y + f1 * cp.y + f2 * p2.y) / basis;
 			}
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
 				const float d2 = -2 * p1.weight * u + 2 * cp.weight * u - 2 * cp.weight * ti + 2 * p2.weight * ti;
 				normal_x =
-					(-2 * p1.weight * p1.y * u + 2 * cp.weight * cpy * u - 2 * cp.weight * cpy * ti + 2 * p2.weight * p2.y * ti) / basis -
-					(d2 * (p1.weight * p1.y * uu + 2 * cp.weight * cpy * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
+					(-2 * p1.weight * p1.y * u + 2 * cp.weight * cp.y * u - 2 * cp.weight * cp.y * ti + 2 * p2.weight * p2.y * ti) / basis -
+					(d2 * (p1.weight * p1.y * uu + 2 * cp.weight * cp.y * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
 				normal_y = -(
-					(-2 * p1.weight * p1.x * u + 2 * cp.weight * cpx * u - 2 * cp.weight * cpx * ti + 2 * p2.weight * p2.x * ti) / basis -
-					(d2 * (p1.weight * p1.x * uu + 2 * cp.weight * cpx * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
+					(-2 * p1.weight * p1.x * u + 2 * cp.weight * cp.x * u - 2 * cp.weight * cp.x * ti + 2 * p2.weight * p2.x * ti) / basis -
+					(d2 * (p1.weight * p1.x * uu + 2 * cp.weight * cp.x * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
 			}
 		}
 		
@@ -836,18 +835,16 @@ class BaseCurve
 			const CurveVertex@ p1 = @vertices[i];
 			const CurveVertex@ p2 = vert(i, 1);
 			const CurveControlPoint@ cp = p1.quad_control_point;
-			const float cpx = p1.x + cp.x;
-			const float cpy = p1.y + cp.y;
 			
 			if(p1.x < x1) x1 = p1.x;
 			if(p1.x > x2) x2 = p1.x;
 			if(p1.y < y1) y1 = p1.y;
 			if(p1.y > y2) y2 = p1.y;
 			
-			if(cpx < x1) x1 = cpx;
-			if(cpx > x2) x2 = cpx;
-			if(cpy < y1) y1 = cpy;
-			if(cpy > y2) y2 = cpy;
+			if(cp.x < x1) x1 = cp.x;
+			if(cp.x > x2) x2 = cp.x;
+			if(cp.y < y1) y1 = cp.y;
+			if(cp.y > y2) y2 = cp.y;
 			
 		}
 	}
