@@ -127,7 +127,9 @@ class script : BaseCurveDebugColourCallback
 		if(check_pressed(VK::OemComma))
 		{
 			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
-			curve_changed = true;
+			curve.invalidate();
+			curve.validate();
+			display_text_at_curve('Curve type: ' + get_curve_name(curve.type), 30);
 		}
 		if(check_pressed(VK::L) && curve.type == CatmullRom)
 		{
@@ -146,18 +148,12 @@ class script : BaseCurveDebugColourCallback
 			{
 				case CatmullRom:
 					curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
-					display_txt.text('Tension: ' + str(curve.tension));
-					display_txt_timer = 25;
-					display_txt_x = mouse.x;
-					display_txt_y = mouse.y - 5 * zoom_factor;
+					display_text_at_curve('Tension: ' + str(curve.tension), 25);
 					curve_changed = true;
 					break;
 				case BSpline:
 					curve.b_spline_degree = clamp(curve.b_spline_degree - mouse.scroll, 2, 7);
-					display_txt.text('B-Spline degree: ' + curve.b_spline_degree);
-					display_txt_timer = 25;
-					display_txt_x = mouse.x;
-					display_txt_y = mouse.y - 5 * zoom_factor;
+					display_text_at_curve('B-Spline degree: ' + curve.b_spline_degree, 25);
 					curve_changed = true;
 					break;
 			}
@@ -408,12 +404,44 @@ class script : BaseCurveDebugColourCallback
 			? 0xffffcc66 : 0xff222222;
 	}
 	
+	private void display_text(const string txt, const int frames=1)
+	{
+		display_text(mouse.x, mouse.y - 5 * zoom_factor, txt, frames);
+	}
+	
+	private void display_text_at_curve(const string txt, const int frames=1)
+	{
+		display_text((curve.x1 + curve.x2) * 0.5, curve.y1 - 25 * zoom_factor, txt, frames);
+	}
+	
+	private void display_text(const float x, const float y, const string txt, const int time=1)
+	{
+		display_txt.text(txt);
+		display_txt_x = x;
+		display_txt_y = y;
+		display_txt_timer = time;
+	}
+	
 	private bool check(const int vk) { return !is_polling_keyboard && input.key_check_vk(vk); }
 	private bool check_pressed(const int vk) { return !is_polling_keyboard && input.key_check_pressed_vk(vk); }
 	private bool check_release(const int vk) { return !is_polling_keyboard && input.key_check_released_vk(vk); }
 	private bool check_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_gvb(gvb); }
 	private bool check_pressed_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_pressed_gvb(gvb); }
 	private bool check_release_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_released_gvb(gvb); }
+	
+	private string get_curve_name(const CurveType type)
+	{
+		switch(curve.type)
+		{
+			case Linear: return 'Linear';
+			case QuadraticBezier: return 'QuadraticBezier';
+			case CubicBezier: return 'CubicBezier';
+			case CatmullRom: return 'CatmullRom';
+			case BSpline: return 'BSpline';
+		}
+		
+		return 'Unknown';
+	}
 	
 }
 
