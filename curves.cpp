@@ -19,9 +19,13 @@ class script : BaseCurveDebugColourCallback
 	canvas@ c;
 	Mouse mouse(false);
 	float zoom;
-	float draw_zoom = 1;
+	float zoom_factor = 1;
 	bool mouse_in_scene;
 	bool space_down;
+	bool ctrl_down;
+	bool shift_down;
+	bool alt_down;
+	bool is_polling_keyboard;
 	
 	EditState state = Idle;
 	
@@ -37,6 +41,10 @@ class script : BaseCurveDebugColourCallback
 	
 	float t = 0;
 	
+	textfield@ display_txt;
+	float display_txt_timer = -1;
+	float display_txt_x, display_txt_y;
+	
 	script()
 	{
 		@g = get_scene();
@@ -45,13 +53,18 @@ class script : BaseCurveDebugColourCallback
 		@c = create_canvas(false, 22, 22);
 		mouse.use_input(input);
 		
+		@display_txt = create_textfield();
+		display_txt.align_horizontal(0);
+		display_txt.align_vertical(1);
+		display_txt.set_font('envy_bold', 20);
+		
 		@cam = get_active_camera();
 		zoom = cam.editor_zoom();
-		draw_zoom = 1 / zoom;
+		zoom_factor = 1 / zoom;
 		
 		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = BSpline;
+		curve.type = CatmullRom;
 		curve.closed = true;
 		
 		calc_spline();
@@ -63,45 +76,59 @@ class script : BaseCurveDebugColourCallback
 	
 	void editor_step()
 	{
+		if(display_txt_timer > 0)
+		{
+			display_txt_timer = max(display_txt_timer - 1, 0.0);
+		}
+		else if(display_txt_timer > -1)
+		{
+			display_txt_timer = max(display_txt_timer - DT * 16, -1.0);
+		}
+		
 		zoom = cam.editor_zoom();
-		draw_zoom = 1 / zoom;
+		zoom_factor = 1 / zoom;
 		
 		mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
-		space_down = input.key_check_gvb(GVB::Space);
 		const bool block_mouse = editor.mouse_in_gui() || space_down;
 		mouse.step(block_mouse);
+		
+		space_down = input.key_check_gvb(GVB::Space);
+		ctrl_down = input.key_check_gvb(GVB::Control);
+		shift_down = input.key_check_gvb(GVB::Shift);
+		alt_down = input.key_check_gvb(GVB::Alt);
+		is_polling_keyboard = input.is_polling_keyboard();
 		
 		switch(state)
 		{
 			case Idle: state_idle(); break;
 			case DragVertex: state_drag_vertex(); break;
+			case DragWeight: state_drag_weight(); break;
 		}
 		
-		if(input.key_check_pressed_vk(VK::V))
+		if(check_pressed(VK::V))
 		{
 			calc_spline();
 		}
-		if(input.key_check_pressed_vk(VK::M))
+		if(check_pressed(VK::M))
 		{
 			curve.closed = !curve.closed;
 			curve_changed = true;
 		}
-		if(input.key_check_pressed_vk(VK::K))
+		if(check_pressed(VK::K))
 		{
 			curve.b_spline_clamped = !curve.b_spline_clamped;
 			curve_changed = true;
 		}
-		if(input.key_check_pressed_vk(VK::N))
+		if(check_pressed(VK::N))
 		{
 			is_rand = !is_rand;
 			calc_spline();
 		}
-		if(input.key_check_pressed_vk(VK::OemComma))
+		if(check_pressed(VK::OemComma))
 		{
 			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
 			curve_changed = true;
 		}
-		
 		
 		if(mouse.middle_press)
 		{
@@ -113,19 +140,19 @@ class script : BaseCurveDebugColourCallback
 			}
 		}
 		
-		for(uint i = 0; i < curve.vertices.length; i++)
-		{
-			CurveVertex@ p = curve.vertices[i];
-			//p.type = Square;
-			//p.weight = curve.type == CubicBezier
-			//	? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
-			//	: map(sin((t * 4 + PI * 1.5 + i * 1) * 0.4), -1, 1, 0.01, 12);
-			//p.tension = map(sin((t * 4 + PI + i) * 0.5), -1, 1, 0.2, 2);
-			
-			//p.quad_control_point.weight = map(sin((t * 4 + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
-			//p.cubic_control_point_1.weight = map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.0001, 6);
-			//p.cubic_control_point_2.weight = map(sin((t * 4 + PI * 1.5 + i * 2 + 1) * 0.4), -1, 1, 0.0001, 6);
-		}
+		//for(uint i = 0; i < curve.vertices.length; i++)
+		//{
+		//	CurveVertex@ p = curve.vertices[i];
+		//	p.type = Square;
+		//	p.weight = curve.type == CubicBezier
+		//		? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
+		//		: map(sin((t * 4 + PI * 1.5 + i * 1) * 0.4), -1, 1, 0.01, 12);
+		//	p.tension = map(sin((t * 4 + PI + i) * 0.5), -1, 1, 0.2, 2);
+		//	
+		//	p.quad_control_point.weight = map(sin((t * 4 + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
+		//	p.cubic_control_point_1.weight = map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.0001, 6);
+		//	p.cubic_control_point_2.weight = map(sin((t * 4 + PI * 1.5 + i * 2 + 1) * 0.4), -1, 1, 0.0001, 6);
+		//}
 		//curve.vertices[1].cubic_control_point_1.weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 6);
 		//curve.vertices[1].weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 2);
 		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
@@ -143,32 +170,51 @@ class script : BaseCurveDebugColourCallback
 	
 	void editor_draw(float _)
 	{
-		//curve.invalidate();
-		//curve.update();
-		debug_draw.draw(c, curve, draw_zoom);
+		debug_draw.draw(c, curve, zoom_factor);
 		
 		float x, y, nx, ny;
 		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
 		//curve.calc(t % 1, x, y, nx, ny);
-		draw_dot(g, 22, 22, x, y, 4 * draw_zoom, 0xffffffff, 45);
+		draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
+		
+		if(display_txt_timer > -1)
+		{
+			display_txt.colour(display_txt_timer > 0 ? 0xffffffff : multiply_alpha(0xffffffff, 1 + display_txt_timer));
+			display_txt.draw_world(22, 22, display_txt_x, display_txt_y, 1, 1, 0);
+		}
 	}
 	
 	void state_idle()
 	{
+		if(mouse_in_scene && mouse.right_double_click && alt_down)
+		{
+			if(get_vertex_at_mouse(drag_point) || get_control_point_at_mouse(drag_point))
+			{
+				drag_point.weight = 1;
+				@drag_point = null;
+			}
+			return;
+		}
+		
 		if(mouse_in_scene && mouse.left_press)
 		{
-			if(get_vertex_at_mouse(drag_point))
+			if(get_vertex_at_mouse(drag_point) || get_control_point_at_mouse(drag_point))
 			{
 				drag_ox = drag_point.x - mouse.x;
 				drag_oy = drag_point.y - mouse.y;
 				state = DragVertex;
 				return;
 			}
-			else if(get_control_point_at_mouse(drag_point))
+		}
+		
+		if(mouse_in_scene && mouse.right_press && alt_down)
+		{
+			if(get_vertex_at_mouse(drag_point) || get_control_point_at_mouse(drag_point))
 			{
-				drag_ox = drag_point.x - mouse.x;
-				drag_oy = drag_point.y - mouse.y;
-				state = DragVertex;
+				drag_ox = mouse.x;
+				drag_oy = drag_point.weight;
+				state = DragWeight;
+				return;
 			}
 		}
 	}
@@ -190,9 +236,43 @@ class script : BaseCurveDebugColourCallback
 		}
 	}
 	
+	void state_drag_weight()
+	{
+		if(!mouse.right_down)
+		{
+			@drag_point = null;
+			state = Idle;
+			return;
+		}
+		
+		if(mouse.moved)
+		{
+			if(curve.type == CatmullRom)
+			{
+				CurveVertex@ v = cast<CurveVertex@>(drag_point);
+				if(@v != null)
+				{
+					v.tension = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.25, 30.0);
+					display_txt.text(str(v.tension));
+				}
+			}
+			else
+			{
+				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.05, 50.0);
+				display_txt.text(str(drag_point.weight));
+			}
+			
+			curve_changed = true;
+		}
+		
+		display_txt_timer = 1;
+		display_txt_x = mouse.x;
+		display_txt_y = mouse.y - 5 * zoom_factor;
+	}
+	
 	bool get_vertex_at_mouse(CurveControlPoint@ &out result, const float size=5)
 	{
-		const float max_dist = size * size * draw_zoom * draw_zoom;
+		const float max_dist = size * size * zoom_factor * zoom_factor;
 		@result = null;
 		float closest_dist = MAX_FLOAT;
 		
@@ -221,7 +301,7 @@ class script : BaseCurveDebugColourCallback
 		if(curve.type != QuadraticBezier && curve.type != CubicBezier)
 			return false;
 		
-		const float max_dist = size * size * draw_zoom * draw_zoom;
+		const float max_dist = size * size * zoom_factor * zoom_factor;
 		@result = null;
 		float closest_dist = MAX_FLOAT;
 		
@@ -277,6 +357,7 @@ class script : BaseCurveDebugColourCallback
 			curve.add_vertex(bx + 100, by + 100);
 			curve.add_vertex(bx - 100, by + 000);
 			curve.add_vertex(bx - 200, by + 200);
+			//curve.add_vertex(bx - 200, by + 000);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
@@ -297,6 +378,13 @@ class script : BaseCurveDebugColourCallback
 			? 0xffffcc66 : 0xff222222;
 	}
 	
+	private bool check(const int vk) { return !is_polling_keyboard && input.key_check_vk(vk); }
+	private bool check_pressed(const int vk) { return !is_polling_keyboard && input.key_check_pressed_vk(vk); }
+	private bool check_release(const int vk) { return !is_polling_keyboard && input.key_check_released_vk(vk); }
+	private bool check_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_gvb(gvb); }
+	private bool check_pressed_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_pressed_gvb(gvb); }
+	private bool check_release_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_released_gvb(gvb); }
+	
 }
 
 enum EditState
@@ -304,5 +392,6 @@ enum EditState
 	
 	Idle,
 	DragVertex,
+	DragWeight,
 	
 }

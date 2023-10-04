@@ -80,8 +80,9 @@ class CurveSegment
 	
 	float x;
 	float y;
+	float length; // Necessary? Once the initial calculations are done only the t value is needed really.
 	
-	/// The real/raw t value of this point relative to its segment.
+	/// The unmodified t value of this point relative to its segment.
 	float t_real;
 	/// The uniform t value based on the approximated distance of this point from the start of the segment.
 	float t_uniform;
