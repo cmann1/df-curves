@@ -18,7 +18,7 @@ class BaseCurve
 	//       - Rename BaseCurve to MultiCurve.
 	//       	- Move all curve logic into curve specific classes with `BaseCurve` as the base class.
 	//       	- `BaseCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
-	// TODO: Implement newtons method for bounding boxes.
+	// TODO: X Implement newtons method for bounding boxes.
 	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
 	
@@ -261,7 +261,8 @@ class BaseCurve
 				calc_bounding_box_quadratic_bezier();
 				break;
 			case CurveType::CubicBezier:
-				calc_bounding_box_cubic_bezier();
+				//calc_bounding_box_cubic_bezier();
+				calc_bounding_box_cubic_bezier_newton();
 				break;
 			case CurveType::BSpline:
 			case CurveType::Linear:
@@ -882,7 +883,124 @@ class BaseCurve
 			if(cp2x > x2) x2 = cp2x;
 			if(cp2y < y1) y1 = cp2y;
 			if(cp2y > y2) y2 = cp2y;
+		}
+	}
+	
+	void calc_bounding_box_cubic_bezier_newton(const int steps=6)
+	{
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
+		{
+			const CurveVertex@ p1 = @vertices[i];
+			const CurveVertex@ p2 = vert(i, 1);
+			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
+			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
+			const float cp1x = p1.x + cp1.x;
+			const float cp1y = p1.y + cp1.y;
+			const float cp2x = p2.x + cp2.x;
+			const float cp2y = p2.y + cp2.y;
 			
+			if(p1.x < x1) x1 = p1.x;
+			if(p1.x > x2) x2 = p1.x;
+			if(p1.y < y1) y1 = p1.y;
+			if(p1.y > y2) y2 = p1.y;
+			
+			//if(!closed && i == end - 1)
+			//	break;
+			
+			const float r0 = p1.weight;
+			const float r1 = cp1.weight;
+			const float r2 = cp2.weight;
+			const float r3 = p2.weight;
+			const float w0x = p1.x;
+			const float w1x = cp1x;
+			const float w2x = cp2x;
+			const float w3x = p2.x;
+			const float w0y = p1.y;
+			const float w1y = cp1y;
+			const float w2y = cp2y;
+			const float w3y = p2.y;
+			
+			for(int j = 0; j < steps; j++)
+			{
+				const float t = float(j) / (steps - 1);
+				
+				const float t2 = t * t;
+				const float t3 = t2 * t;
+				const float t4 = t3 * t;
+				
+				const float ax = r0*r1*w1x - r0*r1*w0x + 2*r0*r2*w0x - 2*r0*r2*w2x + 3*r1*r2*w2x - 3*r1*r2*w1x + r0*r3*w3x - r0*r3*w0x + 2*r1*r3*w1x - 2*r1*r3*w3x - r2*r3*w2x + r2*r3*w3x;
+				const float bx = 2*r0*r1*w0x - 2*r0*r1*w1x + 3*r0*r2*w2x - 3*r0*r2*w0x + r0*r3*w0x -r0*r3*w3x + 3*r1*r2*w1x - 3*r1*r2*w2x + r1*r3*w3x - r1*r3*w1x;
+				const float cx = -6*r0*r1*w0x + 6*r0*r1*w1x - 6*r0*r2*w2x + 6*r0*r2*w0x - 3*r1*r2*w1x + 3*r1*r2*w2x - r0*r3*w0x + r0*r3*w3x;
+				const float dx = 2*r0*r1*w0x - 2*r0*r1*w1x + r0*r2*w2x - r0*r2*w0x;
+				const float ex = r0*r1*w1x - r0*r1*w0x;
+				const float rdx =
+					  ax * 3 * t4
+					+ bx * 6 * t3
+					+ cx * 3 * t2
+					+ dx * 6 * t
+					+ ex * 3;
+				const float rd2x =
+					  ax * 12 * t3
+					+ bx * 18 * t2
+					+ cx * 6 * t
+					+ dx * 6;
+				
+				const float ntx = rd2x != 0 ? -rdx / rd2x + t : -1;
+				if(ntx >= 0 && ntx <= 1)
+				{
+					const float u = 1 - ntx;
+					const float tt = ntx * ntx;
+					const float tt3 = tt * ntx;
+					const float uu = u * u;
+					const float uuu = uu * u;
+					const float f0 = uuu * r0;
+					const float f1 = 3 * uu * ntx * r1;
+					const float f2 = 3 * u * tt * r2;
+					const float f3 = tt3 * r3;
+					const float basis = f0 + f1 + f2 + f3;
+					const float x = (f0 * w0x + f1 * w1x + f2 * w2x + f3 * w3x) / basis;
+					
+					if(x < x1) x1 = x;
+					if(x > x2) x2 = x;
+				}
+				
+				const float ay = r0*r1*w1y - r0*r1*w0y + 2*r0*r2*w0y - 2*r0*r2*w2y + 3*r1*r2*w2y - 3*r1*r2*w1y + r0*r3*w3y - r0*r3*w0y + 2*r1*r3*w1y - 2*r1*r3*w3y - r2*r3*w2y + r2*r3*w3y;
+				const float by = 2*r0*r1*w0y - 2*r0*r1*w1y + 3*r0*r2*w2y - 3*r0*r2*w0y + r0*r3*w0y -r0*r3*w3y + 3*r1*r2*w1y - 3*r1*r2*w2y + r1*r3*w3y - r1*r3*w1y;
+				const float cy = -6*r0*r1*w0y + 6*r0*r1*w1y - 6*r0*r2*w2y + 6*r0*r2*w0y - 3*r1*r2*w1y + 3*r1*r2*w2y - r0*r3*w0y + r0*r3*w3y;
+				const float dy = 2*r0*r1*w0y - 2*r0*r1*w1y + r0*r2*w2y - r0*r2*w0y;
+				const float ey = r0*r1*w1y - r0*r1*w0y;
+				const float rdy =
+					  ay * 3 * t4
+					+ by * 6 * t3
+					+ cy * 3 * t2
+					+ dy * 6 * t
+					+ ey * 3;
+				const float rd2y =
+					  ay * 12 * t3
+					+ by * 18 * t2
+					+ cy * 6 * t
+					+ dy * 6;
+				
+				const float nty = rd2y != 0 ? -rdy / rd2y + t : -1;
+				if(nty >= 0 && nty <= 1)
+				{
+					const float u = 1 - nty;
+					const float tt = nty * nty;
+					const float tt3 = tt * nty;
+					const float uu = u * u;
+					const float uuu = uu * u;
+					const float f0 = uuu * r0;
+					const float f1 = 3 * uu * nty * r1;
+					const float f2 = 3 * u * tt * r2;
+					const float f3 = tt3 * r3;
+					const float basis = f0 + f1 + f2 + f3;
+					const float y = (f0 * w0y + f1 * w1y + f2 * w2y + f3 * w3y) / basis;
+					
+					if(y < y1) y1 = y;
+					if(y > y2) y2 = y;
+				}
+			}
 		}
 	}
 	
