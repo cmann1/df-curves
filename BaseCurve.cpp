@@ -11,10 +11,6 @@ class BaseCurve
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
-	// TODO: Use de Casteljau algorithm
-	//       - Easier to get the tangent from this?
-	//       - Not sure if it works for rational curves.
-	// TODO: Improve auto end points for cr splines - angles g et weird and jumpy when last two vertices get close.
 	// TODO: Split eval methods into point, normal, and both, and remove return type param.
 	//       - Move into separate files/functions so they're easier to include on their own.
 	//       - Option to not normalise returned normal (possibly saves some calculations
@@ -24,7 +20,6 @@ class BaseCurve
 	//       	- `BaseCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
 	// TODO: Implement newtons method for bounding boxes.
 	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
-	// TODO: Rename `draw_zoom` to `zoom_factor` indebug draw and document.
 	// TODO: ? Add basic CurveEditor class
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]

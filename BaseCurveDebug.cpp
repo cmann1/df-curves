@@ -33,17 +33,17 @@ class BaseCurveDebug
 	private CurveVertex p3;
 	
 	/// Draws all components of the curve based on this instance's properties.
-	void draw(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
-		draw_bounding_box(c, curve, draw_zoom);
-		draw_control_points(c, curve, draw_zoom);
-		draw_outline(c, curve, draw_zoom);
-		draw_curve(c, curve, draw_zoom);
-		draw_vertices(c, curve, draw_zoom);
+		draw_bounding_box(c, curve, zoom_factor);
+		draw_control_points(c, curve, zoom_factor);
+		draw_outline(c, curve, zoom_factor);
+		draw_curve(c, curve, zoom_factor);
+		draw_vertices(c, curve, zoom_factor);
 	}
 	
 	/// Draws the control points and connecting lines.
-	void draw_control_points(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw_control_points(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
 		if(control_point_size <= 0)
 			return;
@@ -61,20 +61,20 @@ class BaseCurveDebug
 				
 				if(control_point_line_width > 0)
 				{
-					c.draw_line(p.x, p.y, cp.x, cp.y, control_point_line_width * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
+					c.draw_line(p.x, p.y, cp.x, cp.y, control_point_line_width * zoom_factor, multiply_alpha(quad_cp_clr, 0.5));
 					
 					if(int(i) < curve.vertex_count - 1 || curve.closed)
 					{
 						CurveVertex@ p2 = curve.vert(i, 1);
-						c.draw_line(p2.x, p2.y, cp.x, cp.y, 1 * draw_zoom, multiply_alpha(quad_cp_clr, 0.5));
+						c.draw_line(p2.x, p2.y, cp.x, cp.y, 1 * zoom_factor, multiply_alpha(quad_cp_clr, 0.5));
 					}
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						cp.x - control_point_size * draw_zoom, cp.y - control_point_size * draw_zoom,
-						cp.x + control_point_size * draw_zoom, cp.y + control_point_size * draw_zoom,
+						cp.x - control_point_size * zoom_factor, cp.y - control_point_size * zoom_factor,
+						cp.x + control_point_size * zoom_factor, cp.y + control_point_size * zoom_factor,
 						45, quad_cp_clr);
 				}
 			}
@@ -85,18 +85,18 @@ class BaseCurveDebug
 				
 				if(curve.closed || i > 0)
 				{
-					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, control_point_line_width * draw_zoom, multiply_alpha(cubic_cp1_clr, 0.5));
+					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, control_point_line_width * zoom_factor, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						p.x + cp1.x - control_point_size * draw_zoom, p.y + cp1.y - control_point_size * draw_zoom,
-						p.x + cp1.x + control_point_size * draw_zoom, p.y + cp1.y + control_point_size * draw_zoom,
+						p.x + cp1.x - control_point_size * zoom_factor, p.y + cp1.y - control_point_size * zoom_factor,
+						p.x + cp1.x + control_point_size * zoom_factor, p.y + cp1.y + control_point_size * zoom_factor,
 						45, cubic_cp1_clr);
 				}
 				if(curve.closed || i < curve.vertex_count - 1)
 				{
-					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, control_point_line_width * draw_zoom, multiply_alpha(cubic_cp2_clr, 0.5));
+					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, control_point_line_width * zoom_factor, multiply_alpha(cubic_cp2_clr, 0.5));
 					c.draw_rectangle(
-						p.x + cp2.x - control_point_size * draw_zoom, p.y + cp2.y - control_point_size * draw_zoom,
-						p.x + cp2.x + control_point_size * draw_zoom, p.y + cp2.y + control_point_size * draw_zoom,
+						p.x + cp2.x - control_point_size * zoom_factor, p.y + cp2.y - control_point_size * zoom_factor,
+						p.x + cp2.x + control_point_size * zoom_factor, p.y + cp2.y + control_point_size * zoom_factor,
 						45, cubic_cp1_clr);
 				}
 			}
@@ -110,27 +110,27 @@ class BaseCurveDebug
 				{
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
-						curve.control_point_start.x, curve.control_point_start.y, control_point_line_width * draw_zoom,
+						curve.control_point_start.x, curve.control_point_start.y, control_point_line_width * zoom_factor,
 						multiply_alpha(outline_clr, 0.85));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
-						curve.control_point_end.x, curve.control_point_end.y, control_point_line_width * draw_zoom,
+						curve.control_point_end.x, curve.control_point_end.y, control_point_line_width * zoom_factor,
 						multiply_alpha(outline_clr, 0.85));
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						curve.control_point_start.x - control_point_size * draw_zoom,
-						curve.control_point_start.y - control_point_size * draw_zoom,
-						curve.control_point_start.x + control_point_size * draw_zoom,
-						curve.control_point_start.y + control_point_size * draw_zoom,
+						curve.control_point_start.x - control_point_size * zoom_factor,
+						curve.control_point_start.y - control_point_size * zoom_factor,
+						curve.control_point_start.x + control_point_size * zoom_factor,
+						curve.control_point_start.y + control_point_size * zoom_factor,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						curve.control_point_end.x - control_point_size * draw_zoom,
-						curve.control_point_end.y - control_point_size * draw_zoom,
-						curve.control_point_end.x + control_point_size * draw_zoom,
-						curve.control_point_end.y + control_point_size * draw_zoom,
+						curve.control_point_end.x - control_point_size * zoom_factor,
+						curve.control_point_end.y - control_point_size * zoom_factor,
+						curve.control_point_end.x + control_point_size * zoom_factor,
+						curve.control_point_end.y + control_point_size * zoom_factor,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 			}
@@ -143,23 +143,23 @@ class BaseCurveDebug
 				{
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
-						p0.x, p0.y, control_point_line_width * draw_zoom,
+						p0.x, p0.y, control_point_line_width * zoom_factor,
 						multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
-						p3.x, p3.y, control_point_line_width * draw_zoom,
+						p3.x, p3.y, control_point_line_width * zoom_factor,
 						multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						p0.x - control_point_size * draw_zoom, p0.y - control_point_size * draw_zoom,
-						p0.x + control_point_size * draw_zoom, p0.y + control_point_size * draw_zoom,
+						p0.x - control_point_size * zoom_factor, p0.y - control_point_size * zoom_factor,
+						p0.x + control_point_size * zoom_factor, p0.y + control_point_size * zoom_factor,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						p3.x - control_point_size * draw_zoom, p3.y - control_point_size * draw_zoom,
-						p3.x + control_point_size * draw_zoom, p3.y + control_point_size * draw_zoom,
+						p3.x - control_point_size * zoom_factor, p3.y - control_point_size * zoom_factor,
+						p3.x + control_point_size * zoom_factor, p3.y + control_point_size * zoom_factor,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 			}
@@ -167,7 +167,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the skeleton, ie. lines connecting each vertex.
-	void draw_outline(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw_outline(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
 		if(outline_width <= 0 || curve.vertex_count <= 0 || curve.type == CurveType::Linear)
 			return;
@@ -178,14 +178,14 @@ class BaseCurveDebug
 		{
 			CurveVertex@ p2 = curve.vert(i);
 			
-			c.draw_line(p1.x, p1.y, p2.x, p2.y, outline_width * draw_zoom, outline_clr);
+			c.draw_line(p1.x, p1.y, p2.x, p2.y, outline_width * zoom_factor, outline_clr);
 			
 			@p1 = p2;
 		}
 	}
 	
 	/// Draws the curve.
-	void draw_curve(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw_curve(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
 		const bool draw_curve = line_width > 0;
 		const bool draw_normal = normal_width > 0 && normal_length > 0;
@@ -216,7 +216,7 @@ class BaseCurveDebug
 				curve.eval(floor(st) / (v_count - 1), x2, y2, nx, ny, eval_type);
 				
 				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st_prev, v_count - 1) : line_clr;
-				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
+				c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
 				
 				x1 = x2;
 				y1 = y2;
@@ -228,14 +228,14 @@ class BaseCurveDebug
 			
 			if(draw_normal)
 			{
-				const float l = normal_length * draw_zoom;
-				c.draw_line(x2, y2, x2 + nx * l, y2 + ny * l, normal_width * draw_zoom, normal_clr);
+				const float l = normal_length * zoom_factor;
+				c.draw_line(x2, y2, x2 + nx * l, y2 + ny * l, normal_width * zoom_factor, normal_clr);
 			}
 			
 			if(i > 0 && draw_curve)
 			{
 				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st, v_count - 1) : line_clr;
-				c.draw_line(x1, y1, x2, y2, line_width * draw_zoom, clr);
+				c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
 			}
 			
 			x1 = x2;
@@ -244,7 +244,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the actual curve.
-	void draw_vertices(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw_vertices(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
 		if(vertex_size <= 0)
 			return;
@@ -253,37 +253,37 @@ class BaseCurveDebug
 		{
 			CurveVertex@ p = curve.vertices[i];
 			c.draw_rectangle(
-				p.x - vertex_size * draw_zoom, p.y - vertex_size * draw_zoom,
-				p.x + vertex_size * draw_zoom, p.y + vertex_size * draw_zoom,
+				p.x - vertex_size * zoom_factor, p.y - vertex_size * zoom_factor,
+				p.x + vertex_size * zoom_factor, p.y + vertex_size * zoom_factor,
 				45, vertex_clr);
 		}
 	}
 	
 	/// Draws the bounding box of the curve.
-	void draw_bounding_box(canvas@ c, BaseCurve@ curve, const float draw_zoom=1)
+	void draw_bounding_box(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
 	{
 		if(bounding_box_width <= 0)
 			return;
 		
 		// Left
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * draw_zoom, curve.y1,
+			curve.x1 - bounding_box_width * zoom_factor, curve.y1,
 			curve.x1, curve.y2,
 			0, bounding_box_clr);
 		// Right
 		c.draw_rectangle(
 			curve.x2, curve.y1,
-			curve.x2 + bounding_box_width * draw_zoom, curve.y2,
+			curve.x2 + bounding_box_width * zoom_factor, curve.y2,
 			0, bounding_box_clr);
 		// Top
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * draw_zoom, curve.y1 - bounding_box_width * draw_zoom,
-			curve.x2 + bounding_box_width * draw_zoom, curve.y1,
+			curve.x1 - bounding_box_width * zoom_factor, curve.y1 - bounding_box_width * zoom_factor,
+			curve.x2 + bounding_box_width * zoom_factor, curve.y1,
 			0, bounding_box_clr);
 		// Bottom
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * draw_zoom, curve.y2,
-			curve.x2 + bounding_box_width * draw_zoom, curve.y2 + bounding_box_width * draw_zoom,
+			curve.x1 - bounding_box_width * zoom_factor, curve.y2,
+			curve.x2 + bounding_box_width * zoom_factor, curve.y2 + bounding_box_width * zoom_factor,
 			0, bounding_box_clr);
 	}
 	
