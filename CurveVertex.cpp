@@ -44,7 +44,7 @@ class CurveVertex : CurveControlPoint
 	
 	CurveVertex@ extrapolate(
 		const CurveVertex@ p1, const CurveVertex@ p2, const CurveVertex@ p3=null,
-		const float angle_multiplier=1, const float length_multiplier=1)
+		const float angle_multiplier=0.75, const float length_multiplier=1)
 	{
 		// Simple just extend the two points.
 		if(@p3 == null)
@@ -56,8 +56,8 @@ class CurveVertex : CurveControlPoint
 		else
 		{
 			const float a1 = atan2(p1.y - p2.y, p1.x - p2.x);
-			const float a2 = shortest_angle(atan2(p2.y - p3.y, p2.x - p3.x), atan2(p1.y - p3.y, p1.x - p3.x));
-			const float a = a1 + a2 * angle_multiplier;
+			const float a2 = clamp(shortest_angle(a1, atan2(p2.y - p3.y, p2.x - p3.x)), -90 * DEG2RAD, 90 * DEG2RAD);
+			const float a = a1 - a2 * angle_multiplier;
 			const float length = sqrt((p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y)) * length_multiplier;
 			x = p1.x + cos(a) * length;
 			y = p1.y + sin(a) * length;
