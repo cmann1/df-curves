@@ -64,7 +64,7 @@ class script : BaseCurveDebugColourCallback
 		
 		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = CatmullRom;
+		curve.type = BSpline;
 		curve.closed = true;
 		
 		calc_spline();
@@ -140,17 +140,30 @@ class script : BaseCurveDebugColourCallback
 			curve_changed = true;
 		}
 		
-		if(mouse_in_scene && mouse.scroll != 0 && curve.type == CatmullRom)
+		if(mouse_in_scene && mouse.scroll != 0)
 		{
-			curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
-			display_txt.text(str(curve.tension));
-			display_txt_timer = 25;
-			display_txt_x = mouse.x;
-			display_txt_y = mouse.y - 5 * zoom_factor;
-			curve_changed = true;
+			switch(curve.type)
+			{
+				case CatmullRom:
+					curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
+					display_txt.text('Tension: ' + str(curve.tension));
+					display_txt_timer = 25;
+					display_txt_x = mouse.x;
+					display_txt_y = mouse.y - 5 * zoom_factor;
+					curve_changed = true;
+					break;
+				case BSpline:
+					curve.b_spline_degree = clamp(curve.b_spline_degree - mouse.scroll, 2, 7);
+					display_txt.text('B-Spline degree: ' + curve.b_spline_degree);
+					display_txt_timer = 25;
+					display_txt_x = mouse.x;
+					display_txt_y = mouse.y - 5 * zoom_factor;
+					curve_changed = true;
+					break;
+			}
 		}
 		
-		if(mouse_in_scene && mouse.middle_press && curve.type == CatmullRom)
+		if(mouse_in_scene && mouse.middle_press)
 		{
 			curve.tension = 1;
 			curve_changed = true;
@@ -196,7 +209,7 @@ class script : BaseCurveDebugColourCallback
 		if(display_txt_timer > -1)
 		{
 			display_txt.colour(display_txt_timer > 0 ? 0xffffffff : multiply_alpha(0xffffffff, 1 + display_txt_timer));
-			display_txt.draw_world(22, 22, display_txt_x, display_txt_y, 1, 1, 0);
+			display_txt.draw_world(22, 22, display_txt_x, display_txt_y, zoom_factor, zoom_factor, 0);
 		}
 	}
 	
@@ -208,6 +221,7 @@ class script : BaseCurveDebugColourCallback
 			{
 				drag_point.weight = 1;
 				@drag_point = null;
+				curve_changed = true;
 			}
 			return;
 		}
@@ -269,13 +283,13 @@ class script : BaseCurveDebugColourCallback
 				if(@v != null)
 				{
 					v.tension = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.25, 30.0);
-					display_txt.text(str(v.tension));
+					display_txt.text('Tension: ' + str(v.tension));
 				}
 			}
 			else
 			{
 				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.05, 50.0);
-				display_txt.text(str(drag_point.weight));
+				display_txt.text('Weight: ' + str(drag_point.weight));
 			}
 			
 			curve_changed = true;
@@ -373,7 +387,7 @@ class script : BaseCurveDebugColourCallback
 			curve.add_vertex(bx + 100, by + 100);
 			curve.add_vertex(bx - 100, by + 000);
 			curve.add_vertex(bx - 200, by + 200);
-			//curve.add_vertex(bx - 200, by + 000);
+			curve.add_vertex(bx - 200, by + 000);
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
