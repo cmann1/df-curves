@@ -417,17 +417,12 @@ class BSplineEvaluator
 	
 	private void ensure_array_2(array<array<float>>@ arr, const uint n1, const uint n2)
 	{
-		if(arr.length >= n1)
-			return;
-		
-		const uint si = arr.length;
-		
 		while(arr.length < n1)
 		{
 			arr.resize(arr.length >= 32 ? arr.length * 2 : 32);
 		}
 		
-		for(uint i = si; i < n1; i++)
+		for(uint i = 0; i < n1; i++)
 		{
 			array<float>@ arr2 = @arr[i];
 			while(arr2.length < n2)
