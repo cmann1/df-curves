@@ -147,11 +147,13 @@ class script : BaseCurveDebugColourCallback
 			display_txt_timer = 25;
 			display_txt_x = mouse.x;
 			display_txt_y = mouse.y - 5 * zoom_factor;
+			curve_changed = true;
 		}
 		
 		if(mouse_in_scene && mouse.middle_press && curve.type == CatmullRom)
 		{
-			curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
+			curve.tension = 1;
+			curve_changed = true;
 		}
 		
 		//for(uint i = 0; i < curve.vertices.length; i++)
