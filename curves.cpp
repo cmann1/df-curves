@@ -114,7 +114,7 @@ class script : BaseCurveDebugColourCallback
 			curve.closed = !curve.closed;
 			curve_changed = true;
 		}
-		if(check_pressed(VK::K))
+		if(check_pressed(VK::K) && curve.type == BSpline)
 		{
 			curve.b_spline_clamped = !curve.b_spline_clamped;
 			curve_changed = true;
@@ -129,8 +129,7 @@ class script : BaseCurveDebugColourCallback
 			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
 			curve_changed = true;
 		}
-		
-		if(mouse.middle_press)
+		if(check_pressed(VK::L) && curve.type == CatmullRom)
 		{
 			switch(curve.end_controls)
 			{
@@ -138,6 +137,21 @@ class script : BaseCurveDebugColourCallback
 				case CurveEndControl::Automatic: curve.end_controls = CurveEndControl::Manual; break;
 				case CurveEndControl::Manual: curve.end_controls = CurveEndControl::AutomaticAngle; break;
 			}
+			curve_changed = true;
+		}
+		
+		if(mouse_in_scene && mouse.scroll != 0 && curve.type == CatmullRom)
+		{
+			curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
+			display_txt.text(str(curve.tension));
+			display_txt_timer = 25;
+			display_txt_x = mouse.x;
+			display_txt_y = mouse.y - 5 * zoom_factor;
+		}
+		
+		if(mouse_in_scene && mouse.middle_press && curve.type == CatmullRom)
+		{
+			curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
 		}
 		
 		//for(uint i = 0; i < curve.vertices.length; i++)
