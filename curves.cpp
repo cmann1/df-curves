@@ -271,11 +271,12 @@ class script : BaseCurveDebugColourCallback
 			return;
 		}
 		
+		CurveVertex@ v = cast<CurveVertex@>(drag_point);
+		
 		if(mouse.moved)
 		{
 			if(curve.type == CatmullRom)
 			{
-				CurveVertex@ v = cast<CurveVertex@>(drag_point);
 				if(@v != null)
 				{
 					v.tension = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.25, 30.0);
@@ -289,6 +290,18 @@ class script : BaseCurveDebugColourCallback
 			}
 			
 			curve_changed = true;
+		}
+		
+		if(curve.type == CatmullRom)
+		{
+			if(@v != null)
+			{
+				display_txt.text('Tension: ' + str(v.tension));
+			}
+		}
+		else
+		{
+			display_txt.text('Weight: ' + str(drag_point.weight));
 		}
 		
 		display_txt_timer = 1;
