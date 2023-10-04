@@ -286,7 +286,7 @@ class script : BaseCurveDebugColourCallback
 	
 	bool get_vertex_at_mouse(CurveControlPoint@ &out result, const float size=5)
 	{
-		const float max_dist = size * size * zoom_factor * zoom_factor;
+		const float max_dist = size * zoom_factor;
 		@result = null;
 		float closest_dist = MAX_FLOAT;
 		
@@ -295,10 +295,10 @@ class script : BaseCurveDebugColourCallback
 		
 		for(int i = start_i; i < curve.vertex_count; i++)
 		{
-			CurveControlPoint@ p = start_i >= 0
+			CurveControlPoint@ p = i >= 0
 				? curve.vertices[i]
-				: start_i == -1 ? curve.control_point_start : curve.control_point_end;
-			const float dist = (p.x - mouse.x) * (p.x - mouse.x) + (p.y - mouse.y) * (p.y - mouse.y);
+				: i == -1 ? curve.control_point_start : curve.control_point_end;
+			const float dist = distance(p.x, p.y, mouse.x, mouse.y);
 			
 			if(dist <= max_dist && dist < closest_dist)
 			{

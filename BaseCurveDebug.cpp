@@ -111,11 +111,11 @@ class BaseCurveDebug
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
 						curve.control_point_start.x, curve.control_point_start.y, control_point_line_width * draw_zoom,
-						multiply_alpha(cubic_cp1_clr, 0.85));
+						multiply_alpha(outline_clr, 0.85));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
 						curve.control_point_end.x, curve.control_point_end.y, control_point_line_width * draw_zoom,
-						multiply_alpha(cubic_cp1_clr, 0.85));
+						multiply_alpha(outline_clr, 0.85));
 				}
 				
 				if(control_point_size > 0)
