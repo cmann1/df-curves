@@ -4,18 +4,28 @@
 #include 'CurveVertex.cpp';
 #include 'BaseCurveStatic.cpp';
 
-/// 
+/// A higher level wrapper specifically designed for editing/manipulating curves with support for several
+/// different types as well as chaining multiple curves together.
 class BaseCurve
 {
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
 	//       when `end_controls` is not `Manual`.
-	// TODO: Option to not normalise returned normal (possibly saves some calculations
-	//       e.g. if you just want the angle using atan2 which doesn't need the vector to be normalised)
 	// TODO: Use de Casteljau algorithm
 	//       - Easier to get the tangent from this?
 	//       - Not sure if it works for rational curves.
 	// TODO: Improve auto end points for cr splines - angles g et weird and jumpy when last two vertices get close.
+	// TODO: Split eval methods into point, normal, and both, and remove return type param.
+	//       - Move into separate files/functions so they're easier to include on their own.
+	//       - Option to not normalise returned normal (possibly saves some calculations
+	//         e.g. if you just want the angle using atan2 which doesn't need the vector to be normalised)
+	//       - Rename BaseCurve to MultiCurve.
+	//       	- Move all curve logic into curve specific classes with `BaseCurve` as the base class.
+	//       	- `BaseCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
+	// TODO: Implement newtons method for bounding boxes.
+	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
+	// TODO: Rename `draw_zoom` to `zoom_factor` indebug draw and document.
+	// TODO: ? Add basic CurveEditor class
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
