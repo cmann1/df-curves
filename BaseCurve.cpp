@@ -905,9 +905,6 @@ class BaseCurve
 			if(p1.y < y1) y1 = p1.y;
 			if(p1.y > y2) y2 = p1.y;
 			
-			//if(!closed && i == end - 1)
-			//	break;
-			
 			const float r0 = p1.weight;
 			const float r1 = cp1.weight;
 			const float r2 = cp2.weight;
@@ -929,22 +926,17 @@ class BaseCurve
 				const float t3 = t2 * t;
 				const float t4 = t3 * t;
 				
-				const float ax = r0*r1*w1x - r0*r1*w0x + 2*r0*r2*w0x - 2*r0*r2*w2x + 3*r1*r2*w2x - 3*r1*r2*w1x + r0*r3*w3x - r0*r3*w0x + 2*r1*r3*w1x - 2*r1*r3*w3x - r2*r3*w2x + r2*r3*w3x;
-				const float bx = 2*r0*r1*w0x - 2*r0*r1*w1x + 3*r0*r2*w2x - 3*r0*r2*w0x + r0*r3*w0x -r0*r3*w3x + 3*r1*r2*w1x - 3*r1*r2*w2x + r1*r3*w3x - r1*r3*w1x;
-				const float cx = -6*r0*r1*w0x + 6*r0*r1*w1x - 6*r0*r2*w2x + 6*r0*r2*w0x - 3*r1*r2*w1x + 3*r1*r2*w2x - r0*r3*w0x + r0*r3*w3x;
-				const float dx = 2*r0*r1*w0x - 2*r0*r1*w1x + r0*r2*w2x - r0*r2*w0x;
-				const float ex = r0*r1*w1x - r0*r1*w0x;
-				const float rdx =
-					  ax * 3 * t4
-					+ bx * 6 * t3
-					+ cx * 3 * t2
-					+ dx * 6 * t
-					+ ex * 3;
-				const float rd2x =
-					  ax * 12 * t3
-					+ bx * 18 * t2
-					+ cx * 6 * t
-					+ dx * 6;
+				const float r10x = r1*r0*(w1x - w0x);
+				const float r20x = r2*r0*(w2x - w0x);
+				const float r21x = r2*r1*(w2x - w1x);
+				const float r30x = r3*r0*(w3x - w0x);
+				const float r31x = r3*r1*(w3x - w1x);
+				const float ax = 3*r21x - 2*r20x - 2*r31x + r3*r2*(w3x - w2x) + r10x + r30x;
+				const float bx = 3*(r20x - r21x) - 2*r10x - r30x + r31x;
+				const float cx = 6*(r10x - r20x) + 3*r21x + r30x;
+				const float dx = r20x - 2*r10x;
+				const float rdx = 3*(t2*(ax*t2 + cx) + 2*t*(bx*t2 + dx) + r10x);
+				const float rd2x = 6*(2*ax*t3 + 3*bx*t2 + cx*t + dx);
 				
 				const float ntx = rd2x != 0 ? -rdx / rd2x + t : -1;
 				if(ntx >= 0 && ntx <= 1)
@@ -965,22 +957,17 @@ class BaseCurve
 					if(x > x2) x2 = x;
 				}
 				
-				const float ay = r0*r1*w1y - r0*r1*w0y + 2*r0*r2*w0y - 2*r0*r2*w2y + 3*r1*r2*w2y - 3*r1*r2*w1y + r0*r3*w3y - r0*r3*w0y + 2*r1*r3*w1y - 2*r1*r3*w3y - r2*r3*w2y + r2*r3*w3y;
-				const float by = 2*r0*r1*w0y - 2*r0*r1*w1y + 3*r0*r2*w2y - 3*r0*r2*w0y + r0*r3*w0y -r0*r3*w3y + 3*r1*r2*w1y - 3*r1*r2*w2y + r1*r3*w3y - r1*r3*w1y;
-				const float cy = -6*r0*r1*w0y + 6*r0*r1*w1y - 6*r0*r2*w2y + 6*r0*r2*w0y - 3*r1*r2*w1y + 3*r1*r2*w2y - r0*r3*w0y + r0*r3*w3y;
-				const float dy = 2*r0*r1*w0y - 2*r0*r1*w1y + r0*r2*w2y - r0*r2*w0y;
-				const float ey = r0*r1*w1y - r0*r1*w0y;
-				const float rdy =
-					  ay * 3 * t4
-					+ by * 6 * t3
-					+ cy * 3 * t2
-					+ dy * 6 * t
-					+ ey * 3;
-				const float rd2y =
-					  ay * 12 * t3
-					+ by * 18 * t2
-					+ cy * 6 * t
-					+ dy * 6;
+				const float r10y = r1*r0*(w1y - w0y);
+				const float r20y = r2*r0*(w2y - w0y);
+				const float r21y = r2*r1*(w2y - w1y);
+				const float r30y = r3*r0*(w3y - w0y);
+				const float r31y = r3*r1*(w3y - w1y);
+				const float ay = 3*r21y - 2*r20y - 2*r31y + r3*r2*(w3y - w2y) + r10y + r30y;
+				const float by = 3*(r20y - r21y) - 2*r10y - r30y + r31y;
+				const float cy = 6*(r10y - r20y) + 3*r21y + r30y;
+				const float dy = r20y - 2*r10y;
+				const float rdy = 3*(t2*(ay*t2 + cy) + 2*t*(by*t2 + dy) + r10y);
+				const float rd2y = 6*(2*ay*t3 + 3*by*t2 + cy*t + dy);
 				
 				const float nty = rd2y != 0 ? -rdy / rd2y + t : -1;
 				if(nty >= 0 && nty <= 1)
