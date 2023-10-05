@@ -574,12 +574,14 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float d2 = -2 * p1.weight * u + 2 * cp.weight * u - 2 * cp.weight * ti + 2 * p2.weight * ti;
+				const float d2 = 2*(
+					+ u*(cp.weight - p1.weight)
+					- ti*(cp.weight - p2.weight));
 				normal_x =
-					(-2 * p1.weight * p1.y * u + 2 * cp.weight * cp.y * u - 2 * cp.weight * cp.y * ti + 2 * p2.weight * p2.y * ti) / basis -
+					(2*(u*(cp.weight*cp.y - p1.weight*p1.y) + ti*(p2.weight * p2.y - cp.weight * cp.y))) / basis -
 					(d2 * (p1.weight * p1.y * uu + 2 * cp.weight * cp.y * ti * u + p2.weight * p2.y * tt)) / (basis * basis);
 				normal_y = -(
-					(-2 * p1.weight * p1.x * u + 2 * cp.weight * cp.x * u - 2 * cp.weight * cp.x * ti + 2 * p2.weight * p2.x * ti) / basis -
+					(2*(u*(cp.weight*cp.x - p1.weight*p1.x) + ti*(p2.weight * p2.x - cp.weight * cp.x))) / basis -
 					(d2 * (p1.weight * p1.x * uu + 2 * cp.weight * cp.x * ti * u + p2.weight * p2.x * tt)) / (basis * basis));
 			}
 		}
