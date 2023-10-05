@@ -886,7 +886,11 @@ class BaseCurve
 		}
 	}
 	
-	void calc_bounding_box_cubic_bezier_newton(const int steps=6)
+	/// Thanks to Skyhawk for figuring this out:
+	/// https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
+	/// https://www.desmos.com/calculator/mxt9wq6kzn
+	///  - padding_factor - To account for possible inaccuracies a small amount of padding can be added around the bounding box.
+	void calc_bounding_box_cubic_bezier_newton(const int steps=6, const float padding=0.5)
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
@@ -953,8 +957,8 @@ class BaseCurve
 					const float basis = f0 + f1 + f2 + f3;
 					const float x = (f0 * w0x + f1 * w1x + f2 * w2x + f3 * w3x) / basis;
 					
-					if(x < x1) x1 = x;
-					if(x > x2) x2 = x;
+					if(x - padding < x1) x1 = x - padding;
+					if(x + padding > x2) x2 = x + padding;
 				}
 				
 				const float r10y = r1*r0*(w1y - w0y);
@@ -984,8 +988,8 @@ class BaseCurve
 					const float basis = f0 + f1 + f2 + f3;
 					const float y = (f0 * w0y + f1 * w1y + f2 * w2y + f3 * w3y) / basis;
 					
-					if(y < y1) y1 = y;
-					if(y > y2) y2 = y;
+					if(y - padding < y1) y1 = y - padding;
+					if(y + padding > y2) y2 = y + padding;
 				}
 			}
 		}
