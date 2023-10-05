@@ -660,35 +660,30 @@ class BaseCurve
 			
 			if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
 			{
-				const float basis2 =
-					-3 * p1.weight * uu +
-					 3 * cp1.weight * uu
-					-6 * cp1.weight * ti * u
-					-3 * cp2.weight * tt +
-					 6 * cp2.weight * ti * u +
-					 3 * p2.weight * tt;
+				const float ut2 = 2*u*ti;
+				const float basis2 = 3*(
+					+ ut2*(cp2.weight - cp1.weight)
+					+ uu*(cp1.weight - p1.weight)
+					- tt*(cp2.weight - p2.weight)
+				);
 				normal_x =
 					(
-						-3 * p1.y * p1.weight * uu +
-						3 * cp1y * cp1.weight * uu -
-						6 * cp1y * cp1.weight * ti * u -
-						3 * cp2y * cp2.weight * tt +
-						6 * cp2y * cp2.weight * ti * u +
-						3 * p2.y * p2.weight * tt
+						3*(
+							+ uu*(cp1y*cp1.weight - p1.y*p1.weight)
+							+ ut2*(cp2y*cp2.weight - cp1y*cp1.weight)
+							- tt*(cp2y*cp2.weight - p2.y*p2.weight)
+						)
 					) / basis
-					- (basis2 * (p1.y * f0 + cp1y * f1 + cp2y * f2 + p2.y * f3))
-					/ (basis * basis);
+					- (basis2*(p1.y*f0 + cp1y*f1 + cp2y*f2 + p2.y*f3)) / (basis*basis);
 				normal_y = -(
 					(
-						-3 * p1.x * p1.weight * uu +
-						3 * cp1x * cp1.weight * uu -
-						6 * cp1x * cp1.weight * ti * u -
-						3 * cp2x * cp2.weight * tt +
-						6 * cp2x * cp2.weight * ti * u +
-						3 * p2.x * p2.weight * tt
+						3*(
+							+ uu*(cp1x*cp1.weight - p1.x*p1.weight)
+							+ ut2*(cp2x*cp2.weight - cp1x*cp1.weight)
+							- tt*(cp2x*cp2.weight - p2.x*p2.weight)
+						)
 					) / basis
-					- (basis2 * (p1.x * f0 + cp1x * f1 + cp2x * f2 + p2.x * f3)
-					) / (basis * basis));
+					- (basis2*(p1.x*f0 + cp1x*f1 + cp2x*f2 + p2.x*f3)) / (basis*basis));
 			}
 		}
 		
@@ -884,6 +879,23 @@ class BaseCurve
 			if(cp2y < y1) y1 = cp2y;
 			if(cp2y > y2) y2 = cp2y;
 		}
+	}
+	
+	void calc_bounding_box_quadratic_bezier_newton(const int steps=6)
+	{
+		// Brx
+		// Bdrx
+		// Bd2rx
+		// Br
+		// Bdr
+		// Bd2r
+		// 
+		// Rx = Brx/Br
+		// Rdx = Br*Bdrx - Brx*Bdr
+		// Rd2x =
+		//   Br^2*(Bdr*Bdrx+Br*Bd2rx-Bdrx*Bdr-Brx*Bd2r)
+		//   -
+		//   (Br*Bdrx-Brx*Bdr) * 2*Br*Bdr
 	}
 	
 	/// Thanks to Skyhawk for figuring this out:
