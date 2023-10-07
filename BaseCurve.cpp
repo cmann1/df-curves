@@ -461,20 +461,6 @@ class BaseCurve
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const EvalReturnType return_type=EvalReturnType::Both)
 	{
-		if(vertex_count == 2)
-		{
-			const CurveVertex@ p0 = @vertices[0];
-			const CurveVertex@ p1 = @vertices[1];
-			const float dx = p1.x - p0.x;
-			const float dy = p1.y - p0.y;
-			x = p0.x + dx * t;
-			y = p0.y + dy * t;
-			const float length = sqrt(dx * dx + dy * dy);
-			normal_x = dy / length;
-			normal_y = -dx / length;
-			return;
-		}
-		
 		int i;
 		float ti;
 		calc_segment_t(t, ti, i);
@@ -872,10 +858,10 @@ class BaseCurve
 			// Calculate the x and y roots by plugging the a, b, and c coefficients into the quadratic formula.
 			const float dsc_x = sqrt(bx*bx - 4*ax*cx);
 			const float dsc_y = sqrt(by*by - 4*ay*cy);
-			const float t1x = abs(ax) != 0 ? (-bx + dsc_x)/(2*ax) : abs(bx) != 0 ? -cx/bx : 1;
-			const float t2x = abs(ax) != 0 ? (-bx - dsc_x)/(2*ax) : abs(bx) != 0 ? -cx/bx : 1;
-			const float t1y = abs(ay) != 0 ? (-by + dsc_y)/(2*ay) : abs(by) != 0 ? -cy/by : 1;
-			const float t2y = abs(ay) != 0 ? (-by - dsc_y)/(2*ay) : abs(by) != 0 ? -cy/by : 1;
+			const float t1x = abs(ax) > 0.01 ? clamp01((-bx + dsc_x)/(2*ax)) : abs(bx) > 0.01 ? -cx/bx : -1;
+			const float t2x = abs(ax) > 0.01 ? clamp01((-bx - dsc_x)/(2*ax)) : abs(bx) > 0.01 ? -cx/bx : -1;
+			const float t1y = abs(ay) > 0.01 ? clamp01((-by + dsc_y)/(2*ay)) : abs(by) > 0.01 ? -cy/by : -1;
+			const float t2y = abs(ay) > 0.01 ? clamp01((-by - dsc_y)/(2*ay)) : abs(by) > 0.01 ? -cy/by : -1;
 			
 			if(t1x >= 0 && t1x <= 1)
 			{
@@ -942,8 +928,6 @@ class BaseCurve
 			}
 		}
 	}
-	
-	// TODO: ? Replace r0, w0x, etc for direct access
 	
 	/// Thanks to Skyhawk for figuring this out:
 	/// https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867

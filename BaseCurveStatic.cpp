@@ -91,10 +91,10 @@ namespace BaseCurve
 		// Calculate the x and y roots by plugging the a, b, and c coefficients into the quadratic formula.
 		const float dsc_x = sqrt(b_x * b_x - 4 * a_x * c_x);
 		const float dsc_y = sqrt(b_y * b_y - 4 * a_y * c_y);
-		const float t1_x = a_x != 0 ? (-b_x + dsc_x) / (2 * a_x) : - c_x / b_x;
-		const float t2_x = a_x != 0 ? (-b_x - dsc_x) / (2 * a_x) : - c_x / b_x;
-		const float t1_y = a_y != 0 ? (-b_y + dsc_y) / (2 * a_y) : - c_y / b_y;
-		const float t2_y = a_y != 0 ? (-b_y - dsc_y) / (2 * a_y) : - c_y / b_y;
+		const float t1_x = abs(a_x) > 0.01 ? (-b_x + dsc_x) / (2 * a_x) : abs(b_x) > 0.01 ? - c_x / b_x : -1;
+		const float t2_x = abs(a_x) > 0.01 ? (-b_x - dsc_x) / (2 * a_x) : abs(b_x) > 0.01 ? - c_x / b_x : -1;
+		const float t1_y = abs(a_y) > 0.01 ? (-b_y + dsc_y) / (2 * a_y) : abs(b_y) > 0.01 ? - c_y / b_y : -1;
+		const float t2_y = abs(a_y) > 0.01 ? (-b_y - dsc_y) / (2 * a_y) : abs(b_y) > 0.01 ? - c_y / b_y : -1;
 		
 		if(t1_x >= 0 && t1_x <= 1)
 		{
