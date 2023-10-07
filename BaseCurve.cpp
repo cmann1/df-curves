@@ -21,6 +21,7 @@ class BaseCurve
 	// TODO: X Implement newtons method for bounding boxes.
 	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
+	// TODO: Catmul rom error with only two vertices.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -830,6 +831,8 @@ class BaseCurve
 		}
 	}
 	
+	/// Once again thank you Skyhawk.
+	/// https://discord.com/channels/83037671227658240/342175833089245184/1160156912415932469
 	private void calc_bounding_box_quadratic_bezier()
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
@@ -844,67 +847,109 @@ class BaseCurve
 			if(p1.y < y1) y1 = p1.y;
 			if(p1.y > y2) y2 = p1.y;
 			
-			if(cp.x < x1) x1 = cp.x;
-			if(cp.x > x2) x2 = cp.x;
-			if(cp.y < y1) y1 = cp.y;
-			if(cp.y > y2) y2 = cp.y;
+			if(p2.x < x1) x1 = p2.x;
+			if(p2.x > x2) x2 = p2.x;
+			if(p2.y < y1) y1 = p2.y;
+			if(p2.y > y2) y2 = p2.y;
 			
+			const float r0 = p1.weight;
+			const float r1 = cp.weight;
+			const float r2 = p2.weight;
+			const float w0x = p1.x;
+			const float w1x = cp.x;
+			const float w2x = p2.x;
+			const float w0y = p1.y;
+			const float w1y = cp.y;
+			const float w2y = p2.y;
+			
+			const float ax = 2 * (r0*r1*w1x - r0*r2*w2x - r0*r1*w0x + r1*r2*w2x - r2*r1*w1x + r0*r2*w0x);
+			const float ay = 2 * (r0*r1*w1y - r0*r2*w2y - r0*r1*w0y + r1*r2*w2y - r2*r1*w1y + r0*r2*w0y);
+			const float bx = 2 * (-2*r0*r1*w1x + r0*r2*w2x + 2*r0*r1*w0x - r0*r2*w0x);
+			const float by = 2 * (-2*r0*r1*w1y + r0*r2*w2y + 2*r0*r1*w0y - r0*r2*w0y);
+			const float cx = 2 * (r0*r1*w1x - r0*r1*w0x);
+			const float cy = 2 * (r0*r1*w1y - r0*r1*w0y);
+			
+			// Calculate the x and y roots by plugging the a, b, and c coefficients into the quadratic formula.
+			const float dsc_x = sqrt(bx*bx - 4*ax*cx);
+			const float dsc_y = sqrt(by*by - 4*ay*cy);
+			const float t1x = abs(ax) > EPSILON ? (-bx + dsc_x)/(2*ax) : bx != 0 ? -cx/bx : -1;
+			const float t2x = abs(ax) > EPSILON ? (-bx - dsc_x)/(2*ax) : bx != 0 ? -cx/bx : -1;
+			const float t1y = abs(ay) > EPSILON ? (-by + dsc_y)/(2*ay) : by != 0 ? -cy/by : -1;
+			const float t2y = abs(ay) > EPSILON ? (-by - dsc_y)/(2*ay) : by != 0 ? -cy/by : -1;
+			
+			if(t1x >= 0 && t1x <= 1)
+			{
+				const float u = 1 - t1x;
+				const float tt = t1x * t1x;
+				const float uu = u * u;
+				const float ut2 = 2 * u * t1x;
+				const float f0 = r0 * uu;
+				const float f1 = r1 * ut2;
+				const float f2 = r2 * tt;
+				const float basis = f0 + f1 + f2;
+				const float x = (f0 * w0x + f1 * w1x + f2 * w2x) / basis;
+				
+				if(x< x1) x1 = x;
+				if(x> x2) x2 = x;
+			}
+			
+			if(t2x >= 0 && t2x <= 1)
+			{
+				const float u = 1 - t2x;
+				const float tt = t2x * t2x;
+				const float uu = u * u;
+				const float ut2 = 2 * u * t2x;
+				const float f0 = r0 * uu;
+				const float f1 = r1 * ut2;
+				const float f2 = r2 * tt;
+				const float basis = f0 + f1 + f2;
+				const float x = (f0 * w0x + f1 * w1x + f2 * w2x) / basis;
+				
+				if(x< x1) x1 = x;
+				if(x> x2) x2 = x;
+			}
+			
+			if(t1y >= 0 && t1y <= 1)
+			{
+				const float u = 1 - t1y;
+				const float tt = t1y * t1y;
+				const float uu = u * u;
+				const float ut2 = 2 * u * t1y;
+				const float f0 = r0 * uu;
+				const float f1 = r1 * ut2;
+				const float f2 = r2 * tt;
+				const float basis = f0 + f1 + f2;
+				const float y = (f0 * w0y + f1 * w1y + f2 * w2y) / basis;
+				
+				if(y< y1) y1 = y;
+				if(y> y2) y2 = y;
+			}
+			
+			if(t2y >= 0 && t2y <= 1)
+			{
+				const float u = 1 - t2y;
+				const float tt = t2y * t2y;
+				const float uu = u * u;
+				const float ut2 = 2 * u * t2y;
+				const float f0 = r0 * uu;
+				const float f1 = r1 * ut2;
+				const float f2 = r2 * tt;
+				const float basis = f0 + f1 + f2;
+				const float y = (f0 * w0y + f1 * w1y + f2 * w2y) / basis;
+				
+				if(y< y1) y1 = y;
+				if(y> y2) y2 = y;
+			}
 		}
 	}
 	
-	private void calc_bounding_box_cubic_bezier()
-	{
-		const int end = closed ? vertex_count : vertex_count - 1;
-		for(int i = 0; i < end; i++)
-		{
-			const CurveVertex@ p1 = @vertices[i];
-			const CurveVertex@ p2 = vert(i, 1);
-			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
-			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
-			const float cp1x = p1.x + cp1.x;
-			const float cp1y = p1.y + cp1.y;
-			const float cp2x = p2.x + cp2.x;
-			const float cp2y = p2.y + cp2.y;
-			
-			if(p1.x < x1) x1 = p1.x;
-			if(p1.x > x2) x2 = p1.x;
-			if(p1.y < y1) y1 = p1.y;
-			if(p1.y > y2) y2 = p1.y;
-			
-			if(cp1x < x1) x1 = cp1x;
-			if(cp1x > x2) x2 = cp1x;
-			if(cp1y < y1) y1 = cp1y;
-			if(cp1y > y2) y2 = cp1y;
-			
-			if(cp2x < x1) x1 = cp2x;
-			if(cp2x > x2) x2 = cp2x;
-			if(cp2y < y1) y1 = cp2y;
-			if(cp2y > y2) y2 = cp2y;
-		}
-	}
-	
-	void calc_bounding_box_quadratic_bezier_newton(const int steps=6)
-	{
-		// Brx
-		// Bdrx
-		// Bd2rx
-		// Br
-		// Bdr
-		// Bd2r
-		// 
-		// Rx = Brx/Br
-		// Rdx = Br*Bdrx - Brx*Bdr
-		// Rd2x =
-		//   Br^2*(Bdr*Bdrx+Br*Bd2rx-Bdrx*Bdr-Brx*Bd2r)
-		//   -
-		//   (Br*Bdrx-Brx*Bdr) * 2*Br*Bdr
-	}
+	// TODO: ? Replace r0, w0x, etc for direct access
 	
 	/// Thanks to Skyhawk for figuring this out:
 	/// https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
 	/// https://www.desmos.com/calculator/mxt9wq6kzn
 	///  - padding_factor - To account for possible inaccuracies a small amount of padding can be added around the bounding box.
-	void calc_bounding_box_cubic_bezier_newton(const int steps=6, const float padding=0.5)
+	void calc_bounding_box_cubic_bezier_newton(const int samples=6, const float padding=0.5)
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
@@ -913,10 +958,6 @@ class BaseCurve
 			const CurveVertex@ p2 = vert(i, 1);
 			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
 			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
-			const float cp1x = p1.x + cp1.x;
-			const float cp1y = p1.y + cp1.y;
-			const float cp2x = p2.x + cp2.x;
-			const float cp2y = p2.y + cp2.y;
 			
 			if(p1.x < x1) x1 = p1.x;
 			if(p1.x > x2) x2 = p1.x;
@@ -928,17 +969,17 @@ class BaseCurve
 			const float r2 = cp2.weight;
 			const float r3 = p2.weight;
 			const float w0x = p1.x;
-			const float w1x = cp1x;
-			const float w2x = cp2x;
+			const float w1x = p1.x + cp1.x;
+			const float w2x = p2.x + cp2.x;
 			const float w3x = p2.x;
 			const float w0y = p1.y;
-			const float w1y = cp1y;
-			const float w2y = cp2y;
+			const float w1y = p1.y + cp1.y;
+			const float w2y = p2.y + cp2.y;
 			const float w3y = p2.y;
 			
-			for(int j = 0; j < steps; j++)
+			for(int j = 0; j < samples; j++)
 			{
-				const float t = float(j) / (steps - 1);
+				const float t = float(j) / (samples - 1);
 				
 				const float t2 = t * t;
 				const float t3 = t2 * t;
