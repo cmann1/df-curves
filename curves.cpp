@@ -199,7 +199,7 @@ class script : BaseCurveDebugColourCallback
 		
 		float x, y, nx, ny;
 		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
-		//curve.calc(t % 1, x, y, nx, ny);
+		//curve.eval(t % 1, x, y, nx, ny);
 		draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
 		
 		if(display_txt_timer > -1)
@@ -279,13 +279,13 @@ class script : BaseCurveDebugColourCallback
 			{
 				if(@v != null)
 				{
-					v.tension = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.25, 30.0);
+					v.tension = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.25, 30.0);
 					display_txt.text('Tension: ' + str(v.tension));
 				}
 			}
 			else
 			{
-				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) * 0.1, 0.05, 50.0);
+				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.05, 60.0);
 				display_txt.text('Weight: ' + str(drag_point.weight));
 			}
 			
