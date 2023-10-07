@@ -872,10 +872,10 @@ class BaseCurve
 			// Calculate the x and y roots by plugging the a, b, and c coefficients into the quadratic formula.
 			const float dsc_x = sqrt(bx*bx - 4*ax*cx);
 			const float dsc_y = sqrt(by*by - 4*ay*cy);
-			const float t1x = abs(ax) > EPSILON ? (-bx + dsc_x)/(2*ax) : bx != 0 ? -cx/bx : -1;
-			const float t2x = abs(ax) > EPSILON ? (-bx - dsc_x)/(2*ax) : bx != 0 ? -cx/bx : -1;
-			const float t1y = abs(ay) > EPSILON ? (-by + dsc_y)/(2*ay) : by != 0 ? -cy/by : -1;
-			const float t2y = abs(ay) > EPSILON ? (-by - dsc_y)/(2*ay) : by != 0 ? -cy/by : -1;
+			const float t1x = abs(ax) != 0 ? (-bx + dsc_x)/(2*ax) : abs(bx) != 0 ? -cx/bx : 1;
+			const float t2x = abs(ax) != 0 ? (-bx - dsc_x)/(2*ax) : abs(bx) != 0 ? -cx/bx : 1;
+			const float t1y = abs(ay) != 0 ? (-by + dsc_y)/(2*ay) : abs(by) != 0 ? -cy/by : 1;
+			const float t2y = abs(ay) != 0 ? (-by - dsc_y)/(2*ay) : abs(by) != 0 ? -cy/by : 1;
 			
 			if(t1x >= 0 && t1x <= 1)
 			{
@@ -997,7 +997,7 @@ class BaseCurve
 				const float rdx = 3*(t2*(ax*t2 + cx) + 2*t*(bx*t2 + dx) + r10x);
 				const float rd2x = 6*(2*ax*t3 + 3*bx*t2 + cx*t + dx);
 				
-				const float ntx = rd2x != 0 ? -rdx / rd2x + t : -1;
+				const float ntx = rd2x != 0 ? -rdx / rd2x + t : 1;
 				if(ntx >= 0 && ntx <= 1)
 				{
 					const float u = 1 - ntx;
@@ -1028,7 +1028,7 @@ class BaseCurve
 				const float rdy = 3*(t2*(ay*t2 + cy) + 2*t*(by*t2 + dy) + r10y);
 				const float rd2y = 6*(2*ay*t3 + 3*by*t2 + cy*t + dy);
 				
-				const float nty = rd2y != 0 ? -rdy / rd2y + t : -1;
+				const float nty = rd2y != 0 ? -rdy / rd2y + t : 1;
 				if(nty >= 0 && nty <= 1)
 				{
 					const float u = 1 - nty;
