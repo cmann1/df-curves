@@ -215,7 +215,18 @@ class script : MultiCurveDebugColourCallback
 		{
 			if(get_vertex_at_mouse(drag_point) || get_control_point_at_mouse(drag_point))
 			{
-				drag_point.weight = 1;
+				if(curve.type != CatmullRom)
+				{
+					drag_point.weight = 1;
+				}
+				else
+				{
+					CurveVertex@ v = cast<CurveVertex@>(drag_point);
+					if(@v != null)
+					{
+						v.tension = 1;
+					}
+				}
 				@drag_point = null;
 				curve_changed = true;
 			}
