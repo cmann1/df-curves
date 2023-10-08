@@ -14,6 +14,13 @@ class CurveControlPoint : CurvePoint
 		this.y = y;
 	}
 	
+	CurveControlPoint@ added(const CurveControlPoint@ p1, const CurveControlPoint@ p2)
+	{
+		x = p1.x + p2.x;
+		y = p1.y + p2.y;
+		return this;
+	}
+	
 }
 
 class CurveVertex : CurveControlPoint

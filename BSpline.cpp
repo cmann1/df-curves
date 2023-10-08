@@ -7,6 +7,7 @@ class BSpline
 	private int knots_length;
 	
 	private int vertex_count;
+	private array<CurveVertex>@ vertices;
 	private array<CurvePointW> vertices_weighted(32);
 	private array<CurvePointW> curve_wders(32);
 	private array<CurvePointW> curve_ders(32);
@@ -19,62 +20,6 @@ class BSpline
 	private array<float> left(32);
 	private array<float> right(32);
 	
-	/** Returns the point and normal at the given `t` value.
-	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
-	  *  - `degree` - How smooth the curve is.
-	  *  - `clamped` - Whether or not the curve will touch the start and end vertices. Only applicable when open.
-	  *  - `closed` - If true the start and end vertices will be smoothly connected. */
-	void eval(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const int degree, const bool clamped, const bool closed,
-		const EvalReturnType return_type=EvalReturnType::Both)
-	{
-		int v_count, degree_c;
-		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
-		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
-		
-		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
-		{
-			// Find span and corresponding non-zero basis functions
-			const int span = find_span(degree_c, u);
-			calc_basis(degree_c, span, u);
-			
-			// Initialize result to 0s
-			x = 0;
-			y = 0;
-			float w = 0;
-			
-			// Compute point.
-			for(int i = 0; i <= degree_c; i++)
-			{
-				CurvePointW@ p = vertices_weighted[span - degree_c + i];
-				const float ni = basis_list[i];
-				x += p.x * ni;
-				y += p.y * ni;
-				w += p.w * ni;
-			}
-			
-			// Convert back to cartesian coordinates.
-			x /= w;
-			y /= w;
-		}
-		else
-		{
-			x = 0;
-			y = 0;
-		}
-		
-		// Calculate the normal vector.
-		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Normal)
-		{
-			curve_derivatives_rational(u, 1, degree_c, closed);
-
-			CurvePointW@ du = @curve_ders[1];
-			normal_x = du.y;
-			normal_y = -du.x;
-		}
-	}
-	
 	/** Sets the vertices for this spline.
 	  * Only needs to be called initially or once after the number of, position, or weight of any vertices change. */
 	void set_vertices(
@@ -82,6 +27,7 @@ class BSpline
 		const int degree, const bool clamped, const bool closed)
 	{
 		this.vertex_count = vertex_count;
+		@this.vertices = vertices;
 		
 		int v_count, _;
 		init_params(vertex_count, degree, clamped, closed, v_count, _);
@@ -125,7 +71,148 @@ class BSpline
 		}
 	}
 	
-	// -
+	// -- Eval --
+	
+	/** Returns the point and normal at the given `t` value.
+	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
+	  * @param degree How smooth the curve is.
+	  * @param clamped Whether or not the curve will touch the start and end vertices. Only applicable when open.
+	  * @param closed If true the start and end vertices will be smoothly connected. 
+	  * @param normalise If false the returned normal values will not be normalised. */
+	void eval(
+		const int degree, const bool clamped, const bool closed,
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const bool normalise=true)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		
+		// Find span and corresponding non-zero basis functions
+		const int span = find_span(degree_c, u);
+		calc_basis(degree_c, span, u);
+		
+		// Initialize result to 0s
+		x = 0;
+		y = 0;
+		float w = 0;
+		
+		// Compute point.
+		for(int i = 0; i <= degree_c; i++)
+		{
+			CurvePointW@ p = vertices_weighted[span - degree_c + i];
+			const float ni = basis_list[i];
+			x += p.x * ni;
+			y += p.y * ni;
+			w += p.w * ni;
+		}
+		
+		// Convert back to cartesian coordinates.
+		x /= w;
+		y /= w;
+		
+		// Calculate the normal vector.
+		curve_derivatives_rational(degree_c, closed, u, 1, span);
+
+		CurvePointW@ du = @curve_ders[1];
+		normal_x = du.y;
+		normal_y = -du.x;
+		
+		if(normalise)
+		{
+			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+			if(length != 0)
+			{
+				normal_x /= length;
+				normal_y /= length;
+			}
+		}
+	}
+	
+	/** Returns the point at the given `t` value.
+	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes. */
+	void eval_point(
+		const int degree, const bool clamped, const bool closed,
+		const float t, float &out x, float &out y)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		
+		// Find span and corresponding non-zero basis functions
+		const int span = find_span(degree_c, u);
+		calc_basis(degree_c, span, u);
+		
+		// Initialize result to 0s
+		x = 0;
+		y = 0;
+		float w = 0;
+		
+		// Compute point.
+		for(int i = 0; i <= degree_c; i++)
+		{
+			CurvePointW@ p = vertices_weighted[span - degree_c + i];
+			const float ni = basis_list[i];
+			x += p.x * ni;
+			y += p.y * ni;
+			w += p.w * ni;
+		}
+		
+		// Convert back to cartesian coordinates.
+		x /= w;
+		y /= w;
+	}
+	
+	/** Returns the normal at the given `t` value. */
+	void eval_normal(
+		const int degree, const bool clamped, const bool closed,
+		const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		
+		// Calculate the normal vector.
+		curve_derivatives_rational(degree_c, closed, u, 1);
+
+		CurvePointW@ du = @curve_ders[1];
+		normal_x = du.y;
+		normal_y = -du.x;
+		
+		if(normalise)
+		{
+			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+			if(length != 0)
+			{
+				normal_x /= length;
+				normal_y /= length;
+			}
+		}
+	}
+	
+	// -- Bounding boxes --
+	
+	/** Calculates an approximate bounding box by simply finding the min and max of all vertices. */
+	void bounding_box_simple(float &out x1, float &out y1, float &out x2, float &out y2)
+	{
+		if(vertex_count == 0)
+			return;
+		
+		CurveVertex@ v = vertices[0];
+		x1 = x2 = v.x;
+		y1 = y2 = v.y;
+		
+		for(int i = 1; i < vertex_count; i++)
+		{
+			@v = vertices[i];
+			if(v.x < x1) x1 = v.x;
+			if(v.y < y1) y1 = v.y;
+			if(v.x > x2) x2 = v.x;
+			if(v.y > y2) y2 = v.y;
+		}
+	}
+	
+	// --
 	
 	private void init_params(
 		const int vertex_count,
@@ -137,11 +224,11 @@ class BSpline
 	}
 	
 	private void curve_derivatives_rational(
-		const float u, const int num_ders,
-		const int degree, const bool closed)
+		const int degree, const bool closed,
+		const float u, const int num_ders, const int span=-1)
 	{
 		// Derivatives of Cw.
-		curve_derivatives(vertices_weighted, num_ders, degree, u);
+		curve_derivatives(vertices_weighted, degree, num_ders, u, span);
 		
 		// Split into coordinates and weights.
 		while(v_ders.length < vertices_weighted.length)
@@ -185,7 +272,9 @@ class BSpline
 		}
 	}
 	
-	private void curve_derivatives(array<CurvePointW>@ vertices_weighted, const int num_ders, const int degree, const float u)
+	private void curve_derivatives(
+		array<CurvePointW>@ vertices_weighted, const int degree,
+		const int num_ders, const float u, int span=-1)
 	{
 		if(int(curve_wders.length) < num_ders + 1)
 		{
@@ -202,7 +291,10 @@ class BSpline
 		}
 		
 		// Find the span and corresponding non-zero basis functions & derivatives.
-		const int span = find_span(degree, u);
+		if(span == -1)
+		{
+			span = find_span(degree, u);
+		}
 		calc_der_basis(degree, span, u, num_ders);
 		
 		// Compute first num_ders derivatives.

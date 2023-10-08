@@ -58,18 +58,3 @@ enum CurveVertexType
 	Mirror,
 	
 }
-
-/** Controls what the results the `BaseCurve.eval` method wil return. */
-enum EvalReturnType
-{
-	
-	/** The `eval` method will calculate and return both the point and normal at `t`. */
-	Both,
-	
-	/** The `eval` method will calculate only the point and normal at `t`. */
-	Point,
-	
-	/** The `eval` method will calculate only the normal and normal at `t`. */
-	Normal,
-	
-}
