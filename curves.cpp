@@ -4,8 +4,8 @@
 #include '../lib/enums/GVB.cpp';
 #include '../lib/enums/VK.cpp';
 
-#include 'BaseCurve.cpp';
-#include 'BaseCurveDebug.cpp';
+#include 'MultiCurve.cpp';
+#include 'MultiCurveDebug.cpp';
 
 class script : BaseCurveDebugColourCallback
 {
