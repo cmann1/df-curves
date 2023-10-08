@@ -21,54 +21,6 @@ namespace MultiCurve
 		c2_y = -(cr_p4_y - cr_p2_y) / a;
 	}
 	
-	/// Return the bounding box enclosing the curve given the two vertices and a single control point
-	/// defining a quadratic bezier curve.
-	void bounding_box_quadratic_bezier(
-		const float p1_x, const float p1_y, const float p2_x, const float p2_y,
-		const float cp_x, const float cp_y,
-		float &out x1, float &out y1, float &out x2, float &out y2)
-	{
-		x1 = p1_x < p2_x ? p1_x : p1_x;
-		y1 = p1_y < p2_y ? p1_y : p1_y;
-		x2 = p2_x > p1_x ? p2_x : p2_x;
-		y2 = p2_y > p1_y ? p2_y : p2_y;
-		
-		const float a_x = 2 * (cp_x - p1_x);
-		const float a_y = 2 * (cp_y - p1_y);
-		const float b_x = 2 * (p2_x - cp_x);
-		const float b_y = 2 * (p2_y - cp_y);
-		
-		// Calculate the x/y roots.
-		const float t_x = b_x - a_x != 0 ? -a_x / (b_x - a_x) : -1;
-		const float t_y = b_y - a_y != 0 ? -a_y / (b_y - a_y) : -1;
-		
-		if(t_x >= 0 && t_x <= 1)
-		{
-			const float u = 1 - t_x;
-			const float tt = t_x * t_x;
-			const float uu = u * u;
-			const float ut2 = 2 * u * t_x;
-			
-			const float rx = uu * p1_x + ut2 * cp_x + tt * p2_x;
-			
-			if(rx < x1) x1 = rx;
-			if(rx > x2) x2 = rx;
-		}
-		
-		if(t_y >= 0 && t_y <= 1)
-		{
-			const float u = 1 - t_y;
-			const float tt = t_y * t_y;
-			const float uu = u * u;
-			const float ut2 = 2 * u * t_y;
-			
-			const float ry = uu * p1_y + ut2 * cp_y + tt * p2_y;
-			
-			if(ry < y1) y1 = ry;
-			if(ry > y2) y2 = ry;
-		}
-	}
-	
 	/// Return the bounding box enclosing the curve given the two vertices and two control points
 	/// defining a cubic bezier curve.
 	void bounding_box_cubic_bezier(

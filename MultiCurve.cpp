@@ -1,10 +1,12 @@
-#include 'BSplineEvaluator.cpp';
-#include 'CurvePoint.cpp';
-#include 'CurveTypes.cpp';
+#include 'CubicBezier.cpp';
+#include 'QuadraticBezier.cpp';
+
 #include 'CurveVertex.cpp';
+
+#include 'BSplineEvaluator.cpp';
 #include 'MultiCurveStatic.cpp';
 
-/// A higher level wrapper specifically designed for editing/manipulating curves with support for several
+/// A higher level wrapper designed for editing/manipulating curves with support for several
 /// different types as well as chaining multiple curves together.
 class MultiCurve
 {
@@ -21,7 +23,6 @@ class MultiCurve
 	// TODO: X Implement newtons method for bounding boxes.
 	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
-	// TODO: Catmul rom error with only two vertices.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -817,8 +818,6 @@ class MultiCurve
 		}
 	}
 	
-	/// Once again thank you Skyhawk.
-	/// https://discord.com/channels/83037671227658240/342175833089245184/1160156912415932469
 	private void calc_bounding_box_quadratic_bezier()
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
@@ -828,104 +827,26 @@ class MultiCurve
 			const CurveVertex@ p2 = vert(i, 1);
 			const CurveControlPoint@ cp = p1.quad_control_point;
 			
-			if(p1.x < x1) x1 = p1.x;
-			if(p1.x > x2) x2 = p1.x;
-			if(p1.y < y1) y1 = p1.y;
-			if(p1.y > y2) y2 = p1.y;
+			float sx1, sy1, sx2, sy2;
 			
-			if(p2.x < x1) x1 = p2.x;
-			if(p2.x > x2) x2 = p2.x;
-			if(p2.y < y1) y1 = p2.y;
-			if(p2.y > y2) y2 = p2.y;
-			
-			const float r0 = p1.weight;
-			const float r1 = cp.weight;
-			const float r2 = p2.weight;
-			const float w0x = p1.x;
-			const float w1x = cp.x;
-			const float w2x = p2.x;
-			const float w0y = p1.y;
-			const float w1y = cp.y;
-			const float w2y = p2.y;
-			
-			const float ax = 2 * (r0*r1*w1x - r0*r2*w2x - r0*r1*w0x + r1*r2*w2x - r2*r1*w1x + r0*r2*w0x);
-			const float ay = 2 * (r0*r1*w1y - r0*r2*w2y - r0*r1*w0y + r1*r2*w2y - r2*r1*w1y + r0*r2*w0y);
-			const float bx = 2 * (-2*r0*r1*w1x + r0*r2*w2x + 2*r0*r1*w0x - r0*r2*w0x);
-			const float by = 2 * (-2*r0*r1*w1y + r0*r2*w2y + 2*r0*r1*w0y - r0*r2*w0y);
-			const float cx = 2 * (r0*r1*w1x - r0*r1*w0x);
-			const float cy = 2 * (r0*r1*w1y - r0*r1*w0y);
-			
-			// Calculate the x and y roots by plugging the a, b, and c coefficients into the quadratic formula.
-			const float dsc_x = sqrt(bx*bx - 4*ax*cx);
-			const float dsc_y = sqrt(by*by - 4*ay*cy);
-			const float t1x = abs(ax) > 0.01 ? clamp01((-bx + dsc_x)/(2*ax)) : abs(bx) > 0.01 ? -cx/bx : -1;
-			const float t2x = abs(ax) > 0.01 ? clamp01((-bx - dsc_x)/(2*ax)) : abs(bx) > 0.01 ? -cx/bx : -1;
-			const float t1y = abs(ay) > 0.01 ? clamp01((-by + dsc_y)/(2*ay)) : abs(by) > 0.01 ? -cy/by : -1;
-			const float t2y = abs(ay) > 0.01 ? clamp01((-by - dsc_y)/(2*ay)) : abs(by) > 0.01 ? -cy/by : -1;
-			
-			if(t1x >= 0 && t1x <= 1)
+			if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
 			{
-				const float u = 1 - t1x;
-				const float tt = t1x * t1x;
-				const float uu = u * u;
-				const float ut2 = 2 * u * t1x;
-				const float f0 = r0 * uu;
-				const float f1 = r1 * ut2;
-				const float f2 = r2 * tt;
-				const float basis = f0 + f1 + f2;
-				const float x = (f0 * w0x + f1 * w1x + f2 * w2x) / basis;
-				
-				if(x< x1) x1 = x;
-				if(x> x2) x2 = x;
+				QuadraticBezier::bounding_box(
+					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+					sx1, sy1, sx2, sy2);
+			}
+			else
+			{
+				QuadraticBezier::bounding_box(
+					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+					p1.weight, cp.weight, p2.weight,
+					sx1, sy1, sx2, sy2);
 			}
 			
-			if(t2x >= 0 && t2x <= 1)
-			{
-				const float u = 1 - t2x;
-				const float tt = t2x * t2x;
-				const float uu = u * u;
-				const float ut2 = 2 * u * t2x;
-				const float f0 = r0 * uu;
-				const float f1 = r1 * ut2;
-				const float f2 = r2 * tt;
-				const float basis = f0 + f1 + f2;
-				const float x = (f0 * w0x + f1 * w1x + f2 * w2x) / basis;
-				
-				if(x< x1) x1 = x;
-				if(x> x2) x2 = x;
-			}
-			
-			if(t1y >= 0 && t1y <= 1)
-			{
-				const float u = 1 - t1y;
-				const float tt = t1y * t1y;
-				const float uu = u * u;
-				const float ut2 = 2 * u * t1y;
-				const float f0 = r0 * uu;
-				const float f1 = r1 * ut2;
-				const float f2 = r2 * tt;
-				const float basis = f0 + f1 + f2;
-				const float y = (f0 * w0y + f1 * w1y + f2 * w2y) / basis;
-				
-				if(y< y1) y1 = y;
-				if(y> y2) y2 = y;
-			}
-			
-			if(t2y >= 0 && t2y <= 1)
-			{
-				const float u = 1 - t2y;
-				const float tt = t2y * t2y;
-				const float uu = u * u;
-				const float ut2 = 2 * u * t2y;
-				const float f0 = r0 * uu;
-				const float f1 = r1 * ut2;
-				const float f2 = r2 * tt;
-				const float basis = f0 + f1 + f2;
-				const float y = (f0 * w0y + f1 * w1y + f2 * w2y) / basis;
-				
-				if(y< y1) y1 = y;
-				if(y> y2) y2 = y;
-			}
+			if(sx1 < x1) x1 = sx1;
+			if(sy1 < y1) y1 = sy1;
+			if(sx2 > x2) x2 = sx2;
+			if(sy2 > y2) y2 = sy2;
 		}
 	}
 	

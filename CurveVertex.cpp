@@ -1,3 +1,6 @@
+#include 'CurvePoint.cpp';
+#include 'CurveTypes.cpp';
+
 class CurveControlPoint : CurvePoint
 {
 	
