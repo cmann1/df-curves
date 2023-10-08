@@ -238,6 +238,22 @@ class MultiCurve
 		if(!invalidated)
 			return;
 		
+		// -- Update BSplines.
+		
+		if(_type == CurveType::BSpline)
+		{
+			if(invalidated_b_spline_vertices)
+			{
+				b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
+				invalidated_b_spline_vertices = false;
+			}
+			if(invalidated_b_spline_knots)
+			{
+				b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
+				invalidated_b_spline_knots = false;
+			}
+		}
+		
 		// -- Calculate the bounding box.
 		
 		x1 = INFINITY;
@@ -263,22 +279,6 @@ class MultiCurve
 			default:
 				calc_bounding_box_linear();
 				break;
-		}
-		
-		// -- Update BSplines.
-		
-		if(_type == CurveType::BSpline)
-		{
-			if(invalidated_b_spline_vertices)
-			{
-				b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
-				invalidated_b_spline_vertices = false;
-			}
-			if(invalidated_b_spline_knots)
-			{
-				b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
-				invalidated_b_spline_knots = false;
-			}
 		}
 		
 		// -- Calculate arc lengths.
