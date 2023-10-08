@@ -1,10 +1,10 @@
+#include 'CatmullRom.cpp';
 #include 'CubicBezier.cpp';
 #include 'QuadraticBezier.cpp';
 
 #include 'CurveVertex.cpp';
 
 #include 'BSplineEvaluator.cpp';
-#include 'MultiCurveStatic.cpp';
 
 /// A higher level wrapper designed for editing/manipulating curves with support for several
 /// different types as well as chaining multiple curves together.
@@ -465,20 +465,20 @@ class MultiCurve
 		float ti;
 		calc_segment_t(t, ti, i);
 		
-		CurveVertex@ p1, p2;
-		CurveControlPoint@ p0, p3;
-		get_segment_catmull_rom(i, p1, p2, p0, p3);
+		CurveVertex@ p2, p3;
+		CurveControlPoint@ p1, p4;
+		get_segment_catmull_rom(i, p1, p2, p3, p4);
 		
-		const float st = (tension * p1.tension) * 2;
+		const float st = (tension * p2.tension) * 2;
 		
 		// Calculate the point.
 		const float t2 = ti * ti;
 		const float t3 = t2 * ti;
 		
-		const float dv1x = (p2.x - p0.x) / st;
-		const float dv1y = (p2.y - p0.y) / st;
-		const float dv2x = (p3.x - p1.x) / st;
-		const float dv2y = (p3.y - p1.y) / st;
+		const float dv1x = (p3.x - p1.x) / st;
+		const float dv1y = (p3.y - p1.y) / st;
+		const float dv2x = (p4.x - p2.x) / st;
+		const float dv2y = (p4.y - p2.y) / st;
 		
 		if(return_type == EvalReturnType::Both || return_type == EvalReturnType::Point)
 		{
@@ -486,8 +486,8 @@ class MultiCurve
 			const float c1 = t3 - 2 * t2 + ti;
 			const float c2 = -2 * t3 + 3 * t2;
 			const float c3 = t3 - t2;
-			x = c0 * p1.x + c1 * dv1x + c2 * p2.x + c3 * dv2x;
-			y = c0 * p1.y + c1 * dv1y + c2 * p2.y + c3 * dv2y;
+			x = c0 * p2.x + c1 * dv1x + c2 * p3.x + c3 * dv2x;
+			y = c0 * p2.y + c1 * dv1y + c2 * p3.y + c3 * dv2y;
 		}
 		
 		// Calculate the normal.
@@ -496,11 +496,11 @@ class MultiCurve
 			normal_x =
 				(3 * t2 - 4 * ti + 1) * dv1y +
 				(3 * t2 - 2 * ti) * dv2y +
-				p1.y * (6 * t2 - 6 * ti) + p2.y * (6 * ti - 6 * t2);
+				p2.y * (6 * t2 - 6 * ti) + p3.y * (6 * ti - 6 * t2);
 			normal_y = -(
 				(3 * t2 - 4 * ti + 1) * dv1x +
 				(3 * t2 - 2 * ti) * dv2x +
-				p1.x * (6 * t2 - 6 * ti) + p2.x * (6 * ti - 6 * t2));
+				p2.x * (6 * t2 - 6 * ti) + p3.x * (6 * ti - 6 * t2));
 			
 			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
 			if(length != 0)
@@ -713,27 +713,27 @@ class MultiCurve
 	}
 	
 	/// Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc.
-	void get_segment_catmull_rom(const int i, CurveVertex@ &out p1, CurveVertex@ &out p2, CurveControlPoint@ &out p0, CurveControlPoint@ &out p3)
+	void get_segment_catmull_rom(const int i, CurveControlPoint@ &out p1, CurveVertex@ &out p2, CurveVertex@ &out p3, CurveControlPoint@ &out p4)
 	{
-		@p1 = @vertices[i];
-		@p2 = vert(i, 1);
+		@p2 = @vertices[i];
+		@p3 = vert(i, 1);
 		
-		@p0 = p1.type != Square
+		@p1 = p2.type != Square
 			? closed || i > 0
 				? vert(i, -1)
 				: _end_controls != Manual
-					? this.p0.extrapolate(p1, p2,
+					? this.p0.extrapolate(p2, p3,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
 					: check_control_point_start()
-			: p1;
-		@p3 = p2.type != Square
+			: p2;
+		@p4 = p3.type != Square
 			? closed || i < vertex_count - 2
 				? vert(i, 2)
 				: _end_controls != Manual
-					? this.p3.extrapolate(p2, p1,
+					? this.p3.extrapolate(p3, p2,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null)
 					: check_control_point_end()
-			: p2;
+			: p3;
 	}
 	
 	// 
@@ -788,32 +788,28 @@ class MultiCurve
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
 		{
-			CurveVertex@ p1, p2;
-			CurveControlPoint@ p0, p3;
-			get_segment_catmull_rom(i, p1, p2, p0, p3);
+			CurveVertex@ p2, p3;
+			CurveControlPoint@ p1, p4;
+			get_segment_catmull_rom(i, p1, p2, p3, p4);
 			
-			float p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y;
-			MultiCurve::catmull_rom_to_cubic_bezier(
-				p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, tension * p1.tension,
-				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y);
-			cp1x += p1_x;
-			cp1y += p1_y;
-			cp2x += p2_x;
-			cp2y += p2_y;
+			float bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y;
+			CatmullRom::to_cubic_bezier(
+				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, tension * p2.tension,
+				bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y);
+			bp2x += p2.x;
+			bp2y += p2.y;
+			bp3x += p3.x;
+			bp3y += p3.y;
 			
-			float lx1, ly1, lx2, ly2;
-			MultiCurve::bounding_box_cubic_bezier(
-				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y,
-				lx1, ly1, lx2, ly2);
+			float sx1, sy1, sx2, sy2;
+			CubicBezier::bounding_box(
+				bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y,
+				sx1, sy1, sx2, sy2);
 			
-			if(lx1 < x1) x1 = lx1;
-			if(lx2 < x1) x1 = lx2;
-			if(ly1 < y1) y1 = ly1;
-			if(ly2 < y1) y1 = ly2;
-			if(lx1 > x2) x2 = lx1;
-			if(lx2 > x2) x2 = lx2;
-			if(ly1 > y2) y2 = ly1;
-			if(ly2 > y2) y2 = ly2;
+			if(sx1 < x1) x1 = sx1;
+			if(sy1 < y1) y1 = sy1;
+			if(sx2 > x2) x2 = sx2;
+			if(sy2 > y2) y2 = sy2;
 		}
 	}
 	
@@ -849,7 +845,7 @@ class MultiCurve
 		}
 	}
 	
-	void calc_bounding_box_cubic_bezier(const int samples=6, const float padding=0.5)
+	private void calc_bounding_box_cubic_bezier(const int samples=6, const float padding=0.5)
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
