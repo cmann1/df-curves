@@ -1,8 +1,8 @@
 #include '../lib/utils/colour.cpp';
 
-/// Provides simple debug drawing for a `BaseCurve`.
+/// Provides simple debug drawing for a `MultiCurve`.
 /// Setting any width/length property to <= 0 will disable drawing of that component.
-class BaseCurveDebug
+class MultiCurveDebug
 {
 	
 	float control_point_size = 2;
@@ -24,7 +24,7 @@ class BaseCurveDebug
 	uint bounding_box_clr = 0x66002222;
 	
 	/// If set, allows choosing the curve line colour based on the segment index and absolute t value.
-	BaseCurveDebugColourCallback@ segment_colour_callback;
+	MultiCurveDebugColourCallback@ segment_colour_callback;
 	
 	/// The precision used by `draw_curve`.
 	int curve_segments = 15;
@@ -33,7 +33,7 @@ class BaseCurveDebug
 	private CurveVertex p3;
 	
 	/// Draws all components of the curve based on this instance's properties.
-	void draw(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		draw_bounding_box(c, curve, zoom_factor);
 		draw_control_points(c, curve, zoom_factor);
@@ -43,7 +43,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the control points and connecting lines.
-	void draw_control_points(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw_control_points(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		if(control_point_size <= 0)
 			return;
@@ -167,7 +167,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the skeleton, ie. lines connecting each vertex.
-	void draw_outline(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw_outline(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		if(outline_width <= 0 || curve.vertex_count <= 0 || curve.type == CurveType::Linear)
 			return;
@@ -185,7 +185,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the curve.
-	void draw_curve(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw_curve(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		const bool draw_curve = line_width > 0;
 		const bool draw_normal = normal_width > 0 && normal_length > 0;
@@ -244,7 +244,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the actual curve.
-	void draw_vertices(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw_vertices(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		if(vertex_size <= 0)
 			return;
@@ -260,7 +260,7 @@ class BaseCurveDebug
 	}
 	
 	/// Draws the bounding box of the curve.
-	void draw_bounding_box(canvas@ c, BaseCurve@ curve, const float zoom_factor=1)
+	void draw_bounding_box(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
 		if(bounding_box_width <= 0)
 			return;
@@ -289,9 +289,9 @@ class BaseCurveDebug
 	
 }
 
-interface BaseCurveDebugColourCallback
+interface MultiCurveDebugColourCallback
 {
 	
-	uint get_curve_line_colour(const BaseCurve@ curve, const float segment_t, const float max_t);
+	uint get_curve_line_colour(const MultiCurve@ curve, const float segment_t, const float max_t);
 	
 }

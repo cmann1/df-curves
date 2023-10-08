@@ -7,7 +7,7 @@
 #include 'MultiCurve.cpp';
 #include 'MultiCurveDebug.cpp';
 
-class script : BaseCurveDebugColourCallback
+class script : MultiCurveDebugColourCallback
 {
 	
 	[persist] float speed = 1;
@@ -32,8 +32,8 @@ class script : BaseCurveDebugColourCallback
 	CurveControlPoint@ drag_point;
 	float drag_ox, drag_oy;
 	
-	BaseCurve curve;
-	BaseCurveDebug debug_draw;
+	MultiCurve curve;
+	MultiCurveDebug debug_draw;
 	bool curve_changed;
 	
 	uint seed = 0;
@@ -408,7 +408,7 @@ class script : BaseCurveDebugColourCallback
 		curve_changed = true;
 	}
 	
-	uint get_curve_line_colour(const BaseCurve@ curve, const float segment_t, const float max_t)
+	uint get_curve_line_colour(const MultiCurve@ curve, const float segment_t, const float max_t)
 	{
 		if(curve.closed && int(segment_t) == int(max_t) - 1)
 			return 0xffff6569;

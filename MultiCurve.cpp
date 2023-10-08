@@ -2,11 +2,11 @@
 #include 'CurvePoint.cpp';
 #include 'CurveTypes.cpp';
 #include 'CurveVertex.cpp';
-#include 'BaseCurveStatic.cpp';
+#include 'MultiCurveStatic.cpp';
 
 /// A higher level wrapper specifically designed for editing/manipulating curves with support for several
 /// different types as well as chaining multiple curves together.
-class BaseCurve
+class MultiCurve
 {
 	
 	// TODO: control_point_start/end should always be moved relative to the start/end vertices
@@ -15,9 +15,9 @@ class BaseCurve
 	//       - Move into separate files/functions so they're easier to include on their own.
 	//       - Option to not normalise returned normal (possibly saves some calculations
 	//         e.g. if you just want the angle using atan2 which doesn't need the vector to be normalised)
-	//       - Rename BaseCurve to MultiCurve.
-	//       	- Move all curve logic into curve specific classes with `BaseCurve` as the base class.
-	//       	- `BaseCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
+	//       - Rename MultiCurve to MultiCurve.
+	//       	- Move all curve logic into curve specific classes with `MultiCurve` as the base class.
+	//       	- `MultiCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
 	// TODO: X Implement newtons method for bounding boxes.
 	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
@@ -80,7 +80,7 @@ class BaseCurve
 	private CurveVertex p0;
 	private CurveVertex p3;
 	
-	BaseCurve()
+	MultiCurve()
 	{
 		control_point_start.type = None;
 		control_point_end.type = None;
@@ -793,7 +793,7 @@ class BaseCurve
 			get_segment_catmull_rom(i, p1, p2, p0, p3);
 			
 			float p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y;
-			BaseCurve::catmull_rom_to_cubic_bezier(
+			MultiCurve::catmull_rom_to_cubic_bezier(
 				p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, tension * p1.tension,
 				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y);
 			cp1x += p1_x;
@@ -802,7 +802,7 @@ class BaseCurve
 			cp2y += p2_y;
 			
 			float lx1, ly1, lx2, ly2;
-			BaseCurve::bounding_box_cubic_bezier(
+			MultiCurve::bounding_box_cubic_bezier(
 				p1_x, p1_y, p2_x, p2_y, cp1x, cp1y, cp2x, cp2y,
 				lx1, ly1, lx2, ly2);
 			

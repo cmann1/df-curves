@@ -1,5 +1,5 @@
 /// Contains "static" utility methods for woeking with curves.
-namespace BaseCurve
+namespace MultiCurve
 {
 	
 	/// Converts four points and a tension value representing a CatmullRom curve to two vertices and two
