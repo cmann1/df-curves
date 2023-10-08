@@ -17,11 +17,7 @@ class MultiCurve
 	//       - Move into separate files/functions so they're easier to include on their own.
 	//       - Option to not normalise returned normal (possibly saves some calculations
 	//         e.g. if you just want the angle using atan2 which doesn't need the vector to be normalised)
-	//       - Rename MultiCurve to MultiCurve.
-	//       	- Move all curve logic into curve specific classes with `MultiCurve` as the base class.
-	//       	- `MultiCurve` will just contain a handle to a `array<CurveVertex>` vertices array.
-	// TODO: X Implement newtons method for bounding boxes.
-	//       - Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
+	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
@@ -456,7 +452,6 @@ class MultiCurve
 		}
 	}
 	
-	/** https://pomax.github.io/bezierinfo/#catmullconv */
 	void eval_catmull_rom(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const EvalReturnType return_type=EvalReturnType::Both)
