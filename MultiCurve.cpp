@@ -4,7 +4,7 @@
 
 #include 'CurveVertex.cpp';
 
-#include 'BSplineEvaluator.cpp';
+#include 'BSpline.cpp';
 
 /** A higher level wrapper designed for editing/manipulating curves with support for several
   * different types as well as chaining multiple curves together. */

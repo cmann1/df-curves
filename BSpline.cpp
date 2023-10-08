@@ -1,6 +1,6 @@
 /** Make sure to call `set_vertices` and `generate_knots` before using, and after anything about the curve changes.
   * Ported from: https://github.com/pradeep-pyro/tinynurbs/tree/master */
-class BSplineEvaluator
+class BSpline
 {
 	
 	private array<float> knots(32);
