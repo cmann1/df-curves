@@ -7,10 +7,10 @@ namespace QuadraticBezier
 		const float p1x, const float p1y, const float p2x, const float p2y, const float p3x, const float p3y,
 		float &out x1, float &out y1, float &out x2, float &out y2)
 	{
-		x1 = p1x < p3x ? p1x : p1x;
-		y1 = p1y < p3y ? p1y : p1y;
-		x2 = p3x > p1x ? p3x : p3x;
-		y2 = p3y > p1y ? p3y : p3y;
+		x1 = p1x < p3x ? p1x : p3x;
+		y1 = p1y < p3y ? p1y : p3y;
+		x2 = p3x > p1x ? p3x : p1x;
+		y2 = p3y > p1y ? p3y : p1y;
 		
 		const float ax = 2*(p2x - p1x);
 		const float ay = 2*(p2y - p1y);
@@ -60,8 +60,8 @@ namespace QuadraticBezier
 	{
 		x1 = p1x < p3x ? p1x : p3x;
 		y1 = p1y < p3y ? p1y : p3y;
-		x2 = p2x > p3x ? p1x : p3x;
-		y2 = p2y > p3y ? p1y : p3y;
+		x2 = p3x > p1x ? p3x : p1x;
+		y2 = p3y > p1y ? p3y : p1y;
 		
 		const float ax = 2*(r1*r2*(p2x - p1x) + r2*r3*(p3x - p2x) + r1*r3*(p1x - p3x));
 		const float ay = 2*(r1*r2*(p2y - p1y) + r2*r3*(p3y - p2y) + r1*r3*(p1y - p3y));
