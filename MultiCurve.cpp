@@ -263,8 +263,7 @@ class MultiCurve
 				calc_bounding_box_quadratic_bezier();
 				break;
 			case CurveType::CubicBezier:
-				//calc_bounding_box_cubic_bezier();
-				calc_bounding_box_cubic_bezier_newton();
+				calc_bounding_box_cubic_bezier();
 				break;
 			case CurveType::BSpline:
 			case CurveType::Linear:
@@ -850,11 +849,7 @@ class MultiCurve
 		}
 	}
 	
-	/// Thanks to Skyhawk for figuring this out:
-	/// https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
-	/// https://www.desmos.com/calculator/mxt9wq6kzn
-	///  - padding_factor - To account for possible inaccuracies a small amount of padding can be added around the bounding box.
-	void calc_bounding_box_cubic_bezier_newton(const int samples=6, const float padding=0.5)
+	void calc_bounding_box_cubic_bezier(const int samples=6, const float padding=0.5)
 	{
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
@@ -864,94 +859,29 @@ class MultiCurve
 			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
 			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
 			
-			if(p1.x < x1) x1 = p1.x;
-			if(p1.x > x2) x2 = p1.x;
-			if(p1.y < y1) y1 = p1.y;
-			if(p1.y > y2) y2 = p1.y;
+			float sx1, sy1, sx2, sy2;
 			
-			const float r0 = p1.weight;
-			const float r1 = cp1.weight;
-			const float r2 = cp2.weight;
-			const float r3 = p2.weight;
-			const float w0x = p1.x;
-			const float w1x = p1.x + cp1.x;
-			const float w2x = p2.x + cp2.x;
-			const float w3x = p2.x;
-			const float w0y = p1.y;
-			const float w1y = p1.y + cp1.y;
-			const float w2y = p2.y + cp2.y;
-			const float w3y = p2.y;
-			
-			for(int j = 0; j < samples; j++)
+			if(p1.weight == 1 && cp1.weight == 1 &&  cp2.weight == 1 && p2.weight == 1)
 			{
-				const float t = float(j) / (samples - 1);
-				
-				const float t2 = t * t;
-				const float t3 = t2 * t;
-				const float t4 = t3 * t;
-				
-				const float r10x = r1*r0*(w1x - w0x);
-				const float r20x = r2*r0*(w2x - w0x);
-				const float r21x = r2*r1*(w2x - w1x);
-				const float r30x = r3*r0*(w3x - w0x);
-				const float r31x = r3*r1*(w3x - w1x);
-				const float ax = 3*r21x - 2*r20x - 2*r31x + r3*r2*(w3x - w2x) + r10x + r30x;
-				const float bx = 3*(r20x - r21x) - 2*r10x - r30x + r31x;
-				const float cx = 6*(r10x - r20x) + 3*r21x + r30x;
-				const float dx = r20x - 2*r10x;
-				const float rdx = 3*(t2*(ax*t2 + cx) + 2*t*(bx*t2 + dx) + r10x);
-				const float rd2x = 6*(2*ax*t3 + 3*bx*t2 + cx*t + dx);
-				
-				const float ntx = rd2x != 0 ? -rdx / rd2x + t : 1;
-				if(ntx >= 0 && ntx <= 1)
-				{
-					const float u = 1 - ntx;
-					const float tt = ntx * ntx;
-					const float tt3 = tt * ntx;
-					const float uu = u * u;
-					const float uuu = uu * u;
-					const float f0 = uuu * r0;
-					const float f1 = 3 * uu * ntx * r1;
-					const float f2 = 3 * u * tt * r2;
-					const float f3 = tt3 * r3;
-					const float basis = f0 + f1 + f2 + f3;
-					const float x = (f0 * w0x + f1 * w1x + f2 * w2x + f3 * w3x) / basis;
-					
-					if(x - padding < x1) x1 = x - padding;
-					if(x + padding > x2) x2 = x + padding;
-				}
-				
-				const float r10y = r1*r0*(w1y - w0y);
-				const float r20y = r2*r0*(w2y - w0y);
-				const float r21y = r2*r1*(w2y - w1y);
-				const float r30y = r3*r0*(w3y - w0y);
-				const float r31y = r3*r1*(w3y - w1y);
-				const float ay = 3*r21y - 2*r20y - 2*r31y + r3*r2*(w3y - w2y) + r10y + r30y;
-				const float by = 3*(r20y - r21y) - 2*r10y - r30y + r31y;
-				const float cy = 6*(r10y - r20y) + 3*r21y + r30y;
-				const float dy = r20y - 2*r10y;
-				const float rdy = 3*(t2*(ay*t2 + cy) + 2*t*(by*t2 + dy) + r10y);
-				const float rd2y = 6*(2*ay*t3 + 3*by*t2 + cy*t + dy);
-				
-				const float nty = rd2y != 0 ? -rdy / rd2y + t : 1;
-				if(nty >= 0 && nty <= 1)
-				{
-					const float u = 1 - nty;
-					const float tt = nty * nty;
-					const float tt3 = tt * nty;
-					const float uu = u * u;
-					const float uuu = uu * u;
-					const float f0 = uuu * r0;
-					const float f1 = 3 * uu * nty * r1;
-					const float f2 = 3 * u * tt * r2;
-					const float f3 = tt3 * r3;
-					const float basis = f0 + f1 + f2 + f3;
-					const float y = (f0 * w0y + f1 * w1y + f2 * w2y + f3 * w3y) / basis;
-					
-					if(y - padding < y1) y1 = y - padding;
-					if(y + padding > y2) y2 = y + padding;
-				}
+				CubicBezier::bounding_box(
+					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
+					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
+					sx1, sy1, sx2, sy2);
 			}
+			else
+			{
+				CubicBezier::bounding_box(
+					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
+					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
+					p1.weight, cp1.weight, cp2.weight, p2.weight,
+					sx1, sy1, sx2, sy2,
+					samples, padding);
+			}
+			
+			if(sx1 < x1) x1 = sx1;
+			if(sy1 < y1) y1 = sy1;
+			if(sx2 > x2) x2 = sx2;
+			if(sy2 > y2) y2 = sy2;
 		}
 	}
 	
