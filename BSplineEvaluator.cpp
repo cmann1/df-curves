@@ -1,5 +1,5 @@
-/// Make sure to call `set_vertices` and `generate_knots` before using, and after anything about the curve changes.
-/// https://github.com/pradeep-pyro/tinynurbs/tree/master
+/** Make sure to call `set_vertices` and `generate_knots` before using, and after anything about the curve changes.
+  * Ported from: https://github.com/pradeep-pyro/tinynurbs/tree/master */
 class BSplineEvaluator
 {
 	
@@ -19,11 +19,11 @@ class BSplineEvaluator
 	private array<float> left(32);
 	private array<float> right(32);
 	
-	/// Returns the point and normal at the given `t` value.
-	/// Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
-	///  - `degree` - How smooth the curve is.
-	///  - `clamped` - Whether or not the curve will touch the start and end vertices. Only applicable when open.
-	///  - `closed` - If true the start and end vertices will be smoothly connected.
+	/** Returns the point and normal at the given `t` value.
+	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
+	  *  - `degree` - How smooth the curve is.
+	  *  - `clamped` - Whether or not the curve will touch the start and end vertices. Only applicable when open.
+	  *  - `closed` - If true the start and end vertices will be smoothly connected. */
 	void eval(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const int degree, const bool clamped, const bool closed,
@@ -75,8 +75,8 @@ class BSplineEvaluator
 		}
 	}
 	
-	/// Sets the vertices for this spline.
-	/// Only needs to be called initially or once after the number of, position, or weight of any vertices change.
+	/** Sets the vertices for this spline.
+	  * Only needs to be called initially or once after the number of, position, or weight of any vertices change. */
 	void set_vertices(
 		array<CurveVertex>@ vertices, const int vertex_count,
 		const int degree, const bool clamped, const bool closed)
@@ -102,9 +102,9 @@ class BSplineEvaluator
 		}
 	}
 	
-	/// Generates the correct set of uniform knots based on the given properties.
-	/// See `eval` for a description of the properties.
-	/// Must be called and when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`.
+	/** Generates the correct set of uniform knots based on the given properties.
+	  * See `eval` for a description of the properties.
+	  * Must be called and when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`. */
 	void generate_knots(const int degree, const bool clamped, const bool closed)
 	{
 		int v_count, degree_c;

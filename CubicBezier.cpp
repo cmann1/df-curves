@@ -1,8 +1,8 @@
 namespace CubicBezier
 {
 	
-	/// Calculate the bounding box of a non-rational quadratic bezier curve defined by
-	/// two vertices (`p1` and `p4`) and two control point (`p2` and `p3`).
+	/** Calculate the bounding box of a non-rational quadratic bezier curve defined by
+	  * two vertices (`p1` and `p4`) and two control point (`p2` and `p3`). */
 	void bounding_box(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
@@ -82,16 +82,16 @@ namespace CubicBezier
 		}
 	}
 	
-	/// Calculate the bounding box of a non-rational quadratic bezier curve defined by
-	/// two vertices (`p1` and `p4`), two control point (`p2` and `p3`), and the corresponding ratios/weights,
-	/// using the Newton method.
-	/// 
-	/// Thanks to Skyhawk for figuring this out:
-	/// https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
-	/// https://www.desmos.com/calculator/mxt9wq6kzn
-	/// 
-	/// @param samples How many points along the curve to sample to find the roots. Increase to increase the accuracy of the resulting boudning box.
-	/// @param padding Allows expanding the resulting bounding box on all four side to account for possible inaccuracies.
+	/** Calculate the bounding box of a non-rational quadratic bezier curve defined by
+	  * two vertices (`p1` and `p4`), two control point (`p2` and `p3`), and the corresponding ratios/weights,
+	  * using the Newton method.
+	  * 
+	  * Thanks to Skyhawk for figuring this out:
+	  * https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
+	  * https://www.desmos.com/calculator/mxt9wq6kzn
+	  * 
+	  * @param samples How many points along the curve to sample to find the roots. Increase to increase the accuracy of the resulting boudning box.
+	  * @param padding Allows expanding the resulting bounding box on all four side to account for possible inaccuracies. */
 	void bounding_box(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,

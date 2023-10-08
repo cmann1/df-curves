@@ -1,8 +1,8 @@
 namespace CatmullRom
 {
 	
-	/// Converts four points and a tension value representing a CatmullRom curve to two vertices and two
-	/// (relative) control points representing a cubic Bezier curve.
+	/** Converts four points and a tension value representing a CatmullRom curve to two vertices and two
+	  * (relative) control points representing a cubic Bezier curve. */
 	void to_cubic_bezier(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y, const float tension,

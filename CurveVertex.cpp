@@ -21,18 +21,18 @@ class CurveVertex : CurveControlPoint
 	
 	[option,1:Square,Manual,Smooth,Mirror]
 	CurveVertexType type = Smooth;
-	/// A per-segment tension for CatmullRom splines/
+	/** A per-segment tension for CatmullRom splines/ */
 	[persist] float tension = 1;
 	
-	/// The right hand side control point for this vertex. Only applicable to quadratic bezier curves.
+	/** The right hand side control point for this vertex. Only applicable to quadratic bezier curves. */
 	[persist] CurveControlPoint quad_control_point(NAN, NAN);
 	
-	/// The left hand side control point for this vertex. Only applicable to cubic bezier curves.
+	/** The left hand side control point for this vertex. Only applicable to cubic bezier curves. */
 	[persist] CurveControlPoint cubic_control_point_1(NAN, NAN);
-	/// The right hand side control point for this vertex. Only applicable to cubic bezier curves.
+	/** The right hand side control point for this vertex. Only applicable to cubic bezier curves. */
 	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
 	
-	/// The approximated length of curve the segment starting with this vertex.
+	/** The approximated length of curve the segment starting with this vertex. */
 	float length;
 	
 	CurveVertex()
@@ -85,9 +85,9 @@ class CurveSegment
 	float y;
 	float length; // Necessary? Once the initial calculations are done only the t value is needed really.
 	
-	/// The unmodified t value of this point relative to its segment.
+	/** The unmodified t value of this point relative to its segment. */
 	float t_real;
-	/// The uniform t value based on the approximated distance of this point from the start of the segment.
+	/** The uniform t value based on the approximated distance of this point from the start of the segment. */
 	float t_uniform;
 	
 }

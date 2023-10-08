@@ -1,8 +1,8 @@
 namespace QuadraticBezier
 {
 	
-	/// Calculate the bounding box of a non-rational quadratic bezier curve defined by
-	/// two vertices (`p1` and `p3`) and a control point (`p2`).
+	/** Calculate the bounding box of a non-rational quadratic bezier curve defined by
+	  * two vertices (`p1` and `p3`) and a control point (`p2`). */
 	void bounding_box(
 		const float p1x, const float p1y, const float p2x, const float p2y, const float p3x, const float p3y,
 		float &out x1, float &out y1, float &out x2, float &out y2)
@@ -48,11 +48,11 @@ namespace QuadraticBezier
 		}
 	}
 	
-	/// Calculate the bounding box of a rational quadratic bezier curve defined by
-	/// two vertices (`p1` and `p3`), a control point (`p2`), and the corresponding ratios/weights.
-	/// 
-	/// Once again thanks to Skyhawk for figuring this out:
-	/// https://discord.com/channels/83037671227658240/342175833089245184/1160156912415932469
+	/** Calculate the bounding box of a rational quadratic bezier curve defined by
+	  * two vertices (`p1` and `p3`), a control point (`p2`), and the corresponding ratios/weights.
+	  * 
+	  * Once again thanks to Skyhawk for figuring this out:
+	  * https://discord.com/channels/83037671227658240/342175833089245184/1160156912415932469 */
 	void bounding_box(
 		const float p1x, const float p1y, const float p2x, const float p2y, const float p3x, const float p3y,
 		const float r1, const float r2, const float r3,

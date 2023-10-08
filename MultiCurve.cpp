@@ -6,8 +6,8 @@
 
 #include 'BSplineEvaluator.cpp';
 
-/// A higher level wrapper designed for editing/manipulating curves with support for several
-/// different types as well as chaining multiple curves together.
+/** A higher level wrapper designed for editing/manipulating curves with support for several
+  * different types as well as chaining multiple curves together. */
 class MultiCurve
 {
 	
@@ -27,57 +27,57 @@ class MultiCurve
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
 	
-	/// Do not set directly.
+	/** Do not set directly. */
 	[persist] int vertex_count;
 	
-	/// Do not set directly.
+	/** Do not set directly. */
 	[persist] array<CurveVertex> vertices;
 	
 	[persist] CurveEndControl _end_controls = AutomaticAngle;
 	
-	/// Only applicable for CatmullRom splines with `end_controls` set to `Manual`.
+	/** Only applicable for CatmullRom splines with `end_controls` set to `Manual`. */
 	[persist] CurveVertex control_point_start;
 	
-	/// Only applicable for CatmullRom splines with `end_controls` set to `Manual`.
+	/** Only applicable for CatmullRom splines with `end_controls` set to `Manual`. */
 	[persist] CurveVertex control_point_end;
 	
-	/// If true the start and end points of this path will automatically connect to each other.
+	/** If true the start and end points of this path will automatically connect to each other. */
 	[persist] private bool _closed;
 	
-	/// Controls the global tension for CatmullRom splines.
+	/** Controls the global tension for CatmullRom splines. */
 	[persist] float tension = 1;
 	
-	/// The smoothness of the b-spline. Must be > 1 and < `vertex_count`.
+	/** The smoothness of the b-spline. Must be > 1 and < `vertex_count`. */
 	[persist] private int _b_spline_degree = 2;
 	
-	/// If true the curve will pass touch the first and last vertices.
+	/** If true the curve will pass touch the first and last vertices. */
 	[persist] private bool _b_spline_clamped = true;
 	
-	/// The total (approximate) length of this curve.
+	/** The total (approximate) length of this curve. */
 	float length;
 	
-	/// This curve's bounding box.
+	/** This curve's bounding box. */
 	float x1, y1, x2, y2;
 	
 	// --
 	
-	/// One or more segments on this curve have been changed and need to be updated.
+	/** One or more segments on this curve have been changed and need to be updated. */
 	private bool invalidated = true;
 	
-	/// The b-spline knot vector requires regneration after vertices are added/removed.
+	/** The b-spline knot vector requires regneration after vertices are added/removed. */
 	private bool invalidated_b_spline_vertices = true;
 	
-	/// The b-spline knot vector requires regneration after vertices are added/removed.
+	/** The b-spline knot vector requires regneration after vertices are added/removed. */
 	private bool invalidated_b_spline_knots = true;
 	
-	/// A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve.
+	/** A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve. */
 	private array<CurveSegment> segments;
 	
 	private int segments_count;
 	
 	private BSplineEvaluator@ b_spline;
 	
-	/// Temp points used when calculating automatic end control points.
+	/** Temp points used when calculating automatic end control points. */
 	private CurveVertex p0;
 	private CurveVertex p3;
 	
@@ -218,17 +218,17 @@ class MultiCurve
 		return @vertices[vertex_count - 1];
 	}
 	
-	/// Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
-	/// Passing a vertex index in will invalidate only that vertex, potentially reducing the number of calculations.
-	/// Certain operation such as adding vertices, changing the curve type, etc. will automatically trigger invalidation, but directly setting properties
-	/// such as vertex position will require manually calling `invalidate`.
+	/** Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
+	  * Passing a vertex index in will invalidate only that vertex, potentially reducing the number of calculations.
+	  * Certain operation such as adding vertices, changing the curve type, etc. will automatically trigger invalidation, but directly setting properties
+	  * such as vertex position will require manually calling `invalidate`. */
 	void invalidate()
 	{
 		invalidated = true;
 		invalidated_b_spline_vertices = true;
 	}
 	
-	/// Invalidates a single vertex, potentially reducing the number of calculations.
+	/** Invalidates a single vertex, potentially reducing the number of calculations. */
 	void invalidate(const int start_index, const int end_index=-1)
 	{
 		invalidated = true;
@@ -240,8 +240,8 @@ class MultiCurve
 		}
 	}
 	
-	/// Must be called after `invalidate` and any time the curve is modified in any way.
-	/// Recalculates cached values such as the bounding box, curve length, etc.
+	/** Must be called after `invalidate` and any time the curve is modified in any way.
+	  * Recalculates cached values such as the bounding box, curve length, etc. */
 	void validate()
 	{
 		if(!invalidated)
@@ -295,9 +295,9 @@ class MultiCurve
 		invalidated = false;
 	}
 	
-	/// Call to update/calcualte some simple initial positions for new control points.
-	/// Make sure to call this or manually set control points after adding vertices as control points default to NAN.
-	/// If `force` is true all control points will be recalculated, otherwise only newly added ones will be.
+	/** Call to update/calcualte some simple initial positions for new control points.
+	  * Make sure to call this or manually set control points after adding vertices as control points default to NAN.
+	  * If `force` is true all control points will be recalculated, otherwise only newly added ones will be. */
 	void init_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
 	{
 		switch(_type)
@@ -369,7 +369,7 @@ class MultiCurve
 		}
 	}
 	
-	/// Evaluate the curve at the given t value and return the position and normal.
+	/** Evaluate the curve at the given t value and return the position and normal. */
 	void eval(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const EvalReturnType return_type=EvalReturnType::Both)
@@ -456,7 +456,7 @@ class MultiCurve
 		}
 	}
 	
-	/// https://pomax.github.io/bezierinfo/#catmullconv
+	/** https://pomax.github.io/bezierinfo/#catmullconv */
 	void eval_catmull_rom(
 		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const EvalReturnType return_type=EvalReturnType::Both)
@@ -712,7 +712,7 @@ class MultiCurve
 		}
 	}
 	
-	/// Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc.
+	/** Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc. */
 	void get_segment_catmull_rom(const int i, CurveControlPoint@ &out p1, CurveVertex@ &out p2, CurveVertex@ &out p3, CurveControlPoint@ &out p4)
 	{
 		@p2 = @vertices[i];
@@ -762,7 +762,7 @@ class MultiCurve
 			type == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null);
 	}
 	
-	/// Returns the vertex at `i + offset` wrapping around when < 0 or > vertex_count.
+	/** Returns the vertex at `i + offset` wrapping around when < 0 or > vertex_count. */
 	CurveVertex@ vert(const int i, const int offset=0)
 	{
 		return vertices[((i + offset) % vertex_count + vertex_count) % vertex_count];
