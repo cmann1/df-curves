@@ -39,6 +39,8 @@ class MultiCurveDebug
 	float adaptive_angle = 0;
 	/** Used to limit the subdivisions when a segment's angle is above the adaptive threshold. */
 	int adaptive_max_subdivisions = 0;
+	/** Stops subdividing when the length of the segments is lower than this. */
+	float adaptive_min_length = 0;
 	
 	private CurveVertex p0;
 	private CurveVertex p3;
@@ -234,15 +236,15 @@ class MultiCurveDebug
 				draw_segment(
 					c, curve, zoom_factor,
 					st_prev, v_count - 1,
-					// Try make sure to get the currect angle/normal for the previous segment
+					// Try make sure to get the currect angle/normal for the end of the previous segment
 					// by subtracting some tiny value from `ts`.
-					t1, ts - EPSILON, ts - EPSILON, x1, y1, n1x, n1y,
+					t1, ts - 0.000001, ts - 0.000001, x1, y1, n1x, n1y,
 					true, draw_curve, draw_normal, eval_normal,
 					adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
 					x1, y1, n1x, n1y);
 				
 				// Get the correct normals for the next segment.
-				curve.eval_normal(ts + EPSILON, n1x, n1y);
+				curve.eval_normal(ts + 0.000001, n1x, n1y);
 				
 				t1 = ts;
 				st_prev = st;
@@ -295,7 +297,19 @@ class MultiCurveDebug
 		
 		if(do_draw && sub_divisions > 0 && adaptive_angle > 0)
 		{
-			if(acos((n1x * n2x + n1y * n2y)) > adaptive_angle)
+			bool subdivide = true;
+			
+			if(adaptive_min_length > 0)
+			{
+				const float dx = x2 - x1;
+				const float dy = y2 - y1;
+				if(dx * dx + dy * dy <= adaptive_min_length * adaptive_min_length)
+				{
+					subdivide = false;
+				}
+			}
+			
+			if(subdivide && acos((n1x * n2x + n1y * n2y)) > adaptive_angle)
 			{
 				const float tm = (t1 + t2) * 0.5;
 				float mx, my;

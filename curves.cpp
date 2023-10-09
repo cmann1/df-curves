@@ -63,8 +63,8 @@ class script : MultiCurveDebugColourCallback
 		zoom_factor = 1 / zoom;
 		
 		debug_draw.curve_segments = 6;
-		debug_draw.adaptive_angle = 3;
-		debug_draw.adaptive_max_subdivisions = 4;
+		debug_draw.adaptive_angle = 2;
+		debug_draw.adaptive_max_subdivisions = 5;
 		@debug_draw.segment_colour_callback = this;
 		
 		curve.type = BSpline;
@@ -90,6 +90,9 @@ class script : MultiCurveDebugColourCallback
 		
 		zoom = cam.editor_zoom();
 		zoom_factor = 1 / zoom;
+		
+		debug_draw.adaptive_min_length = 8 * zoom_factor;
+		debug_draw.adaptive_angle = map_clamped(zoom_factor, 0.1, 0.75, 2, 5);
 		
 		mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
 		const bool block_mouse = editor.mouse_in_gui() || space_down;
