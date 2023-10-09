@@ -1,7 +1,9 @@
 #include 'BSpline.cpp';
 #include 'CatmullRom.cpp';
 #include 'CubicBezier.cpp';
+#include 'CubicBezierRational.cpp';
 #include 'QuadraticBezier.cpp';
+#include 'QuadraticBezierRational.cpp';
 
 #include 'CurveVertex.cpp';
 
@@ -14,6 +16,9 @@ class MultiCurve
 	//       when `end_controls` is not `Manual`.
 	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: ? Add basic CurveEditor class
+	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices
+	//       so maybe storing the absolutely is not a good idea?
+	//       OR when moving vertices, try interpolate and move the control point based on the two vertices.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
