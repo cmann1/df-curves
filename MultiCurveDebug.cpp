@@ -9,13 +9,18 @@ class MultiCurveDebug
 	float control_point_line_width = 1;
 	float line_width = 2;
 	float normal_width = 1;
-	float normal_length = 12;
+	float normal_length = 14;
+	/** A length multiplier used when rendering normals within subdivided segments. */
+	float normal_multiplier_adaptive = 0.65;
 	float outline_width = 1;
 	float vertex_size = 3;
 	float bounding_box_width = 3;
 	
 	uint line_clr = 0xffffffff;
-	uint normal_clr = 0xaaff0000;
+	uint normal_clr = 0xccff0000;
+	/** A colour used when rendering normals within subdivided segments.
+	  * Set to zero to use the standard normal colour. */
+	uint normal_adaptive_clr = 0xaaee7700;
 	uint outline_clr = 0x88999999;
 	uint vertex_clr = 0xffff00ff;
 	uint quad_cp_clr = 0xffff0000;
@@ -28,6 +33,12 @@ class MultiCurveDebug
 	
 	/** The precision used by `draw_curve`. */
 	int curve_segments = 15;
+	
+	/** If this and `adaptive_max_subdivisions` are greater than zero, the curve will be subdivided when the angle in degrees between
+	  * the start and the end of a segment is greater than this value. */
+	float adaptive_angle = 0;
+	/** Used to limit the subdivisions when a segment's angle is above the adaptive threshold. */
+	int adaptive_max_subdivisions = 0;
 	
 	private CurveVertex p0;
 	private CurveVertex p3;
@@ -193,66 +204,139 @@ class MultiCurveDebug
 		if(curve_segments <= 0 || !draw_curve && draw_normal)
 			return;
 		
-		float x1 = 0;
-		float y1 = 0;
-		float st_prev = 0;
 		const int v_count = curve.vertex_count + (curve.closed ? 1 : 0);
 		const int count = curve_segments * v_count;
-		const bool eval_normal = draw_curve && draw_normal || draw_normal;
+		const float adaptive_angle = adaptive_max_subdivisions > 0 ? this.adaptive_angle * DEG2RAD : 0;
+		const bool eval_normal = draw_curve && draw_normal || draw_normal || adaptive_angle > 0;
+		
+		float t1 = 0;
+		float x1 = 0;
+		float y1 = 0;
+		float n1x = 0;
+		float n1y = 0;
+		float st_prev = 0;
 		
 		for(int i = 0; i <= count; i++)
 		{
-			const float t = float(i) / count;
-			float x2, y2, nx, ny;
+			const float t2 = float(i) / count;
+			float t = t2;
 			
-			// `i - 1` because we draw from the second point to the first it meaning to get the which segment we're about to draw
-			// we need to check the previous i value.
+			float x2, y2, n2x, n2y;
+			
 			const float st = (float(i) / count) * (v_count - 1);
 			
 			// Make sure we always connect at vertices.
 			if(i > 0 && draw_curve && int(st) > int(st_prev))
 			{
-				if(eval_normal)
-				{
-					curve.eval(floor(st) / (v_count - 1), x2, y2, nx, ny);
-				}
-				else
-				{
-					curve.eval_point(floor(st) / (v_count - 1), x2, y2);
-				}
+				// The t value corresponding to the vertex between segments.
+				const float ts = floor(st) / (v_count - 1);
 				
-				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st_prev, v_count - 1) : line_clr;
-				c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
+				draw_segment(
+					c, curve, zoom_factor,
+					st_prev, v_count - 1,
+					// Try make sure to get the currect angle/normal for the previous segment
+					// by subtracting some tiny value from `ts`.
+					t1, ts - EPSILON, ts - EPSILON, x1, y1, n1x, n1y,
+					true, draw_curve, draw_normal, eval_normal,
+					adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
+					x1, y1, n1x, n1y);
 				
-				x1 = x2;
-				y1 = y2;
+				// Get the correct normals for the next segment.
+				curve.eval_normal(ts + EPSILON, n1x, n1y);
 				
+				t1 = ts;
 				st_prev = st;
 			}
 			
+			draw_segment(
+				c, curve, zoom_factor,
+				st_prev, v_count - 1,
+				t1, t2, t2, x1, y1, n1x, n1y,
+				i > 0, draw_curve, draw_normal, eval_normal,
+				adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
+				x2, y2, n2x, n2y);
+			
+			t1 = t2;
+			x1 = x2;
+			y1 = y2;
+			n1x = n2x;
+			n1y = n2y;
+		}
+	}
+	
+	private void draw_segment(
+		canvas@ c, MultiCurve@ curve, const float zoom_factor,
+		const float segment_t, const float max_t,
+		const float t1, const float t2, const float final_t,
+		const float x1, const float y1, const float n1x, const float n1y,
+		const bool do_draw, const bool draw_curve, const bool draw_normal, const bool eval_normal,
+		const float adaptive_angle, const int sub_divisions,
+		float &out x2, float &out y2, float &out n2x, float &out n2y,
+		float ix2=0, float iy2=0, float in2x=0, float in2y=0)
+	{
+		if(in2x == 0 && in2y == 0)
+		{
 			if(eval_normal)
 			{
-				curve.eval(t, x2, y2, nx, ny);
+				curve.eval(t2, x2, y2, n2x, n2y);
 			}
 			else
 			{
-				curve.eval_point(t, x2, y2);
+				curve.eval_point(t2, x2, y2);
 			}
-			
-			if(draw_normal)
+		}
+		else
+		{
+			x2 = ix2;
+			y2 = iy2;
+			n2x = in2x;
+			n2y = in2y;
+		}
+		
+		if(do_draw && sub_divisions > 0 && adaptive_angle > 0)
+		{
+			if(acos((n1x * n2x + n1y * n2y)) > adaptive_angle)
 			{
-				const float l = normal_length * zoom_factor;
-				c.draw_line(x2, y2, x2 + nx * l, y2 + ny * l, normal_width * zoom_factor, normal_clr);
+				const float tm = (t1 + t2) * 0.5;
+				float mx, my;
+				float nmx, nmy;
+				
+				// Left
+				draw_segment(
+					c, curve, zoom_factor,
+					segment_t, max_t,
+					t1, tm, final_t, x1, y1, n1x, n1y,
+					true, draw_curve, true, true,
+					adaptive_angle, sub_divisions - 1,
+					mx, my, nmx, nmy,
+					0, 0, 0, 0);
+				
+				// Right
+				draw_segment(
+					c, curve, zoom_factor,
+					segment_t, max_t,
+					tm, t2, final_t, mx, my, nmx, nmy,
+					true, draw_curve, true, true,
+					adaptive_angle, sub_divisions - 1,
+					mx, my, nmx, nmy,
+					x2, y2, n2x, n2y);
+				
+				return;
 			}
-			
-			if(i > 0 && draw_curve)
-			{
-				const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, st, v_count - 1) : line_clr;
-				c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
-			}
-			
-			x1 = x2;
-			y1 = y2;
+		}
+		
+		if(draw_normal)
+		{
+			const float l = normal_length * (t2 == final_t ? 1.0 : normal_multiplier_adaptive) * zoom_factor;
+			c.draw_line(
+				x2, y2, x2 + n2x * l, y2 + n2y * l, normal_width * zoom_factor,
+				t2 == final_t && normal_adaptive_clr != 0 ? normal_clr : normal_adaptive_clr);
+		}
+		
+		if(do_draw && draw_curve)
+		{
+			const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, segment_t, max_t) : line_clr;
+			c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
 		}
 	}
 	

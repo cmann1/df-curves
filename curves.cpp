@@ -62,6 +62,9 @@ class script : MultiCurveDebugColourCallback
 		zoom = cam.editor_zoom();
 		zoom_factor = 1 / zoom;
 		
+		debug_draw.curve_segments = 6;
+		debug_draw.adaptive_angle = 3;
+		debug_draw.adaptive_max_subdivisions = 4;
 		@debug_draw.segment_colour_callback = this;
 		
 		curve.type = BSpline;
