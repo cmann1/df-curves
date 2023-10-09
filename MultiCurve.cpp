@@ -723,7 +723,7 @@ class MultiCurve
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
 		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1, p1.cubic_control_point_2)
+			? this.p0.added(p1.cubic_control_point_2, p1)
 			: p1;
 		CurveControlPoint@ p3 = p4.type != Square
 			? this.p3.added(p4.cubic_control_point_1, p4)
@@ -756,7 +756,7 @@ class MultiCurve
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
 		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1, p1.cubic_control_point_2)
+			? this.p0.added(p1.cubic_control_point_2, p1)
 			: p1;
 		CurveControlPoint@ p3 = p4.type != Square
 			? this.p3.added(p4.cubic_control_point_1, p4)
@@ -788,7 +788,7 @@ class MultiCurve
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
 		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1, p1.cubic_control_point_2)
+			? this.p0.added(p1.cubic_control_point_2, p1)
 			: p1;
 		CurveControlPoint@ p3 = p4.type != Square
 			? this.p3.added(p4.cubic_control_point_1, p4)

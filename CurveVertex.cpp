@@ -18,6 +18,7 @@ class CurveControlPoint : CurvePoint
 	{
 		x = p1.x + p2.x;
 		y = p1.y + p2.y;
+		this.weight = p1.weight;
 		return this;
 	}
 	
@@ -80,6 +81,7 @@ class CurveVertex : CurveControlPoint
 	{
 		x = p.x;
 		y = p.y;
+		weight = p.weight;
 		return this;
 	}
 	
