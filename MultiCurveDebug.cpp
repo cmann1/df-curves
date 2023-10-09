@@ -206,69 +206,45 @@ class MultiCurveDebug
 		if(curve_segments <= 0 || !draw_curve && draw_normal)
 			return;
 		
-		const int v_count = curve.vertex_count + (curve.closed ? 1 : 0);
+		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
 		const int count = curve_segments * v_count;
 		const float adaptive_angle = adaptive_max_subdivisions > 0 ? this.adaptive_angle * DEG2RAD : 0;
 		const bool eval_normal = draw_curve && draw_normal || draw_normal || adaptive_angle > 0;
 		
-		float t1 = 0;
-		float x1 = 0;
-		float y1 = 0;
-		float n1x = 0;
-		float n1y = 0;
-		float st_prev = 0;
-		
-		for(int i = 0; i <= count; i++)
+		for(int i = 0; i <= v_count; i++)
 		{
-			const float t2 = float(i) / count;
-			float t = t2;
+			float t1 = 0;
+			float x1 = 0;
+			float y1 = 0;
+			float n1x = 0;
+			float n1y = 0;
 			
-			float x2, y2, n2x, n2y;
-			
-			const float st = (float(i) / count) * (v_count - 1);
-			
-			// Make sure we always connect at vertices.
-			if(i > 0 && draw_curve && int(st) > int(st_prev))
+			for(int j = 0; j <= curve_segments; j++)
 			{
-				// The t value corresponding to the vertex between segments.
-				const float ts = floor(st) / (v_count - 1);
+				const float t2 = float(j) / curve_segments;
+				
+				float x2, y2, n2x, n2y;
 				
 				draw_segment(
 					c, curve, zoom_factor,
-					st_prev, v_count - 1,
-					// Try make sure to get the currect angle/normal for the end of the previous segment
-					// by subtracting some tiny value from `ts`.
-					t1, ts - 0.000001, ts - 0.000001, x1, y1, n1x, n1y,
-					true, draw_curve, draw_normal, eval_normal,
+					i, v_count,
+					t1, t2, t2, x1, y1, n1x, n1y,
+					j > 0, draw_curve, draw_normal, eval_normal,
 					adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
-					x1, y1, n1x, n1y);
+					x2, y2, n2x, n2y);
 				
-				// Get the correct normals for the next segment.
-				curve.eval_normal(ts + 0.000001, n1x, n1y);
-				
-				t1 = ts;
-				st_prev = st;
+				t1 = t2;
+				x1 = x2;
+				y1 = y2;
+				n1x = n2x;
+				n1y = n2y;
 			}
-			
-			draw_segment(
-				c, curve, zoom_factor,
-				st_prev, v_count - 1,
-				t1, t2, t2, x1, y1, n1x, n1y,
-				i > 0, draw_curve, draw_normal, eval_normal,
-				adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
-				x2, y2, n2x, n2y);
-			
-			t1 = t2;
-			x1 = x2;
-			y1 = y2;
-			n1x = n2x;
-			n1y = n2y;
 		}
 	}
 	
 	private void draw_segment(
 		canvas@ c, MultiCurve@ curve, const float zoom_factor,
-		const float segment_t, const float max_t,
+		const int segment_index, const int segment_max,
 		const float t1, const float t2, const float final_t,
 		const float x1, const float y1, const float n1x, const float n1y,
 		const bool do_draw, const bool draw_curve, const bool draw_normal, const bool eval_normal,
@@ -280,11 +256,11 @@ class MultiCurveDebug
 		{
 			if(eval_normal)
 			{
-				curve.eval(t2, x2, y2, n2x, n2y);
+				curve.eval(segment_index, t2, x2, y2, n2x, n2y);
 			}
 			else
 			{
-				curve.eval_point(t2, x2, y2);
+				curve.eval_point(segment_index, t2, x2, y2);
 			}
 		}
 		else
@@ -309,7 +285,7 @@ class MultiCurveDebug
 				}
 			}
 			
-			if(subdivide && acos((n1x * n2x + n1y * n2y)) > adaptive_angle)
+			if(subdivide && acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) > adaptive_angle)
 			{
 				const float tm = (t1 + t2) * 0.5;
 				float mx, my;
@@ -318,7 +294,7 @@ class MultiCurveDebug
 				// Left
 				draw_segment(
 					c, curve, zoom_factor,
-					segment_t, max_t,
+					segment_index, segment_max,
 					t1, tm, final_t, x1, y1, n1x, n1y,
 					true, draw_curve, true, true,
 					adaptive_angle, sub_divisions - 1,
@@ -328,7 +304,7 @@ class MultiCurveDebug
 				// Right
 				draw_segment(
 					c, curve, zoom_factor,
-					segment_t, max_t,
+					segment_index, segment_max,
 					tm, t2, final_t, mx, my, nmx, nmy,
 					true, draw_curve, true, true,
 					adaptive_angle, sub_divisions - 1,
@@ -349,7 +325,9 @@ class MultiCurveDebug
 		
 		if(do_draw && draw_curve)
 		{
-			const uint clr = @segment_colour_callback != null ? segment_colour_callback.get_curve_line_colour(curve, segment_t, max_t) : line_clr;
+			const uint clr = @segment_colour_callback != null
+				? segment_colour_callback.get_curve_line_colour(curve, segment_index, segment_max, t2)
+				: line_clr;
 			c.draw_line(x1, y1, x2, y2, line_width * zoom_factor, clr);
 		}
 	}
@@ -403,6 +381,6 @@ class MultiCurveDebug
 interface MultiCurveDebugColourCallback
 {
 	
-	uint get_curve_line_colour(const MultiCurve@ curve, const float segment_t, const float max_t);
+	uint get_curve_line_colour(const MultiCurve@ curve, const int segment_index, const int segment_max, const float t);
 	
 }

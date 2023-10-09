@@ -204,7 +204,7 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.draw(c, curve, zoom_factor);
 		
 		float x, y, nx, ny;
-		curve.eval(abs(t % 2 - 1), x, y, nx, ny);
+		curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);
 		//curve.eval(t % 1, x, y, nx, ny);
 		draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
 		
@@ -414,9 +414,12 @@ class script : MultiCurveDebugColourCallback
 			curve.add_vertex(bx - 100, by + 000);
 			curve.add_vertex(bx - 200, by + 200);
 			curve.add_vertex(bx - 200, by + 000);
+			
 			//curve.add_vertex(bx - 100, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
+			//curve.vertices[0].quad_control_point.set(bx+200, by-600);
+			curve.vertices[0].quad_control_point.weight = 13.6;
 		}
 		
 		curve.init_bezier_control_points(true);
@@ -425,12 +428,12 @@ class script : MultiCurveDebugColourCallback
 		curve_changed = true;
 	}
 	
-	uint get_curve_line_colour(const MultiCurve@ curve, const float segment_t, const float max_t)
+	uint get_curve_line_colour(const MultiCurve@ curve, const int segment_index, const int segment_max, const float t)
 	{
-		if(curve.closed && int(segment_t) == int(max_t) - 1)
+		if(curve.closed && segment_index == segment_max)
 			return 0xffff6569;
 		
-		return int(segment_t) % 2 == 0
+		return segment_index % 2 == 0
 			? 0xffffcc66 : 0xff222222;
 	}
 	

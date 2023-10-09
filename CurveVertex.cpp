@@ -40,7 +40,7 @@ class CurveVertex : CurveControlPoint
 	/** The right hand side control point for this vertex. Only applicable to cubic bezier curves. */
 	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
 	
-	/** The approximated length of curve the segment starting with this vertex. */
+	/** The approximated length of the curve segment starting with this vertex. */
 	float length;
 	
 	CurveVertex()

@@ -185,6 +185,11 @@ class MultiCurve
 		get { return vertex_count > 0 ? vertices[vertex_count - 1] : null; }
 	}
 	
+	const float segment_index_max
+	{
+		get const { return closed ? vertex_count - 1 : vertex_count - 2; }
+	}
+	
 	// --
 	
 	void clear()
@@ -369,10 +374,15 @@ class MultiCurve
 	
 	// -- Eval methods --
 	
-	/** Calculate the position and normal at the given t value.
+	/** Calculate the position and normal at the given segment and t value.
+	 * To return evenly spaced points along the curve, use the mapping methods to convert a distance to a t value.
+	 * @param segment The index of the segment between 0 and `vertex_count` for closed curves, and `vertex_count` for open.
+	 *                Passing a negative values will instead calculate the segment index automatically, and `t` will be considered
+	 *                an absolute value with 0 being the first vertex of the curve, and 1 being the last.
+	 * @param t The factor between 0 and 1 within `segment`, or the entire curve if `segment` is negative.
 	 * @param normalise If false the returned normal values will not be normalised. */
 	void eval(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		if(vertex_count == 0)
@@ -396,19 +406,19 @@ class MultiCurve
 		switch(_type)
 		{
 			case Linear:
-				eval_linear(t, x, y, normal_x, normal_y, normalise);
+				eval_linear(segment, t, x, y, normal_x, normal_y, normalise);
 				break;
 			case QuadraticBezier:
-				eval_quadratic_bezier(t, x, y, normal_x, normal_y, normalise);
+				eval_quadratic_bezier(segment, t, x, y, normal_x, normal_y, normalise);
 				break;
 			case CubicBezier:
-				eval_cubic_bezier(t, x, y, normal_x, normal_y, normalise);
+				eval_cubic_bezier(segment, t, x, y, normal_x, normal_y, normalise);
 				break;
 			case CatmullRom:
-				eval_catmull_rom(t, x, y, normal_x, normal_y, normalise);
+				eval_catmull_rom(segment, t, x, y, normal_x, normal_y, normalise);
 				break;
 			case BSpline:
-				eval_b_spline(t, x, y, normal_x, normal_y, normalise);
+				eval_b_spline(segment, t, x, y, normal_x, normal_y, normalise);
 				break;
 			default:
 				x = 0;
@@ -419,8 +429,8 @@ class MultiCurve
 		}
 	}
 	
-	/** Calculate the position a the given t value. */
-	void eval_point(const float t, float &out x, float &out y)
+	/** Calculate the position a the given segment and t value. */
+	void eval_point(const int segment, const float t, float &out x, float &out y)
 	{
 		if(vertex_count == 0)
 		{
@@ -439,19 +449,19 @@ class MultiCurve
 		switch(_type)
 		{
 			case Linear:
-				eval_linear_point(t, x, y);
+				eval_linear_point(segment, t, x, y);
 				break;
 			case QuadraticBezier:
-				eval_quadratic_bezier_point(t, x, y);
+				eval_quadratic_bezier_point(segment, t, x, y);
 				break;
 			case CubicBezier:
-				eval_cubic_bezier_point(t, x, y);
+				eval_cubic_bezier_point(segment, t, x, y);
 				break;
 			case CatmullRom:
-				eval_catmull_rom_point(t, x, y);
+				eval_catmull_rom_point(segment, t, x, y);
 				break;
 			case BSpline:
-				eval_b_spline_point(t, x, y);
+				eval_b_spline_point(segment, t, x, y);
 				break;
 			default:
 				x = 0;
@@ -460,8 +470,8 @@ class MultiCurve
 		}
 	}
 	
-	/** Calculate the normal a the given t value. */
-	void eval_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	/** Calculate the normal a the given segment and t value. */
+	void eval_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		if(vertex_count <= 1)
 		{
@@ -473,19 +483,19 @@ class MultiCurve
 		switch(_type)
 		{
 			case Linear:
-				eval_linear_normal(t, normal_x, normal_y, normalise);
+				eval_linear_normal(segment, t, normal_x, normal_y, normalise);
 				break;
 			case QuadraticBezier:
-				eval_quadratic_bezier_normal(t, normal_x, normal_y, normalise);
+				eval_quadratic_bezier_normal(segment, t, normal_x, normal_y, normalise);
 				break;
 			case CubicBezier:
-				eval_cubic_bezier_normal(t, normal_x, normal_y, normalise);
+				eval_cubic_bezier_normal(segment, t, normal_x, normal_y, normalise);
 				break;
 			case CatmullRom:
-				eval_catmull_rom_normal(t, normal_x, normal_y, normalise);
+				eval_catmull_rom_normal(segment, t, normal_x, normal_y, normalise);
 				break;
 			case BSpline:
-				eval_b_spline_normal(t, normal_x, normal_y, normalise);
+				eval_b_spline_normal(segment, t, normal_x, normal_y, normalise);
 				break;
 			default:
 				normal_x = 1;
@@ -495,12 +505,12 @@ class MultiCurve
 	}
 	
 	void eval_linear(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -534,11 +544,11 @@ class MultiCurve
 		}
 	}
 	
-	void eval_linear_point(const float t, float &out x, float &out y)
+	void eval_linear_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -552,11 +562,11 @@ class MultiCurve
 		y = p1.y + dy * ti;
 	}
 	
-	void eval_linear_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_linear_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -582,12 +592,12 @@ class MultiCurve
 	}
 	
 	void eval_catmull_rom(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p2, p3;
 		CurveControlPoint@ p1, p4;
@@ -599,11 +609,11 @@ class MultiCurve
 			ti, x, y, normal_x, normal_y, normalise);
 	}
 	
-	void eval_catmull_rom_point(const float t, float &out x, float &out y)
+	void eval_catmull_rom_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p2, p3;
 		CurveControlPoint@ p1, p4;
@@ -615,11 +625,11 @@ class MultiCurve
 			ti, x, y);
 	}
 	
-	void eval_catmull_rom_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_catmull_rom_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p2, p3;
 		CurveControlPoint@ p1, p4;
@@ -632,12 +642,12 @@ class MultiCurve
 	}
 	
 	void eval_quadratic_bezier(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -661,11 +671,11 @@ class MultiCurve
 		}
 	}
 	
-	void eval_quadratic_bezier_point(const float t, float &out x, float &out y)
+	void eval_quadratic_bezier_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -689,11 +699,11 @@ class MultiCurve
 		}
 	}
 	
-	void eval_quadratic_bezier_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_quadratic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
@@ -718,12 +728,12 @@ class MultiCurve
 	}
 	
 	void eval_cubic_bezier(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
@@ -751,12 +761,11 @@ class MultiCurve
 		}
 	}
 	
-	void eval_cubic_bezier_point(
-		const float t, float &out x, float &out y)
+	void eval_cubic_bezier_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
@@ -784,11 +793,11 @@ class MultiCurve
 		}
 	}
 	
-	void eval_cubic_bezier_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_cubic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		int i;
 		float ti;
-		calc_segment_t(t, ti, i);
+		calc_segment_t(segment, t, ti, i);
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
@@ -817,46 +826,54 @@ class MultiCurve
 	}
 	
 	void eval_b_spline(
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
 		const bool normalise=true)
 	{
 		if(b_spline_degree <= 1)
 		{
-			eval_linear(t, x, y, normal_x, normal_y);
+			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
 		
+		const float ta = segment >= 0
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			: t;
 		b_spline.eval(
 			b_spline_degree, b_spline_clamped, closed, 
-			t, x, y, normal_x, normal_y,
+			ta, x, y, normal_x, normal_y,
 			normalise);
 	}
 	
-	void eval_b_spline_point(
-		const float t, float &out x, float &out y)
+	void eval_b_spline_point(const int segment, const float t, float &out x, float &out y)
 	{
 		if(b_spline_degree <= 1)
 		{
-			eval_linear_point(t, x, y);
+			eval_linear_point(segment, t, x, y);
 			return;
 		}
 		
+		const float ta = segment >= 0
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			: t;
 		b_spline.eval_point(
 			b_spline_degree, b_spline_clamped, closed, 
-			t, x, y);
+			ta, x, y);
 	}
 	
-	void eval_b_spline_normal(const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_b_spline_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
 	{
 		if(b_spline_degree <= 1)
 		{
-			eval_linear_normal(t, normal_x, normal_y);
+			eval_linear_normal(segment, t, normal_x, normal_y);
 			return;
 		}
 		
+		const float ta = segment >= 0
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			: t;
 		b_spline.eval_normal(
 			b_spline_degree, b_spline_clamped, closed, 
-			t, normal_x, normal_y);
+			ta, normal_x, normal_y);
 	}
 	
 	// --
@@ -1063,13 +1080,22 @@ class MultiCurve
 		invalidated_b_spline_vertices = true;
 	}
 	
-	private void calc_segment_t(const float t, float & out ti, int &out i)
+	private void calc_segment_t(const int segment, const float t, float & out ts, int &out i)
 	{
-		const int max_i = closed ? vertex_count : vertex_count - 1;
-		const float tt = t * max_i;
-		i = int(tt);
-		ti = i < max_i ? tt % 1 : 1.0;
-		i = i < max_i ? i : max_i - 1;
+		const int max_i = closed ? vertex_count - 1 : vertex_count - 2;
+		
+		if(segment < 0)
+		{
+			const float tt = t * (max_i + 1);
+			i = int(tt);
+			i = i <= max_i ? i : max_i;
+			ts = i <= max_i ? tt % 1 : 1;
+		}
+		else
+		{
+			i = segment <= max_i ? segment : max_i;
+			ts = t < 1 ? t : t > 0 ? t : 0;
+		}
 	}
 	
 }

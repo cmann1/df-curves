@@ -56,7 +56,6 @@ class BSpline
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
 		
-		const uint st = get_time_us();
 		knots_length = v_count + degree_c + 1;
 		while(int(knots.length) < knots_length)
 		{
@@ -88,7 +87,7 @@ class BSpline
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
 		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
 		
-		// Find span and corresponding non-zero basis functions
+		// Find span and corresponding non-zero basis functions.
 		const int span = find_span(degree_c, u);
 		calc_basis(degree_c, span, u);
 		
