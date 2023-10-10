@@ -44,7 +44,8 @@ class MultiCurveDebug
 	/** Stops subdividing when the length of the segments is lower than this. */
 	float adaptive_min_length = 0;
 	
-	/** If true anything outside of the clip bounds will not be drawn. */
+	/** If true anything outside of the clip bounds will not be drawn.
+	  * Curve bounding must be calculated for this to work correctly. */
 	bool clip;
 	/** The corner positions defining the clipping rectangle. */
 	float clip_x1, clip_y1;
@@ -497,6 +498,12 @@ class MultiCurveDebug
 	/** Draws the pre-calculated sub divisions of the curve. */
 	void draw_arch_lengths(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
+		const float lw = line_width * zoom_factor;
+		const float nl = normal_length * zoom_factor * 0.5;
+		
+		if(!check_clip(curve, max(line_width, nl)))
+			return;
+		
 		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
 		const bool draw_normal = normal_width > 0 && normal_length > 0;
 		
@@ -509,6 +516,9 @@ class MultiCurveDebug
 			if(arc_count <= 0)
 				continue;
 			
+			if(clip && (v.x1 > _clip_x2 || v.x2 < _clip_x1 || v.y1 > _clip_y2 || v.y2 < _clip_y1))
+				continue;
+			
 			float x1 = arcs[0].x;
 			float y1 = arcs[0].y;
 			for(int j = 1; j < arc_count; j++)
@@ -518,7 +528,7 @@ class MultiCurveDebug
 				const uint clr = @segment_colour_callback != null
 					? segment_colour_callback.get_curve_line_colour(curve, i, v_count, arc.t)
 					: line_clr;
-				c.draw_line(x1, y1, arc.x, arc.y, line_width * zoom_factor, clr);
+				c.draw_line(x1, y1, arc.x, arc.y, lw, clr);
 				
 				x1 = arc.x;
 				y1 = arc.y;
@@ -533,12 +543,11 @@ class MultiCurveDebug
 					float n2x, n2y;
 					curve.eval_normal(i, arc.t, n2x, n2y, true);
 					
-					const float l = normal_length * zoom_factor * 0.5;
 					const uint clr = @segment_colour_callback != null
 						? segment_colour_callback.get_curve_line_colour(curve, i, v_count, arc.t)
 						: line_clr;
 					c.draw_line(
-						arc.x - n2x * l, arc.y - n2y * l, arc.x + n2x * l, arc.y + n2y * l, normal_width * zoom_factor,
+						arc.x - n2x * nl, arc.y - n2y * nl, arc.x + n2x * nl, arc.y + n2y * nl, normal_width * zoom_factor,
 						clr);
 				}
 			}
