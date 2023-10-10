@@ -199,9 +199,14 @@ class script : MultiCurveDebugColourCallback
 		t += speed * 0.25 * DT;
 	}
 	
-	void editor_draw(float _)
+	void editor_draw(float)
 	{
-		debug_draw.draw(c, curve, zoom_factor);
+		//debug_draw.draw(c, curve, zoom_factor);
+		
+		debug_draw.draw_outline(c, curve, zoom_factor);
+		debug_draw.draw_control_points(c, curve, zoom_factor);
+		debug_draw.draw_arch_lengths(c, curve, zoom_factor);
+		debug_draw.draw_vertices(c, curve, zoom_factor);
 		
 		float x, y, nx, ny;
 		curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);

@@ -5,6 +5,7 @@
 #include 'QuadraticBezier.cpp';
 #include 'QuadraticBezierRational.cpp';
 
+#include 'calculate_arc_lengths.cpp';
 #include 'CurveVertex.cpp';
 
 /** A higher level wrapper designed for editing/manipulating curves with support for several
@@ -12,13 +13,18 @@
 class MultiCurve
 {
 	
-	// TODO: control_point_start/end should always be moved relative to the start/end vertices
-	//       when `end_controls` is not `Manual`.
+	// TODO: Calculate individual segment bounding boxes.
+	// TODO: Debug draw arc lengths
+	// TODO: 	- Display segment lengths
+	// TODO: Tweak bspline so vertex and segment align better for closed bsplines.
+	// TODO: `invalidate` and `validate` seem kind of redundant?
 	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
-	// TODO: ? Add basic CurveEditor class
 	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices
 	//       so maybe storing the absolutely is not a good idea?
 	//       OR when moving vertices, try interpolate and move the control point based on the two vertices.
+	// TODO: control_point_start/end should always be moved relative to the start/end vertices
+	//       when `end_controls` is not `Manual`.
+	// TODO: ? Add basic CurveEditor class
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -66,21 +72,20 @@ class MultiCurve
 	/** The b-spline knot vector requires regneration after vertices are added/removed. */
 	private bool invalidated_b_spline_knots = true;
 	
-	/** A precomputed set of points along the curve, also mapping raw t values to real distances/uniform t values along the curve. */
-	private array<CurveSegment> segments;
-	
-	private int segments_count;
-	
 	private BSpline@ b_spline;
 	
 	/** Temp points used when calculating automatic end control points. */
 	private CurveVertex p0;
 	private CurveVertex p3;
 	
+	private Curve::EvalFunc@ eval_func_def;
+	
 	MultiCurve()
 	{
 		control_point_start.type = None;
 		control_point_end.type = None;
+		
+		@eval_func_def = Curve::EvalFunc(eval);
 	}
 	
 	CurveEndControl end_controls
@@ -293,7 +298,10 @@ class MultiCurve
 		
 		// -- Calculate arc lengths.
 		
-		length = 0;
+		length = Curve::calculate_arc_lengths(
+			@vertices, vertex_count, _closed,
+			eval_func_def, _type != Linear ? 6 : 1,
+			_type != Linear ? 3 * DEG2RAD : 0, 5);
 		
 		invalidated = false;
 	}

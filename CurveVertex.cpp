@@ -43,9 +43,11 @@ class CurveVertex : CurveControlPoint
 	/** The approximated length of the curve segment starting with this vertex. */
 	float length;
 	
-	CurveVertex()
-	{
-	}
+	/** A precomputed set of points along the curve, mapping raw t values to real distances/uniform t values along the curve. */
+	array<CurveArc> arcs;
+	int arc_count;
+	
+	CurveVertex() { }
 	
 	CurveVertex(const float x, const float y)
 	{
@@ -87,16 +89,21 @@ class CurveVertex : CurveControlPoint
 	
 }
 
-class CurveSegment
+class CurveArc
 {
 	
 	float x;
 	float y;
-	float length; // Necessary? Once the initial calculations are done only the t value is needed really.
+	/** The total length from the start of the curve to the end of this arc. */
+	float length;
+	float normal_x; // Necessary? Once the initial calculations are done only the t value is needed really.
+	float normal_y;
 	
-	/** The unmodified t value of this point relative to its segment. */
-	float t_real;
-	/** The uniform t value based on the approximated distance of this point from the start of the segment. */
-	float t_uniform;
+	/** The bounding box of this curve segment. */
+	float x1, y1;
+	float x2, y2;
+	
+	/** The t value of this point relative to its segment. */
+	float t;
 	
 }

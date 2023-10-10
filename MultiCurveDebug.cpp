@@ -271,7 +271,7 @@ class MultiCurveDebug
 			n2y = in2y;
 		}
 		
-		if(do_draw && sub_divisions > 0 && adaptive_angle > 0)
+		if(do_draw && sub_divisions > 0)
 		{
 			bool subdivide = true;
 			
@@ -374,6 +374,57 @@ class MultiCurveDebug
 			curve.x1 - bounding_box_width * zoom_factor, curve.y2,
 			curve.x2 + bounding_box_width * zoom_factor, curve.y2 + bounding_box_width * zoom_factor,
 			0, bounding_box_clr);
+	}
+	
+	/** Draws the pre-calculated sub divisions of the curve. */
+	void draw_arch_lengths(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
+	{
+		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
+		const bool draw_normal = normal_width > 0 && normal_length > 0;
+		
+		for(int i = 0; i <= v_count; i++)
+		{
+			CurveVertex@ v = curve.vertices[i];
+			array<CurveArc>@ arcs = @v.arcs;
+			int arc_count = v.arc_count;
+			
+			if(arc_count <= 0)
+				continue;
+			
+			float x1 = arcs[0].x;
+			float y1 = arcs[0].y;
+			for(int j = 1; j < arc_count; j++)
+			{
+				CurveArc@ arc = @arcs[j];
+				
+				const uint clr = @segment_colour_callback != null
+					? segment_colour_callback.get_curve_line_colour(curve, i, v_count, arc.t)
+					: line_clr;
+				c.draw_line(x1, y1, arc.x, arc.y, line_width * zoom_factor, clr);
+				
+				x1 = arc.x;
+				y1 = arc.y;
+			}
+			
+			if(draw_normal)
+			{
+				for(int j = 1; j < arc_count; j++)
+				{
+					CurveArc@ arc = @arcs[j];
+					
+					float n2x, n2y;
+					curve.eval_normal(i, arc.t, n2x, n2y, true);
+					
+					const float l = normal_length * zoom_factor * 0.5;
+					const uint clr = @segment_colour_callback != null
+						? segment_colour_callback.get_curve_line_colour(curve, i, v_count, arc.t)
+						: line_clr;
+					c.draw_line(
+						arc.x - n2x * l, arc.y - n2y * l, arc.x + n2x * l, arc.y + n2y * l, normal_width * zoom_factor,
+						clr);
+				}
+			}
+		}
 	}
 	
 }
