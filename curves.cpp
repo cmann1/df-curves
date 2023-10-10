@@ -67,7 +67,7 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.adaptive_max_subdivisions = 5;
 		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = BSpline;
+		curve.type = CubicBezier;
 		curve.closed = true;
 		
 		calc_spline();

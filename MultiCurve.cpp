@@ -13,6 +13,8 @@
 class MultiCurve
 {
 	
+	// TODO: Option to not calculate arc lengths.
+	// TODO: Only invalidate vertices/segments that change.
 	// TODO: Calculate individual segment bounding boxes.
 	// TODO: Debug draw arc lengths
 	// TODO: 	- Display segment lengths

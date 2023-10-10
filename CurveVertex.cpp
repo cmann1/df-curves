@@ -96,14 +96,11 @@ class CurveArc
 	float y;
 	/** The total length from the start of the curve to the end of this arc. */
 	float length;
-	float normal_x; // Necessary? Once the initial calculations are done only the t value is needed really.
-	float normal_y;
+	/** The t value of this point relative to its segment. */
+	float t;
 	
 	/** The bounding box of this curve segment. */
 	float x1, y1;
 	float x2, y2;
-	
-	/** The t value of this point relative to its segment. */
-	float t;
 	
 }

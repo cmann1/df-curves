@@ -62,7 +62,9 @@ namespace Curve
 						i, t1, t2,
 						x1, y1, n1x, n1y,
 						x2, y2, n2x, n2y,
-						adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0, adaptive_min_length);
+						total_length,
+						adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0, adaptive_min_length,
+						total_length);
 				}
 				
 				if(arc_count + 1 >= arcs.length)
@@ -74,6 +76,7 @@ namespace Curve
 				arc.t = t2;
 				arc.x = x2;
 				arc.y = y2;
+				arc.length = total_length;
 				
 				t1 = t2;
 				x1 = x2;
@@ -93,15 +96,18 @@ namespace Curve
 		const int segment_index, const float t1, const float t2,
 		const float x1, const float y1, const float n1x, const float n1y,
 		const float x2, const float y2, const float n2x, const float n2y,
-		const float adaptive_angle, const int adaptive_max_subdivisions, const float adaptive_min_length)
+		const float total_length,
+		const float adaptive_angle, const int adaptive_max_subdivisions, const float adaptive_min_length,
+		float &out out_length)
 	{
 		const float dx = x2 - x1;
 		const float dy = y2 - y1;
-		const float length = sqrt(dx * dx + dy * dy);
+		float arc_length = sqrt(dx * dx + dy * dy);
+		out_length = total_length + arc_length;
 		
 		if(
 			adaptive_max_subdivisions <= 0 ||
-			adaptive_min_length > 0 && length <= adaptive_min_length ||
+			adaptive_min_length > 0 && arc_length <= adaptive_min_length ||
 			acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= adaptive_angle)
 			return arc_count;
 		
@@ -116,18 +122,22 @@ namespace Curve
 			segment_index, t1, tm,
 			x1, y1, n1x, n1y,
 			mx, my, nmx, nmy,
-			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length);
+			total_length,
+			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
+			arc_length);
+		
+		// Add the mid point.
 		
 		if(arc_count + 1 >= arcs.length)
 		{
 			arcs.resize(arcs.length * 2);
 		}
 		
-		// Add the mid point.
 		CurveArc@ arc = @arcs[arc_count++];
 		arc.t = tm;
 		arc.x = mx;
 		arc.y = my;
+		arc.length = arc_length;
 		
 		// Subdivide the right.
 		arc_count = add_arc_length(
@@ -135,7 +145,9 @@ namespace Curve
 			segment_index, tm, t2,
 			mx, my, nmx, nmy,
 			x2, y2, n2x, n2y,
-			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length);
+			arc.length,
+			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
+			out_length);
 		
 		return arc_count;
 	}
