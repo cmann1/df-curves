@@ -18,7 +18,6 @@ class MultiCurve
 	// TODO: Calculate individual segment bounding boxes.
 	// TODO: Debug draw arc lengths
 	// TODO: 	- Display segment lengths
-	// TODO: Tweak bspline so vertex and segment align better for closed bsplines.
 	// TODO: `invalidate` and `validate` seem kind of redundant?
 	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices

@@ -29,8 +29,8 @@ class BSpline
 		this.vertex_count = vertex_count;
 		@this.vertices = vertices;
 		
-		int v_count, _;
-		init_params(vertex_count, degree, clamped, closed, v_count, _);
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
 		
 		// Compute points using homogenous coordinates.
 		while(int(vertices_weighted.length) < v_count)
@@ -38,10 +38,13 @@ class BSpline
 			vertices_weighted.resize(vertices_weighted.length * 2);
 		}
 		
-		for(int i = 0; i < v_count; i++)
+		// Offset the index just so that the start of the curve (t=0) aligns better with the start vertex.
+		const int offset = closed ? degree_c /= 2 : 0;
+		
+		for(int i = -offset; i < v_count - offset; i++)
 		{
-			CurvePointW@ vp = @vertices_weighted[i];
-			CurveVertex@ p = @vertices[i % vertex_count];
+			CurvePointW@ vp = @vertices_weighted[i + offset];
+			CurveVertex@ p = @vertices[(i % vertex_count + vertex_count) % vertex_count];
 			vp.x = p.x * p.weight;
 			vp.y = p.y * p.weight;
 			vp.w = p.weight;
