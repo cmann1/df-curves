@@ -40,6 +40,10 @@ class CurveVertex : CurveControlPoint
 	/** The right hand side control point for this vertex. Only applicable to cubic bezier curves. */
 	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
 	
+	/** The bounding box of this curve segment. */
+	float x1, y1;
+	float x2, y2;
+	
 	/** The approximated length of the curve segment starting with this vertex. */
 	float length;
 	
@@ -98,9 +102,5 @@ class CurveArc
 	float length;
 	/** The t value of this point relative to its segment. */
 	float t;
-	
-	/** The bounding box of this curve segment. */
-	float x1, y1;
-	float x2, y2;
 	
 }

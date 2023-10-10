@@ -109,8 +109,8 @@ namespace CubicBezier
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		float &out x1, float &out y1, float &out x2, float &out y2)
 	{
-		x1 = p1x < p4x ? p1x : p1x;
-		y1 = p1y < p4y ? p1y : p1y;
+		x1 = p1x < p4x ? p1x : p4x;
+		y1 = p1y < p4y ? p1y : p4y;
 		x2 = p4x > p1x ? p4x : p1x;
 		y2 = p4y > p1y ? p4y : p1y;
 		

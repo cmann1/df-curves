@@ -14,6 +14,7 @@ class MultiCurveDebug
 	float normal_multiplier_adaptive = 0.65;
 	float outline_width = 1;
 	float vertex_size = 3;
+	float segment_bounding_box_width = 0;
 	float bounding_box_width = 3;
 	
 	uint line_clr = 0xffffffff;
@@ -26,6 +27,7 @@ class MultiCurveDebug
 	uint quad_cp_clr = 0xffff0000;
 	uint cubic_cp1_clr = 0xffff0000;
 	uint cubic_cp2_clr = 0xff0000ff;
+	uint segment_bounding_box_clr = 0x44002222;
 	uint bounding_box_clr = 0x66002222;
 	
 	/** If set, allows choosing the curve line colour based on the segment index and absolute t value. */
@@ -349,30 +351,65 @@ class MultiCurveDebug
 	}
 	
 	/** Draws the bounding box of the curve. */
-	void draw_bounding_box(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
+	void draw_bounding_box(canvas@ c, MultiCurve@ curve, const float zoom_factor=1, const float segment_padding=0)
 	{
+		if(segment_bounding_box_width > 0)
+		{
+			const float w = segment_bounding_box_width * zoom_factor;
+			const float p = segment_padding * zoom_factor;
+			
+			const int end = curve.closed ? curve.vertex_count : curve.vertex_count - 1;
+			for(int i = 0; i < end; i++)
+			{
+				CurveVertex@ v = curve.vertices[i];
+				
+				// Left
+				c.draw_rectangle(
+					v.x1 - p - w, v.y1 - p,
+					v.x1 - p, v.y2 + p,
+					0, segment_bounding_box_clr);
+				// Right
+				c.draw_rectangle(
+					v.x2 + p, v.y1 - p,
+					v.x2 + p + w, v.y2 + p,
+					0, segment_bounding_box_clr);
+				// Top
+				c.draw_rectangle(
+					v.x1 - p - w, v.y1 - p - w,
+					v.x2 + p + w, v.y1 - p,
+					0, segment_bounding_box_clr);
+				// Bottom
+				c.draw_rectangle(
+					v.x1 - p - w, v.y2 + p,
+					v.x2 + p + w, v.y2 + p + w,
+					0, segment_bounding_box_clr);
+			}
+		}
+		
 		if(bounding_box_width <= 0)
 			return;
 		
+		const float w = bounding_box_width * zoom_factor;
+		
 		// Left
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * zoom_factor, curve.y1,
+			curve.x1 - w, curve.y1,
 			curve.x1, curve.y2,
 			0, bounding_box_clr);
 		// Right
 		c.draw_rectangle(
 			curve.x2, curve.y1,
-			curve.x2 + bounding_box_width * zoom_factor, curve.y2,
+			curve.x2 + w, curve.y2,
 			0, bounding_box_clr);
 		// Top
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * zoom_factor, curve.y1 - bounding_box_width * zoom_factor,
-			curve.x2 + bounding_box_width * zoom_factor, curve.y1,
+			curve.x1 - w, curve.y1 - w,
+			curve.x2 + w, curve.y1,
 			0, bounding_box_clr);
 		// Bottom
 		c.draw_rectangle(
-			curve.x1 - bounding_box_width * zoom_factor, curve.y2,
-			curve.x2 + bounding_box_width * zoom_factor, curve.y2 + bounding_box_width * zoom_factor,
+			curve.x1 - w, curve.y2,
+			curve.x2 + w, curve.y2 + w,
 			0, bounding_box_clr);
 	}
 	

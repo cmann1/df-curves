@@ -195,22 +195,58 @@ class BSpline
 	// -- Bounding boxes --
 	
 	/** Calculates an approximate bounding box by simply finding the min and max of all vertices. */
-	void bounding_box_simple(float &out x1, float &out y1, float &out x2, float &out y2)
+	void bounding_box_simple(
+		const int vertex_count, const int degree, const bool closed,
+		float &out x1, float &out y1, float &out x2, float &out y2)
 	{
 		if(vertex_count == 0)
 			return;
 		
-		CurveVertex@ v = vertices[0];
-		x1 = x2 = v.x;
-		y1 = y2 = v.y;
+		const int degree_c = clamp(degree, 2, vertex_count - 1);
 		
-		for(int i = 1; i < vertex_count; i++)
+		//if(closed)
+		//	o1 = -degree_c / 2;
+		//	o2 =  degree_c / 2 + 1;
+		//else
+		//	o1 = -degree_c + 1;
+		//	o2 =  degree_c;
+		
+		// How many extra vertices on the eft and right of each vertex affect the current vertex.
+		const int o1 = closed ? -degree_c / 2 :-degree_c + 1;
+		const int o2 = closed ? degree_c / 2 + 1 : degree_c;
+		
+		x1 = y1 = INFINITY;
+		x2 = y2 = -INFINITY;
+		
+		for(int i = 0; i < vertex_count; i++)
 		{
-			@v = vertices[i];
+			CurveVertex@ v = vertices[i];
 			if(v.x < x1) x1 = v.x;
 			if(v.y < y1) y1 = v.y;
 			if(v.x > x2) x2 = v.x;
 			if(v.y > y2) y2 = v.y;
+			
+			v.x1 = v.x2 = v.x;
+			v.y1 = v.y2 = v.y;
+			
+			for(int j = i + o1; j <= i + o2; j++)
+			{
+				if(j == i)
+					continue;
+				if(!closed)
+				{
+					if(j < 0)
+						continue;
+					if(j >= vertex_count)
+						continue;
+				}
+				
+				CurveVertex@ v2 = vertices[(j % vertex_count + vertex_count) % vertex_count];
+				if(v2.x < v.x1) v.x1 = v2.x;
+				if(v2.y < v.y1) v.y1 = v2.y;
+				if(v2.x > v.x2) v.x2 = v2.x;
+				if(v2.y > v.y2) v.y2 = v2.y;
+			}
 		}
 	}
 	

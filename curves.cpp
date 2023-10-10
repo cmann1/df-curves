@@ -67,10 +67,10 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.adaptive_max_subdivisions = 5;
 		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = CubicBezier;
+		curve.type = BSpline;
 		curve.closed = true;
 		
-		calc_spline();
+		recreate_spline();
 		
 		curve.invalidate();
 		curve.validate();
@@ -113,7 +113,7 @@ class script : MultiCurveDebugColourCallback
 		
 		if(check_pressed(VK::V))
 		{
-			calc_spline();
+			recreate_spline();
 		}
 		if(check_pressed(VK::M))
 		{
@@ -128,7 +128,7 @@ class script : MultiCurveDebugColourCallback
 		if(check_pressed(VK::N))
 		{
 			is_rand = !is_rand;
-			calc_spline();
+			recreate_spline();
 		}
 		if(check_pressed(VK::OemComma))
 		{
@@ -396,7 +396,7 @@ class script : MultiCurveDebugColourCallback
 		return @result != null;
 	}
 	
-	void calc_spline()
+	void recreate_spline()
 	{
 		curve.clear();
 		

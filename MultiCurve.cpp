@@ -13,11 +13,9 @@
 class MultiCurve
 {
 	
-	// TODO: Option to not calculate arc lengths.
+	// TODO: Option to not automatically calculate arc lengths.
 	// TODO: Only invalidate vertices/segments that change.
 	// TODO: Calculate individual segment bounding boxes.
-	// TODO: Debug draw arc lengths
-	// TODO: 	- Display segment lengths
 	// TODO: `invalidate` and `validate` seem kind of redundant?
 	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices
@@ -945,14 +943,21 @@ class MultiCurve
 	
 	private void calc_bounding_box_linear()
 	{
-		for(int i = 0; i < vertex_count; i++)
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
 		{
-			CurveVertex@ p = vertices[i];
+			CurveVertex@ p1 = vertices[i];
+			CurveVertex@ p2 = vert(i, 1);
 			
-			if(p.x < x1) x1 = p.x;
-			if(p.y < y1) y1 = p.y;
-			if(p.x > x2) x2 = p.x;
-			if(p.y > y2) y2 = p.y;
+			p1.x1 = p1.x < p2.x ? p1.x : p2.x;
+			p1.y1 = p1.y < p2.y ? p1.y : p2.y;
+			p1.x2 = p1.x > p2.x ? p1.x : p2.x;
+			p1.y2 = p1.y > p2.y ? p1.y : p2.y;
+			
+			if(p1.x1 < x1) x1 = p1.x1;
+			if(p1.y1 < y1) y1 = p1.y1;
+			if(p1.x2 > x2) x2 = p1.x2;
+			if(p1.y2 > y2) y2 = p1.y2;
 		}
 	}
 	
@@ -974,15 +979,14 @@ class MultiCurve
 			bp3x += p3.x;
 			bp3y += p3.y;
 			
-			float sx1, sy1, sx2, sy2;
 			CubicBezier::bounding_box(
 				bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y,
-				sx1, sy1, sx2, sy2);
+				p2.x1, p2.y1, p2.x2, p2.y2);
 			
-			if(sx1 < x1) x1 = sx1;
-			if(sy1 < y1) y1 = sy1;
-			if(sx2 > x2) x2 = sx2;
-			if(sy2 > y2) y2 = sy2;
+			if(p2.x1 < x1) x1 = p2.x1;
+			if(p2.y1 < y1) y1 = p2.y1;
+			if(p2.x2 > x2) x2 = p2.x2;
+			if(p2.y2 > y2) y2 = p2.y2;
 		}
 	}
 	
@@ -991,7 +995,7 @@ class MultiCurve
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
 		{
-			const CurveVertex@ p1 = @vertices[i];
+			CurveVertex@ p1 = @vertices[i];
 			const CurveVertex@ p2 = vert(i, 1);
 			const CurveControlPoint@ cp = p1.quad_control_point;
 			
@@ -1001,20 +1005,20 @@ class MultiCurve
 			{
 				QuadraticBezier::bounding_box(
 					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
-					sx1, sy1, sx2, sy2);
+					p1.x1, p1.y1, p1.x2, p1.y2);
 			}
 			else
 			{
 				QuadraticBezier::bounding_box(
 					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
 					p1.weight, cp.weight, p2.weight,
-					sx1, sy1, sx2, sy2);
+					p1.x1, p1.y1, p1.x2, p1.y2);
 			}
 			
-			if(sx1 < x1) x1 = sx1;
-			if(sy1 < y1) y1 = sy1;
-			if(sx2 > x2) x2 = sx2;
-			if(sy2 > y2) y2 = sy2;
+			if(p1.x1 < x1) x1 = p1.x1;
+			if(p1.y1 < y1) y1 = p1.y1;
+			if(p1.x2 > x2) x2 = p1.x2;
+			if(p1.y2 > y2) y2 = p1.y2;
 		}
 	}
 	
@@ -1023,7 +1027,7 @@ class MultiCurve
 		const int end = closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
 		{
-			const CurveVertex@ p1 = @vertices[i];
+			CurveVertex@ p1 = @vertices[i];
 			const CurveVertex@ p2 = vert(i, 1);
 			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
 			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
@@ -1035,7 +1039,7 @@ class MultiCurve
 				CubicBezier::bounding_box(
 					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
 					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
-					sx1, sy1, sx2, sy2);
+					p1.x1, p1.y1, p1.x2, p1.y2);
 			}
 			else
 			{
@@ -1043,20 +1047,22 @@ class MultiCurve
 					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
 					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
 					p1.weight, cp1.weight, cp2.weight, p2.weight,
-					sx1, sy1, sx2, sy2,
+					p1.x1, p1.y1, p1.x2, p1.y2,
 					samples, padding);
 			}
 			
-			if(sx1 < x1) x1 = sx1;
-			if(sy1 < y1) y1 = sy1;
-			if(sx2 > x2) x2 = sx2;
-			if(sy2 > y2) y2 = sy2;
+			if(p1.x1 < x1) x1 = p1.x1;
+			if(p1.y1 < y1) y1 = p1.y1;
+			if(p1.x2 > x2) x2 = p1.x2;
+			if(p1.y2 > y2) y2 = p1.y2;
 		}
 	}
 	
 	private void calc_bounding_box_b_spline()
 	{
-		b_spline.bounding_box_simple(x1, y1, x2, y2);
+		b_spline.bounding_box_simple(
+			vertex_count, _b_spline_degree, _closed,
+			x1, y1, x2, y2);
 	}
 	
 	// -- Util --
