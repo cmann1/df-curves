@@ -44,8 +44,17 @@ class MultiCurveDebug
 	/** Stops subdividing when the length of the segments is lower than this. */
 	float adaptive_min_length = 0;
 	
+	/** If true anything outside of the clip bounds will not be drawn. */
+	bool clip;
+	/** The corner positions defining the clipping rectangle. */
+	float clip_x1, clip_y1;
+	float clip_x2, clip_y2;
+	
 	private CurveVertex p0;
 	private CurveVertex p3;
+	
+	float _clip_x1, _clip_y1;
+	float _clip_x2, _clip_y2;
 	
 	/** Draws all components of the curve based on this instance's properties. */
 	void draw(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
@@ -63,6 +72,12 @@ class MultiCurveDebug
 		if(control_point_size <= 0)
 			return;
 		
+		const float cpw = control_point_line_width * zoom_factor;
+		const float cps = control_point_size * zoom_factor;
+		
+		if(!check_clip(curve, max(cpw, sqrt(cps * cps + cps * cps)), 1, true))
+			return;
+		
 		for(int i = 0; i < curve.vertex_count; i++)
 		{
 			CurveVertex@ p = curve.vertices[i];
@@ -74,22 +89,33 @@ class MultiCurveDebug
 				
 				CurveControlPoint@ cp = p.quad_control_point;
 				
+				if(clip)
+				{
+					CurveVertex@ p2 = curve.vert(i, 1);
+					const float x1 = min(min(p.x, cp.x), p2.x);
+					const float y1 = min(min(p.y, cp.y), p2.y);
+					const float x2 = max(max(p.x, cp.x), p2.x);
+					const float y2 = max(max(p.y, cp.y), p2.y);
+					if(x1 > _clip_x2 || x2 < _clip_x1 || y1 > _clip_y2 || y2 < _clip_y1)
+						continue;
+				}
+				
 				if(control_point_line_width > 0)
 				{
-					c.draw_line(p.x, p.y, cp.x, cp.y, control_point_line_width * zoom_factor, multiply_alpha(quad_cp_clr, 0.5));
+					c.draw_line(p.x, p.y, cp.x, cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
 					
 					if(int(i) < curve.vertex_count - 1 || curve.closed)
 					{
 						CurveVertex@ p2 = curve.vert(i, 1);
-						c.draw_line(p2.x, p2.y, cp.x, cp.y, 1 * zoom_factor, multiply_alpha(quad_cp_clr, 0.5));
+						c.draw_line(p2.x, p2.y, cp.x, cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
 					}
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						cp.x - control_point_size * zoom_factor, cp.y - control_point_size * zoom_factor,
-						cp.x + control_point_size * zoom_factor, cp.y + control_point_size * zoom_factor,
+						cp.x - cps, cp.y - cps,
+						cp.x + cps, cp.y + cps,
 						45, quad_cp_clr);
 				}
 			}
@@ -98,20 +124,30 @@ class MultiCurveDebug
 				CurveControlPoint@ cp1 = p.cubic_control_point_1;
 				CurveControlPoint@ cp2 = p.cubic_control_point_2;
 				
+				if(clip)
+				{
+					const float x1 = p.x + cp1.x < p.x + cp2.x ? p.x + cp1.x : p.x + cp2.x;
+					const float y1 = p.y + cp1.y < p.y + cp2.y ? p.y + cp1.y : p.y + cp2.y;
+					const float x2 = p.x + cp1.x > p.x + cp2.x ? p.x + cp1.x : p.x + cp2.x;
+					const float y2 = p.y + cp1.y > p.y + cp2.y ? p.y + cp1.y : p.y + cp2.y;
+					if(x1 > _clip_x2 || x2 < _clip_x1 || y1 > _clip_y2 || y2 < _clip_y1)
+						continue;
+				}
+				
 				if(curve.closed || i > 0)
 				{
-					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, control_point_line_width * zoom_factor, multiply_alpha(cubic_cp1_clr, 0.5));
+					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, cpw, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						p.x + cp1.x - control_point_size * zoom_factor, p.y + cp1.y - control_point_size * zoom_factor,
-						p.x + cp1.x + control_point_size * zoom_factor, p.y + cp1.y + control_point_size * zoom_factor,
+						p.x + cp1.x - cps, p.y + cp1.y - cps,
+						p.x + cp1.x + cps, p.y + cp1.y + cps,
 						45, cubic_cp1_clr);
 				}
 				if(curve.closed || i < curve.vertex_count - 1)
 				{
-					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, control_point_line_width * zoom_factor, multiply_alpha(cubic_cp2_clr, 0.5));
+					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, cpw, multiply_alpha(cubic_cp2_clr, 0.5));
 					c.draw_rectangle(
-						p.x + cp2.x - control_point_size * zoom_factor, p.y + cp2.y - control_point_size * zoom_factor,
-						p.x + cp2.x + control_point_size * zoom_factor, p.y + cp2.y + control_point_size * zoom_factor,
+						p.x + cp2.x - cps, p.y + cp2.y - cps,
+						p.x + cp2.x + cps, p.y + cp2.y + cps,
 						45, cubic_cp1_clr);
 				}
 			}
@@ -125,11 +161,11 @@ class MultiCurveDebug
 				{
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
-						curve.control_point_start.x, curve.control_point_start.y, control_point_line_width * zoom_factor,
+						curve.control_point_start.x, curve.control_point_start.y, cpw,
 						multiply_alpha(outline_clr, 0.85));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
-						curve.control_point_end.x, curve.control_point_end.y, control_point_line_width * zoom_factor,
+						curve.control_point_end.x, curve.control_point_end.y, cpw,
 						multiply_alpha(outline_clr, 0.85));
 				}
 				
@@ -187,13 +223,31 @@ class MultiCurveDebug
 		if(outline_width <= 0 || curve.vertex_count <= 0 || curve.type == CurveType::Linear)
 			return;
 		
+		const float ow = outline_width * zoom_factor;
+		
+		if(!check_clip(curve, ow))
+			return;
+		
 		CurveVertex@ p1 = curve.vertices[0];
 		
 		for(int i = 1, end = curve.vertex_count + (curve.closed ? 1 : 0); i < end; i++)
 		{
 			CurveVertex@ p2 = curve.vert(i);
 			
-			c.draw_line(p1.x, p1.y, p2.x, p2.y, outline_width * zoom_factor, outline_clr);
+			if(clip)
+			{
+				const float x1 = p1.x < p2.x ? p1.x : p2.x;
+				const float y1 = p1.y < p2.y ? p1.y : p2.y;
+				const float x2 = p1.x > p2.x ? p1.x : p2.x;
+				const float y2 = p1.y > p2.y ? p1.y : p2.y;
+				if(x1 > _clip_x2 || x2 < _clip_x1 || y1 > _clip_y2 || y2 < _clip_y1)
+				{
+					@p1 = p2;
+					continue;
+				}
+			}
+			
+			c.draw_line(p1.x, p1.y, p2.x, p2.y, ow, outline_clr);
 			
 			@p1 = p2;
 		}
@@ -202,6 +256,9 @@ class MultiCurveDebug
 	/** Draws the curve and normals. */
 	void draw_curve(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
 	{
+		if(!check_clip(curve, max(line_width, max(normal_length, normal_width)), zoom_factor))
+			return;
+		
 		const bool draw_curve = line_width > 0;
 		const bool draw_normal = normal_width > 0 && normal_length > 0;
 		
@@ -215,6 +272,14 @@ class MultiCurveDebug
 		
 		for(int i = 0; i <= v_count; i++)
 		{
+			if(clip)
+			{
+				CurveVertex@ v = curve.vertices[i];
+				
+				if(clip && (v.x1 > _clip_x2 || v.x2 < _clip_x1 || v.y1 > _clip_y2 || v.y2 < _clip_y1))
+					continue;
+			}
+			
 			float t1 = 0;
 			float x1 = 0;
 			float y1 = 0;
@@ -340,12 +405,22 @@ class MultiCurveDebug
 		if(vertex_size <= 0)
 			return;
 		
+		const float vs = vertex_size * zoom_factor;
+		const float vs2 = sqrt(vs * vs + vs * vs);
+		
+		if(!check_clip(curve, vs))
+			return;
+		
 		for(int i = 0; i < curve.vertex_count; i++)
 		{
 			CurveVertex@ p = curve.vertices[i];
+			
+			if(clip && (p.x > _clip_x2 || p.x < _clip_x1 || p.y > _clip_y2 || p.y < _clip_y1))
+				continue;
+			
 			c.draw_rectangle(
-				p.x - vertex_size * zoom_factor, p.y - vertex_size * zoom_factor,
-				p.x + vertex_size * zoom_factor, p.y + vertex_size * zoom_factor,
+				p.x - vs, p.y - vs,
+				p.x + vs, p.y + vs,
 				45, vertex_clr);
 		}
 	}
@@ -353,6 +428,9 @@ class MultiCurveDebug
 	/** Draws the bounding box of the curve. */
 	void draw_bounding_box(canvas@ c, MultiCurve@ curve, const float zoom_factor=1, const float segment_padding=0)
 	{
+		if(!check_clip(curve, max(segment_bounding_box_width, bounding_box_width), zoom_factor))
+			return;
+		
 		if(segment_bounding_box_width > 0)
 		{
 			const float w = segment_bounding_box_width * zoom_factor;
@@ -362,6 +440,9 @@ class MultiCurveDebug
 			for(int i = 0; i < end; i++)
 			{
 				CurveVertex@ v = curve.vertices[i];
+				
+				if(clip && (v.x1 > _clip_x2 || v.x2 < _clip_x1 || v.y1 > _clip_y2 || v.y2 < _clip_y1))
+					continue;
 				
 				// Left
 				c.draw_rectangle(
@@ -462,6 +543,23 @@ class MultiCurveDebug
 				}
 			}
 		}
+	}
+	
+	private bool check_clip(MultiCurve@ curve, const float padding, const float zoom_factor=1, const bool negative_result=false)
+	{
+		if(!clip)
+		{
+			_clip_x1 = _clip_y1 = _clip_x2 = _clip_y2 = 0;
+			return true;
+		}
+		
+		_clip_x1 = clip_x1 - padding * zoom_factor;
+		_clip_y1 = clip_y1 - padding * zoom_factor;
+		_clip_x2 = clip_x2 + padding * zoom_factor;
+		_clip_y2 = clip_y2 + padding * zoom_factor;
+		
+		return curve.x1 <= _clip_x2 && curve.x2 >= _clip_x1 && curve.y1 <= _clip_y2 && curve.y2 >= _clip_y1
+			? true : negative_result;
 	}
 	
 }

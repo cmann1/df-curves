@@ -13,6 +13,11 @@
 class MultiCurve
 {
 	
+	// TODO: Debugdraw
+	// 		- View bounds - don't draw things outside of this
+	// 			- Aslo check individual arc/adaptive segments? This wouldn't be 100% reliable since an arc segment can extend beyound the p1>p2 bounding box.
+	// 				- Could have some kind of padding (relative to arc length?)
+	// 			- Find t/view intersections and only draw between those t values?
 	// TODO: Option to not automatically calculate arc lengths.
 	// TODO: Only invalidate vertices/segments that change.
 	// TODO: Calculate individual segment bounding boxes.

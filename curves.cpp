@@ -199,14 +199,20 @@ class script : MultiCurveDebugColourCallback
 		t += speed * 0.25 * DT;
 	}
 	
-	void editor_draw(float)
+	void editor_draw(float sub_frame)
 	{
-		//debug_draw.draw(c, curve, zoom_factor);
+		debug_draw.clip = true;
+		cam.get_layer_draw_rect(sub_frame, c.layer(), debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2);
+		debug_draw.clip_x2 += debug_draw.clip_x1;
+		debug_draw.clip_y2 += debug_draw.clip_y1;
+		debug_draw.draw(c, curve, zoom_factor);
 		
-		debug_draw.draw_outline(c, curve, zoom_factor);
-		debug_draw.draw_control_points(c, curve, zoom_factor);
-		debug_draw.draw_arch_lengths(c, curve, zoom_factor);
-		debug_draw.draw_vertices(c, curve, zoom_factor);
+		outline_rect_outside(g, 22, 22, debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2, 5*zoom_factor, 0x88ff0000);
+		
+		//debug_draw.draw_outline(c, curve, zoom_factor);
+		//debug_draw.draw_control_points(c, curve, zoom_factor);
+		//debug_draw.draw_arch_lengths(c, curve, zoom_factor);
+		//debug_draw.draw_vertices(c, curve, zoom_factor);
 		
 		float x, y, nx, ny;
 		curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);
