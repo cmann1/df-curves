@@ -310,7 +310,7 @@ class MultiCurve
 		invalidated = false;
 	}
 	
-	/** Call to update/calcualte some simple initial positions for new control points.
+	/** Call to update/calculate some simple initial positions for new control points. Mostly for testing.
 	  * Make sure to call this or manually set control points after adding vertices as control points default to NAN.
 	  * If `force` is true all control points will be recalculated, otherwise only newly added ones will be. */
 	void init_bezier_control_points(const bool force=false, const int from_index=0, const int count=0xffffff)
