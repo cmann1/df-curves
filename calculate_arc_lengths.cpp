@@ -57,7 +57,7 @@ namespace Curve
 				
 				if(j > 0)
 				{
-					arc_count = add_arc_length(
+					arc_count = _add_arc_length(
 						eval, arcs, arc_count,
 						i, t1, t2,
 						x1, y1, n1x, n1y,
@@ -91,7 +91,7 @@ namespace Curve
 		return total_length;
 	}
 	
-	uint add_arc_length(
+	uint _add_arc_length(
 		EvalFunc@ eval, array<CurveArc>@ arcs, uint arc_count,
 		const int segment_index, const float t1, const float t2,
 		const float x1, const float y1, const float n1x, const float n1y,
@@ -117,7 +117,7 @@ namespace Curve
 		eval(segment_index, tm, mx, my, nmx, nmy, true);
 		
 		// Subdivide the left.
-		arc_count = add_arc_length(
+		arc_count = _add_arc_length(
 			eval, arcs, arc_count,
 			segment_index, t1, tm,
 			x1, y1, n1x, n1y,
@@ -140,7 +140,7 @@ namespace Curve
 		arc.length = arc_length;
 		
 		// Subdivide the right.
-		arc_count = add_arc_length(
+		arc_count = _add_arc_length(
 			eval, arcs, arc_count,
 			segment_index, tm, t2,
 			mx, my, nmx, nmy,
