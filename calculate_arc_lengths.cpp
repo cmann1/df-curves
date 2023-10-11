@@ -18,14 +18,18 @@ namespace Curve
 	  * @param closed Is the curve closed or open.
 	  * @param eval The curve evaluation function.
 	  * @param divisions How many sections each segment/vertex will be broken into. The highter this number the more accurate the results.
-	  * @param adaptive_angle (radians) If > 0, will subdivide each arc segment if the angle between the start and end of the segment is greater than this angle.
+	  * @param adaptive_angle If > 0, will subdivide each arc segment if the angle between the start and end of the segment is greater than this angle (radians).
 	  * @param adaptive_max_subdivisions Must be > 0. Limits how many adaptive subdivisions are allowed.
 	  * @param adaptive_min_length If > 0 will also stop subdividing when the arc length becomes smaller than this value.
+	  * @param max_adaptive_angle If > 0 any segment where the angle (radians) is greater than this a subdivision will be forced
+	  *   regardless of the adaptive angle, subdivision limit, or length.
+	  *   Can help improve accuracy around tight corners without increasing the resolution or adaptive parameters a lot.
 	  * @return The total length of the curve. */
 	float calculate_arc_lengths(
 		array<CurveVertex>@ vertices, const int vertex_count, const bool closed,
 		EvalFunc@ eval, const int divisions,
-		const float adaptive_angle=0, const int adaptive_max_subdivisions=0, const float adaptive_min_length=0)
+		const float adaptive_angle=0, const int adaptive_max_subdivisions=0, const float adaptive_min_length=0,
+		const float max_adaptive_angle=0)
 	{
 		float total_length = 0;
 		
@@ -64,6 +68,7 @@ namespace Curve
 						x2, y2, n2x, n2y,
 						total_length,
 						adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0, adaptive_min_length,
+						max_adaptive_angle,
 						total_length);
 				}
 				
@@ -91,6 +96,8 @@ namespace Curve
 		return total_length;
 	}
 	
+	/** Internal method ignore.
+	  * Recursively subdivides and adds arc segments between t1 and t2. */
 	uint _add_arc_length(
 		EvalFunc@ eval, array<CurveArc>@ arcs, uint arc_count,
 		const int segment_index, const float t1, const float t2,
@@ -98,6 +105,7 @@ namespace Curve
 		const float x2, const float y2, const float n2x, const float n2y,
 		const float total_length,
 		const float adaptive_angle, const int adaptive_max_subdivisions, const float adaptive_min_length,
+		const float max_adaptive_angle,
 		float &out out_length)
 	{
 		const float dx = x2 - x1;
@@ -106,9 +114,20 @@ namespace Curve
 		out_length = total_length + arc_length;
 		
 		if(
-			adaptive_max_subdivisions <= 0 ||
-			adaptive_min_length > 0 && arc_length <= adaptive_min_length ||
-			acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= adaptive_angle)
+			// `max_adaptive_angle` takes priority over other conditions.
+			(
+				max_adaptive_angle <= 0 ||
+				// 
+				acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= max_adaptive_angle
+				
+			) && (
+				// The subdivision limit has been reached.
+				adaptive_max_subdivisions <= 0 ||
+				// The minimum length for a subdivide segment has been reached.
+				adaptive_min_length > 0 && arc_length <= adaptive_min_length ||
+				// The angle is not low enough to warrant a subdivision.
+				acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= adaptive_angle
+			))
 			return arc_count;
 		
 		// Calculate the mid point between t1 and t2.
@@ -124,6 +143,7 @@ namespace Curve
 			mx, my, nmx, nmy,
 			total_length,
 			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
+			max_adaptive_angle,
 			arc_length);
 		
 		// Add the mid point.
@@ -147,6 +167,7 @@ namespace Curve
 			x2, y2, n2x, n2y,
 			arc.length,
 			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
+			max_adaptive_angle,
 			out_length);
 		
 		return arc_count;

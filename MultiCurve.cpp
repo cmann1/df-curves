@@ -305,7 +305,7 @@ class MultiCurve
 		length = Curve::calculate_arc_lengths(
 			@vertices, vertex_count, _closed,
 			eval_func_def, _type != Linear ? 6 : 1,
-			_type != Linear ? 3 * DEG2RAD : 0, 5);
+			_type != Linear ? 4 * DEG2RAD : 0, 4, 0, 65 * DEG2RAD);
 		
 		invalidated = false;
 	}
