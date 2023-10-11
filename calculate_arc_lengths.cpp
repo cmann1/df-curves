@@ -21,7 +21,7 @@ namespace Curve
 	  * @param adaptive_angle If > 0, will subdivide each arc segment if the angle between the start and end of the segment is greater than this angle (radians).
 	  * @param adaptive_max_subdivisions Must be > 0. Limits how many adaptive subdivisions are allowed.
 	  * @param adaptive_min_length If > 0 will also stop subdividing when the arc length becomes smaller than this value.
-	  * @param max_adaptive_angle If > 0 any segment where the angle (radians) is greater than this a subdivision will be forced
+	  * @param adaptive_angle_max If > 0 any segment where the angle (radians) is greater than this a subdivision will be forced
 	  *   regardless of the adaptive angle, subdivision limit, or length.
 	  *   Can help improve accuracy around tight corners without increasing the resolution or adaptive parameters a lot.
 	  * @return The total length of the curve. */
@@ -29,7 +29,7 @@ namespace Curve
 		array<CurveVertex>@ vertices, const int vertex_count, const bool closed,
 		EvalFunc@ eval, const int divisions,
 		const float adaptive_angle=0, const int adaptive_max_subdivisions=0, const float adaptive_min_length=0,
-		const float max_adaptive_angle=0)
+		const float adaptive_angle_max=0)
 	{
 		float total_length = 0;
 		
@@ -68,7 +68,7 @@ namespace Curve
 						x2, y2, n2x, n2y,
 						total_length,
 						adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0, adaptive_min_length,
-						max_adaptive_angle,
+						adaptive_angle_max,
 						total_length);
 				}
 				
@@ -105,7 +105,7 @@ namespace Curve
 		const float x2, const float y2, const float n2x, const float n2y,
 		const float total_length,
 		const float adaptive_angle, const int adaptive_max_subdivisions, const float adaptive_min_length,
-		const float max_adaptive_angle,
+		const float adaptive_angle_max,
 		float &out out_length)
 	{
 		const float dx = x2 - x1;
@@ -114,11 +114,11 @@ namespace Curve
 		out_length = total_length + arc_length;
 		
 		if(
-			// `max_adaptive_angle` takes priority over other conditions.
+			// `adaptive_angle_max` takes priority over other conditions.
 			(
-				max_adaptive_angle <= 0 ||
+				adaptive_angle_max <= 0 ||
 				// 
-				acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= max_adaptive_angle
+				acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) <= adaptive_angle_max
 				
 			) && (
 				// The subdivision limit has been reached.
@@ -143,7 +143,7 @@ namespace Curve
 			mx, my, nmx, nmy,
 			total_length,
 			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
-			max_adaptive_angle,
+			adaptive_angle_max,
 			arc_length);
 		
 		// Add the mid point.
@@ -167,7 +167,7 @@ namespace Curve
 			x2, y2, n2x, n2y,
 			arc.length,
 			adaptive_angle, adaptive_max_subdivisions - 1, adaptive_min_length,
-			max_adaptive_angle,
+			adaptive_angle_max,
 			out_length);
 		
 		return arc_count;
