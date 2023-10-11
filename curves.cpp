@@ -11,6 +11,8 @@ class script : MultiCurveDebugColourCallback
 {
 	
 	[persist] float speed = 1;
+	[persist] bool low_precision = false;
+	[persist] bool render_arc_lengths = false;
 	
 	scene@ g;
 	input_api@ input;
@@ -73,10 +75,26 @@ class script : MultiCurveDebugColourCallback
 		curve.closed = true;
 		
 		recreate_spline();
+	}
+	
+	void on_editor_start()
+	{
+		update_curve_precision();
 		
 		curve.invalidate();
 		curve.validate();
 		curve_changed = false;
+	}
+	
+	void editor_var_changed(var_info@ info)
+	{
+		const string name = info.name;
+		
+		if(name == 'low_precision')
+		{
+			update_curve_precision();
+			curve_changed = true;
+		}
 	}
 	
 	void editor_step()
@@ -149,6 +167,17 @@ class script : MultiCurveDebugColourCallback
 			}
 			curve_changed = true;
 		}
+		if(check_pressed(VK::P))
+		{
+			low_precision = !low_precision;
+			update_curve_precision();
+			
+			curve_changed = true;
+		}
+		if(check_pressed(VK::LeftBrace))
+		{
+			render_arc_lengths = !render_arc_lengths;
+		}
 		
 		if(mouse_in_scene && mouse.scroll != 0)
 		{
@@ -207,7 +236,6 @@ class script : MultiCurveDebugColourCallback
 		cam.get_layer_draw_rect(sub_frame, c.layer(), debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2);
 		debug_draw.clip_x2 += debug_draw.clip_x1;
 		debug_draw.clip_y2 += debug_draw.clip_y1;
-		debug_draw.draw(c, curve, zoom_factor);
 		
 		//debug_draw.clip_x1 += 250 * zoom_factor;
 		//debug_draw.clip_y1 += 250 * zoom_factor;
@@ -215,15 +243,28 @@ class script : MultiCurveDebugColourCallback
 		//debug_draw.clip_y2 -= 250 * zoom_factor;
 		//outline_rect_outside(g, 22, 22, debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2, 5*zoom_factor, 0x88ff0000);
 		
-		//debug_draw.draw_outline(c, curve, zoom_factor);
-		//debug_draw.draw_control_points(c, curve, zoom_factor);
-		//debug_draw.draw_arch_lengths(c, curve, zoom_factor);
-		//debug_draw.draw_vertices(c, curve, zoom_factor);
+		if(render_arc_lengths)
+		{
+			segment_alpha = 0.25;
+			debug_draw.normal_width = 0;
+			debug_draw.draw_curve(c, curve, zoom_factor);
+			segment_alpha = 1;
+			debug_draw.normal_width = 1;
+			
+			debug_draw.draw_outline(c, curve, zoom_factor);
+			debug_draw.draw_control_points(c, curve, zoom_factor);
+			debug_draw.draw_arch_lengths(c, curve, zoom_factor);
+			debug_draw.draw_vertices(c, curve, zoom_factor);
+		}
+		else
+		{
+			debug_draw.draw(c, curve, zoom_factor);
+		}
 		
 		float x, y, nx, ny;
-		curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);
+		//curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);
 		//curve.eval(t % 1, x, y, nx, ny);
-		draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
+		//draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
 		
 		if(display_txt_timer > -1)
 		{
@@ -458,6 +499,24 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		return clr;
+	}
+	
+	private void update_curve_precision()
+	{
+		if(low_precision)
+		{
+			curve.adaptive_angle = 10;
+			curve.adaptive_max_subdivisions = 1;
+			curve.adaptive_min_length = 1;
+			curve.adaptive_angle_max = 90;
+		}
+		else
+		{
+			curve.adaptive_angle = 4;
+			curve.adaptive_max_subdivisions = 4;
+			curve.adaptive_min_length = 0;
+			curve.adaptive_angle_max = 65;
+		}
 	}
 	
 	private void display_text(const string txt, const int frames=1)
