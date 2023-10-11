@@ -45,6 +45,8 @@ class script : MultiCurveDebugColourCallback
 	float display_txt_timer = -1;
 	float display_txt_x, display_txt_y;
 	
+	float segment_alpha = 1;
+	
 	script()
 	{
 		@g = get_scene();
@@ -207,7 +209,11 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.clip_y2 += debug_draw.clip_y1;
 		debug_draw.draw(c, curve, zoom_factor);
 		
-		outline_rect_outside(g, 22, 22, debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2, 5*zoom_factor, 0x88ff0000);
+		//debug_draw.clip_x1 += 250 * zoom_factor;
+		//debug_draw.clip_y1 += 250 * zoom_factor;
+		//debug_draw.clip_x2 -= 250 * zoom_factor;
+		//debug_draw.clip_y2 -= 250 * zoom_factor;
+		//outline_rect_outside(g, 22, 22, debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2, 5*zoom_factor, 0x88ff0000);
 		
 		//debug_draw.draw_outline(c, curve, zoom_factor);
 		//debug_draw.draw_control_points(c, curve, zoom_factor);
@@ -441,11 +447,17 @@ class script : MultiCurveDebugColourCallback
 	
 	uint get_curve_line_colour(const MultiCurve@ curve, const int segment_index, const int segment_max, const float t)
 	{
-		if(curve.closed && segment_index == segment_max)
-			return 0xffff6569;
+		uint clr = curve.closed && segment_index == segment_max
+			? 0xffff6569
+			: segment_index % 2 == 0
+				? 0xffffcc66 : 0xff222222;
 		
-		return segment_index % 2 == 0
-			? 0xffffcc66 : 0xff222222;
+		if(segment_alpha < 1)
+		{
+			clr = multiply_alpha(clr, segment_alpha);
+		}
+		
+		return clr;
 	}
 	
 	private void display_text(const string txt, const int frames=1)
