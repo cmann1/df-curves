@@ -59,6 +59,23 @@ class MultiCurve
 	/** If true the curve will pass touch the first and last vertices. */
 	[persist] private bool _b_spline_clamped = true;
 	
+	/** Controls the precision of the pre-calcualted subdivisions of this curve.
+	  * These subdivisions are required for certain operations, e.g. approximating the curve length, or finding
+	  * a closest point on the curve.
+	  * The default values skew towards accuracy over performance.
+	  * Changes to these values will only take effect when the curve is next validated.
+	  * See `Curve::calculate_arc_lengths` for descriptions of these properties. */
+	float adaptive_angle = 4;
+	
+	/** See `adaptive_angle`. */
+	int adaptive_max_subdivisions = 4;
+	
+	/** See `adaptive_angle`. */
+	float adaptive_min_length = 0;
+	
+	/** See `adaptive_angle`. */
+	float adaptive_angle_max = 65;
+	
 	/** The total (approximate) length of this curve. */
 	float length;
 	
@@ -304,8 +321,9 @@ class MultiCurve
 		
 		length = Curve::calculate_arc_lengths(
 			@vertices, vertex_count, _closed,
-			eval_func_def, _type != Linear ? 6 : 1,
-			_type != Linear ? 4 * DEG2RAD : 0, 4, 0, 65 * DEG2RAD);
+			eval_func_def, _type != Linear ? 6 : 2,
+			_type != Linear ? adaptive_angle * DEG2RAD : 0,
+			adaptive_max_subdivisions, adaptive_min_length, adaptive_angle_max * DEG2RAD);
 		
 		invalidated = false;
 	}
