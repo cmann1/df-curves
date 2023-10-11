@@ -1,4 +1,5 @@
 #include '../lib/std.cpp';
+#include '../lib/debug/Debug.cpp';
 #include '../lib/drawing/common.cpp';
 #include '../lib/input/Mouse.cpp';
 #include '../lib/enums/GVB.cpp';
@@ -28,6 +29,8 @@ class script : MultiCurveDebugColourCallback
 	bool shift_down;
 	bool alt_down;
 	bool is_polling_keyboard;
+	
+	Debug debug;
 	
 	EditState state = Idle;
 	
@@ -71,7 +74,7 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.adaptive_max_subdivisions = 5;
 		@debug_draw.segment_colour_callback = this;
 		
-		curve.type = BSpline;
+		curve.type = CubicBezier;
 		curve.closed = true;
 		
 		recreate_spline();
@@ -220,6 +223,8 @@ class script : MultiCurveDebugColourCallback
 		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
 		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
+		closest_point.found = curve.closest_point(mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y);
+		
 		if(curve_changed)
 		{
 			curve.invalidate();
@@ -228,7 +233,11 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		t += speed * 0.25 * DT;
+		
+		debug.step();
 	}
+	private ClosestPointTest closest_point;
+	private float closest_point_x, closest_point_y;
 	
 	void editor_draw(float sub_frame)
 	{
@@ -266,11 +275,18 @@ class script : MultiCurveDebugColourCallback
 		//curve.eval(t % 1, x, y, nx, ny);
 		//draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
 		
+		if(closest_point.found)
+		{
+			draw_dot(g, 22, 22, closest_point.x, closest_point.y, 3 * zoom_factor, 0xffffffff, 45);
+		}
+		
 		if(display_txt_timer > -1)
 		{
 			display_txt.colour(display_txt_timer > 0 ? 0xffffffff : multiply_alpha(0xffffffff, 1 + display_txt_timer));
 			display_txt.draw_world(22, 22, display_txt_x, display_txt_y, zoom_factor, zoom_factor, 0);
 		}
+		
+		debug.draw(sub_frame);
 	}
 	
 	void state_idle()
@@ -473,7 +489,7 @@ class script : MultiCurveDebugColourCallback
 			curve.add_vertex(bx - 200, by + 200);
 			curve.add_vertex(bx - 200, by + 000);
 			
-			//curve.add_vertex(bx - 100, by - 100);
+			//curve.add_vertex(bx - 300, by - 100);
 			//curve.add_vertex(bx + 100, by - 100);
 			//curve.add_vertex(bx + 100, by + 100);
 			//curve.vertices[0].quad_control_point.set(bx+200, by-600);
@@ -568,3 +584,15 @@ enum EditState
 	DragWeight,
 	
 }
+
+class ClosestPointTest
+{
+	
+	bool found;
+	float x;
+	float y;
+	float t;
+	int i;
+	
+}
+

@@ -13,15 +13,14 @@
 class MultiCurve
 {
 	
+	// TODO: Option to not automatically calculate arc lengths.
 	// TODO: Debugdraw
 	// 		- View bounds - don't draw things outside of this
 	// 			- Aslo check individual arc/adaptive segments? This wouldn't be 100% reliable since an arc segment can extend beyound the p1>p2 bounding box.
 	// 				- Could have some kind of padding (relative to arc length?)
 	// 			- Find t/view intersections and only draw between those t values?
-	// TODO: Option to not automatically calculate arc lengths.
 	// TODO: Only invalidate vertices/segments that change.
-	// TODO: Calculate individual segment bounding boxes.
-	// TODO: `invalidate` and `validate` seem kind of redundant?
+	// TODO: Both `invalidate` and `validate` seem kind of redundant?
 	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
 	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices
 	//       so maybe storing the absolutely is not a good idea?
@@ -907,6 +906,159 @@ class MultiCurve
 	}
 	
 	// --
+	
+	int arc_calc_steps = 0;
+	/**
+	  * @param max_distance If > 0, only points closer than this will be returned. Can also potentially reduce the amount of work needed
+	  *   by skipping segments that are out of range with simple bounds checks.
+	  * @param threshold When the distance between tested points becomes smaller than this, stop looking.
+	  * @return true if a point was found within `max_distance`
+	  */
+	bool closest_point(
+		const float x, const float y, int &out segment_index, float &out t, float &out px, float &out py,
+		const float max_distance=0, float threshold=1)
+	{
+		arc_calc_steps = 0;
+		if(vertex_count == 0 || vertices[0].arc_count == 0)
+			return false;
+		
+		const int end = closed ? vertex_count - 1 : vertex_count - 2;
+		
+		if(max_distance > 0 && (
+			x < x1 - max_distance || x > x2 + max_distance ||
+			y < y1 - max_distance || y > y2 + max_distance))
+			return false;
+		
+		// -- Step 1. Find the closest arc segment.
+		
+		segment_index = -1;
+		int arc_index = -1;
+		CurveArc@ clostest_arc = null;
+		float dist = INFINITY;
+		
+		for(int i = 0; i <= end; i++)
+		{
+			CurveVertex@ v = vertices[i];
+			
+			if(max_distance > 0 && (
+				x < v.x1 - max_distance || x > v.x2 + max_distance ||
+				y < v.y1 - max_distance || y > v.y2 + max_distance))
+				continue;
+			
+			// Start at 1 because the starting point of this segment is the same as the end point of the previous,
+			// which has already been tested.
+			for(int j = i > 0 ? 1 : 0; j < v.arc_count; j++)
+			{
+				CurveArc@ c = v.arcs[j];
+				
+				const float c_dist = (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y);
+				if(c_dist > dist)
+					continue;
+				
+				dist = c_dist;
+				segment_index = i;
+				arc_index = j;
+				@clostest_arc = c;
+			}
+		}
+		
+		if(segment_index == -1)
+			return false;
+		
+		// -- Step 2. Using the closest arc segment and the two surrounding points, do a binary search to find progressively closer
+		// points until some threshold is reached.
+		
+		threshold *= threshold;
+		
+		CurveVertex@ v = vertices[segment_index];
+		px = clostest_arc.x;
+		py = clostest_arc.y;
+		t = clostest_arc.t;
+		
+		const int si1 = arc_index > 0 ? segment_index
+			: segment_index > 0 ? segment_index - 1
+			: segment_index;
+		const int si2 = arc_index < v.arc_count - 1 ? segment_index
+			: segment_index < vertex_count - 1 ? segment_index + 1
+			: segment_index;
+		
+		const int ai1 = arc_index > 0 ? arc_index - 1
+			: segment_index > 0 ? 1
+			: arc_index;
+		const int ai2 = arc_index < v.arc_count - 1 ? arc_index + 1
+			: segment_index < vertex_count - 1 ? 1
+			: arc_index;
+		
+		CurveArc@ c1 = arc_index > 0 ? v.arcs[arc_index - 1]
+			: segment_index > 0 ? vertices[segment_index - 1].arc_from_end(1)
+			: clostest_arc;
+		CurveArc@ c2 = arc_index < v.arc_count - 1 ? v.arcs[arc_index + 1]
+			: segment_index < vertex_count - 1 ? vertices[segment_index + 1].arc_from_start(1)
+			: clostest_arc;
+		float t1 = c1.t;
+		float t2 = c2.t;
+		float p1x = c1.x;
+		float p1y = c1.y;
+		float p2x = c2.x;
+		float p2y = c2.y;
+		
+		do
+		{
+			float p1mx, p1my;
+			float p2mx, p2my;
+			
+			// Left side.
+			// TODO: Bias towards initial guess? If we assume it's more likely to be closer to this point then this could reduce a few steps.
+			const float t1m = t + (t1 - t) * 0.5;
+			eval_point(segment_index, t1m, p1mx, p1my);
+			const float dist1m = (p1mx - x) * (p1mx - x) + (p1my - y) * (p1my - y);
+			
+			// Right side.
+			const float t2m = t + (t2 - t) * 0.5;
+			eval_point(segment_index, t2m, p2mx, p2my);
+			const float dist2m = (p2mx - x) * (p2mx - x) + (p2my - y) * (p2my - y);
+			
+			if(dist < dist1m && dist < dist2m)
+			{
+				t1 = t1m;
+				p1x = p1mx;
+				p1y = p1my;
+				t2 = t2m;
+				p2x = p2mx;
+				p2y = p2my;
+			}
+			else if(dist1m < dist2m)
+			{
+				t2 = t;
+				p2x = px;
+				p2y = py;
+				t = t1m;
+				px = p1mx;
+				py = p1my;
+			}
+			else
+			{
+				t1 = t;
+				p1x = px;
+				p1y = py;
+				t = t2m;
+				px = p2mx;
+				py = p2my;
+			}
+			
+			arc_calc_steps++;
+			if(arc_calc_steps > 50)
+			{
+				puts(p1x, p1y, p2x, p2y);
+				break;
+			}
+		}
+		while((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold);
+		
+		// TODO: Option to interpolate between closest points to produce a smoother result, which may not lie exactly on the curve.
+		
+		return max_distance <= 0 || (x - px) * (x - px) + (y - py) * (y - py) <= max_distance * max_distance;
+	}
 	
 	/** Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc. */
 	void get_segment_catmull_rom(const int i, CurveControlPoint@ &out p1, CurveVertex@ &out p2, CurveVertex@ &out p3, CurveControlPoint@ &out p4)
