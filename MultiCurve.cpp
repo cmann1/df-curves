@@ -907,6 +907,7 @@ class MultiCurve
 	
 	// --
 	
+	Debug@ db;
 	int arc_calc_steps = 0;
 	/**
 	  * @param max_distance If > 0, only points closer than this will be returned. Can also potentially reduce the amount of work needed
@@ -922,7 +923,7 @@ class MultiCurve
 		if(vertex_count == 0 || vertices[0].arc_count == 0)
 			return false;
 		
-		const int end = closed ? vertex_count - 1 : vertex_count - 2;
+		const int end = closed ? vertex_count : vertex_count - 1;
 		
 		if(max_distance > 0 && (
 			x < x1 - max_distance || x > x2 + max_distance ||
@@ -936,7 +937,7 @@ class MultiCurve
 		CurveArc@ clostest_arc = null;
 		float dist = INFINITY;
 		
-		for(int i = 0; i <= end; i++)
+		for(int i = 0; i < end; i++)
 		{
 			CurveVertex@ v = vertices[i];
 			
@@ -947,7 +948,7 @@ class MultiCurve
 			
 			// Start at 1 because the starting point of this segment is the same as the end point of the previous,
 			// which has already been tested.
-			for(int j = i > 0 ? 1 : 0; j < v.arc_count; j++)
+			for(int j = i > 0 && closed ? 1 : 0; j < v.arc_count; j++)
 			{
 				CurveArc@ c = v.arcs[j];
 				
@@ -973,52 +974,62 @@ class MultiCurve
 		CurveVertex@ v = vertices[segment_index];
 		px = clostest_arc.x;
 		py = clostest_arc.y;
-		t = clostest_arc.t;
+		t = segment_index + clostest_arc.t;
 		
 		const int si1 = arc_index > 0 ? segment_index
 			: segment_index > 0 ? segment_index - 1
 			: segment_index;
 		const int si2 = arc_index < v.arc_count - 1 ? segment_index
-			: segment_index < vertex_count - 1 ? segment_index + 1
+			: closed || segment_index < end - 1 ? segment_index + 1
 			: segment_index;
 		
 		const int ai1 = arc_index > 0 ? arc_index - 1
 			: segment_index > 0 ? 1
 			: arc_index;
 		const int ai2 = arc_index < v.arc_count - 1 ? arc_index + 1
-			: segment_index < vertex_count - 1 ? 1
+			: segment_index < end - 1 ? 1
 			: arc_index;
+		int di = 0;
+		//db.print(si1+'.'+ai1+'  '+segment_index+'.'+arc_index+'  '+si2+'.'+ai2, 0xffffffff, di++, 1);
 		
 		CurveArc@ c1 = arc_index > 0 ? v.arcs[arc_index - 1]
 			: segment_index > 0 ? vertices[segment_index - 1].arc_from_end(1)
 			: clostest_arc;
 		CurveArc@ c2 = arc_index < v.arc_count - 1 ? v.arcs[arc_index + 1]
-			: segment_index < vertex_count - 1 ? vertices[segment_index + 1].arc_from_start(1)
+			: segment_index < end - 1 ? vertices[segment_index + 1].arc_from_start(1)
 			: clostest_arc;
-		float t1 = c1.t;
-		float t2 = c2.t;
+		float t1 = si1 + c1.t;
+		float t2 = si2 + c2.t;
 		float p1x = c1.x;
 		float p1y = c1.y;
 		float p2x = c2.x;
 		float p2y = c2.y;
+		//db.print(t1+':'+str(p1x,p1y)+ '  ' + t + '  ' +t2+':'+str(p2x,p2y), 0xffffffff, di++, 1);
 		
 		do
 		{
 			float p1mx, p1my;
 			float p2mx, p2my;
 			
+			// TODO: ?? Line project and interpolate t values instead of just using 0.5
+			// TODO: ?? Bias towards initial guess? If we assume it's more likely to be closer to this point then this could reduce a few steps.
+			
 			// Left side.
-			// TODO: Bias towards initial guess? If we assume it's more likely to be closer to this point then this could reduce a few steps.
 			const float t1m = t + (t1 - t) * 0.5;
-			eval_point(segment_index, t1m, p1mx, p1my);
+			eval_point((int(t1m) % vertex_count + vertex_count) % vertex_count, fraction(t1m), p1mx, p1my);
 			const float dist1m = (p1mx - x) * (p1mx - x) + (p1my - y) * (p1my - y);
 			
 			// Right side.
 			const float t2m = t + (t2 - t) * 0.5;
-			eval_point(segment_index, t2m, p2mx, p2my);
+			eval_point((int(t2m) % vertex_count + vertex_count) % vertex_count, fraction(t2m), p2mx, p2my);
 			const float dist2m = (p2mx - x) * (p2mx - x) + (p2my - y) * (p2my - y);
 			
-			if(dist < dist1m && dist < dist2m)
+			//db.print(' > '+str(t1m)+':'+str(p1mx,p1my,2)+' '+str(sqrt(dist1m),2), 0xffffffff, di++, 1);
+			//db.print('   '+str(t, 2), 0xffffffff, di++, 1);
+			//db.print('   '+str(t2m,2)+':'+str(p2mx,p2my,2)+' '+str(sqrt(dist2m),2), 0xffffffff, di++, 1);
+			
+			// Mid point is closest.
+			if(dist <= dist1m && dist <= dist2m)
 			{
 				t1 = t1m;
 				p1x = p1mx;
@@ -1027,6 +1038,7 @@ class MultiCurve
 				p2x = p2mx;
 				p2y = p2my;
 			}
+			// Left point is closest.
 			else if(dist1m < dist2m)
 			{
 				t2 = t;
@@ -1036,6 +1048,7 @@ class MultiCurve
 				px = p1mx;
 				py = p1my;
 			}
+			// Right point is closest.
 			else
 			{
 				t1 = t;
@@ -1047,15 +1060,17 @@ class MultiCurve
 			}
 			
 			arc_calc_steps++;
-			if(arc_calc_steps > 50)
+			if(arc_calc_steps > 150)
 			{
-				puts(p1x, p1y, p2x, p2y);
+				puts(' ????? '+str(p1x, p1y), str(p2x, p2y));
 				break;
 			}
 		}
 		while((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold);
 		
 		// TODO: Option to interpolate between closest points to produce a smoother result, which may not lie exactly on the curve.
+		
+		t = fraction(t);
 		
 		return max_distance <= 0 || (x - px) * (x - px) + (y - py) * (y - py) <= max_distance * max_distance;
 	}
@@ -1281,9 +1296,14 @@ class MultiCurve
 			i = i <= max_i ? i : max_i;
 			ts = i <= max_i ? tt % 1 : 1;
 		}
+		else if(segment > max_i)
+		{
+			i = max_i;
+			ts = 1;
+		}
 		else
 		{
-			i = segment <= max_i ? segment : max_i;
+			i = segment;
 			ts = t < 1 ? t : t > 0 ? t : 0;
 		}
 	}
