@@ -13,6 +13,7 @@ class script : MultiCurveDebugColourCallback
 	
 	[persist] float speed = 1;
 	[persist] bool low_precision = false;
+	[persist] bool adaptive_length_factor = true;
 	[persist] bool render_arc_lengths = false;
 	
 	scene@ g;
@@ -93,7 +94,7 @@ class script : MultiCurveDebugColourCallback
 	{
 		const string name = info.name;
 		
-		if(name == 'low_precision')
+		if(name == 'low_precision' || name == 'adaptive_length_factor')
 		{
 			update_curve_precision();
 			curve_changed = true;
@@ -174,7 +175,12 @@ class script : MultiCurveDebugColourCallback
 		{
 			low_precision = !low_precision;
 			update_curve_precision();
-			
+			curve_changed = true;
+		}
+		if(check_pressed(VK::U))
+		{
+			adaptive_length_factor = !adaptive_length_factor;
+			update_curve_precision();
 			curve_changed = true;
 		}
 		if(check_pressed(VK::LeftBrace))
@@ -204,7 +210,11 @@ class script : MultiCurveDebugColourCallback
 			curve.tension = 1;
 			curve_changed = true;
 		}
-		
+		if(check_pressed(VK::Y))
+		{
+			curve.tf = !curve.tf;
+			puts(' tight initial: ' + curve.tf);
+		}
 		//for(uint i = 0; i < curve.vertices.length; i++)
 		//{
 		//	CurveVertex@ p = curve.vertices[i];
@@ -223,8 +233,6 @@ class script : MultiCurveDebugColourCallback
 		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
 		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
-		closest_point.found = curve.closest_point(mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y);
-		
 		if(curve_changed)
 		{
 			curve.invalidate();
@@ -232,11 +240,24 @@ class script : MultiCurveDebugColourCallback
 			curve_changed = false;
 		}
 		
+		debug.reversed_print = false;
+		@curve.db = debug;
+		curve.db_zf = zoom_factor;
+		//debug.print('', 'eval_count');
+		closest_point.found = curve.closest_point(
+			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
+			0, 1, CurveArcInterpolation::Linear, true, true);
+		//closest_point2.found = curve.closest_point(
+		//	mouse.x, mouse.y, closest_point2.i, closest_point2.t, closest_point2.x, closest_point2.y,
+		//	0, 0.001, CurveArcInterpolation::Linear, false, false);
+		debug.print('evals: ' + curve.eval_count+'/'+curve.eval_count_2, 0xff00ffff, 'eval_count', 120, false);
+		
 		t += speed * 0.25 * DT;
 		
 		debug.step();
 	}
 	private ClosestPointTest closest_point;
+	private ClosestPointTest closest_point2;
 	private float closest_point_x, closest_point_y;
 	
 	void editor_draw(float sub_frame)
@@ -255,6 +276,7 @@ class script : MultiCurveDebugColourCallback
 		if(render_arc_lengths)
 		{
 			segment_alpha = 0.25;
+			//debug_draw.normal_length = 1110;
 			debug_draw.normal_width = 0;
 			debug_draw.draw_curve(c, curve, zoom_factor);
 			segment_alpha = 1;
@@ -270,14 +292,29 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.draw(c, curve, zoom_factor);
 		}
 		
-		float x, y, nx, ny;
+		//float x, y, nx, ny;
 		//curve.eval(-1, abs(t % 2 - 1), x, y, nx, ny);
 		//curve.eval(t % 1, x, y, nx, ny);
 		//draw_dot(g, 22, 22, x, y, 4 * zoom_factor, 0xffffffff, 45);
 		
 		if(closest_point.found)
 		{
+			float dx = mouse.x - closest_point.x;
+			float dy = mouse.y - closest_point.y;
+			float le = sqrt(dx*dx +dy*dy);
+			dx/=le;
+			dy/=le;
+			dx*=30*zoom_factor;
+			dy*=30*zoom_factor;
+			g.draw_line_world(22, 22, mouse.x, mouse.y, closest_point.x, closest_point.y, 2 * zoom_factor, 0x33ffffff);
 			draw_dot(g, 22, 22, closest_point.x, closest_point.y, 3 * zoom_factor, 0xffffffff, 45);
+			g.draw_line_world(22, 22, closest_point.x-dy, closest_point.y+dx, closest_point.x+dy, closest_point.y-dx, 1 * zoom_factor, 0x33ffffff);
+		}
+		
+		if(closest_point2.found)
+		{
+			g.draw_line_world(22, 22, mouse.x, mouse.y, closest_point2.x, closest_point2.y, 2 * zoom_factor, 0x22ff0000);
+			draw_dot(g, 22, 22, closest_point2.x, closest_point2.y, 3 * zoom_factor, 0x99ff0000, 45);
 		}
 		
 		if(display_txt_timer > -1)
@@ -528,11 +565,13 @@ class script : MultiCurveDebugColourCallback
 		}
 		else
 		{
-			curve.adaptive_angle = 4;
-			curve.adaptive_max_subdivisions = 4;
+			curve.adaptive_angle = 5;
+			curve.adaptive_max_subdivisions = 3;
 			curve.adaptive_min_length = 0;
 			curve.adaptive_angle_max = 65;
 		}
+		
+		curve.adaptive_length_factor = adaptive_length_factor ? 0.1 : 0.0;
 	}
 	
 	private void display_text(const string txt, const int frames=1)
@@ -564,11 +603,11 @@ class script : MultiCurveDebugColourCallback
 	{
 		switch(curve.type)
 		{
-			case Linear: return 'Linear';
-			case QuadraticBezier: return 'QuadraticBezier';
-			case CubicBezier: return 'CubicBezier';
-			case CatmullRom: return 'CatmullRom';
-			case BSpline: return 'BSpline';
+			case CurveType::Linear: return 'Linear';
+			case CurveType::QuadraticBezier: return 'QuadraticBezier';
+			case CurveType::CubicBezier: return 'CubicBezier';
+			case CurveType::CatmullRom: return 'CatmullRom';
+			case CurveType::BSpline: return 'BSpline';
 		}
 		
 		return 'Unknown';
@@ -595,4 +634,3 @@ class ClosestPointTest
 	int i;
 	
 }
-

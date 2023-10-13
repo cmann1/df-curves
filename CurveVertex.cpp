@@ -106,11 +106,16 @@ class CurveVertex : CurveControlPoint
 class CurveArc
 {
 	
-	float x;
-	float y;
-	/** The total length from the start of the curve to the end of this arc. */
-	float length;
 	/** The t value of this point relative to its segment. */
 	float t;
+	/** The position of this arc. */
+	float x;
+	float y;
+	/** The length of this arc segment. */
+	float length;
+	/** The total length from the start of the curve to the end of this arc. */
+	float total_length;
+	/** The difference in the t value from the start of this segment to the end. */
+	float t_length;
 	
 }
