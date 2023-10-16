@@ -7,6 +7,7 @@
 
 #include 'calculate_arc_lengths.cpp';
 #include 'CurveVertex.cpp';
+#include 'MultiCuveSubdivisionSettings.cpp';
 
 /** A higher level wrapper designed for editing/manipulating curves with support for several
   * different types as well as chaining multiple curves together. */
@@ -64,25 +65,7 @@ class MultiCurve
 	  * The default values skew towards accuracy over performance.
 	  * Changes to these values will only take effect when the curve is next validated.
 	  * See `Curve::calculate_arc_lengths` for descriptions of these properties. */
-	int subdivision_count = 6;
-	
-	/** See `Curve::calculate_arc_lengths` `max_length`. */
-	float max_division_length = 0;
-	
-	/** See `Curve::calculate_arc_lengths`. */
-	float adaptive_angle = 4;
-	
-	/** See `Curve::calculate_arc_lengths`. */
-	int adaptive_max_subdivisions = 4;
-	
-	/** See `Curve::calculate_arc_lengths`. */
-	float adaptive_min_length = 0;
-	
-	/** See `Curve::calculate_arc_lengths`. */
-	float adaptive_angle_max = 65;
-	
-	/** See `Curve::calculate_arc_lengths`. */
-	float adaptive_length_factor = 0.1;
+	MultiCuveSubdivisionSettings subdivision_settings;
 	
 	/** The total (approximate) length of this curve. */
 	float length;
@@ -328,15 +311,13 @@ class MultiCurve
 		
 		// -- Calculate arc lengths.
 		
-		//puts('--------------------------');
 		length = Curve::calculate_arc_lengths(
 			@vertices, vertex_count, _closed,
-			eval_func_def, _type != Linear ? subdivision_count : 2, max_division_length,
-			_type != Linear ? adaptive_angle * DEG2RAD : 0,
-			adaptive_max_subdivisions, adaptive_min_length, adaptive_angle_max * DEG2RAD, adaptive_length_factor);
-		//length = Curve::calculate_arc_lengths(
-		//	@vertices, vertex_count, _closed,
-		//	eval_func_def, _type != Linear ? subdivision_count : 2);
+			eval_func_def, _type != Linear ? subdivision_settings.count : 2,
+			_type != Linear ? subdivision_settings.angle_min * DEG2RAD : 0,
+			subdivision_settings.max_stretch_factor, subdivision_settings.length_min,
+			subdivision_settings.max_subdivisions,
+			subdivision_settings.angle_max * DEG2RAD, subdivision_settings.length_max);
 		
 		invalidated = false;
 	}
@@ -931,13 +912,17 @@ class MultiCurve
 	  * @param max_distance If > 0, only points closer than this will be returned. Can also potentially reduce the amount of work needed
 	  *   by skipping segments that are out of range with simple bounds checks.
 	  * @param threshold When the distance between tested points becomes smaller than this, stop looking.
-	  * @param arc_length_interpolation 
+	  * @param arc_length_interpolation If true 
+	  * @param adjust_initial_binary_factor If true 
+	  * @param interpolate_result If true interpolates the t value of the end result which can result in smoother results with larger threshold values.
 	  * @return true if a point was found within `max_distance`
 	  */
 	bool closest_point(
 		const float x, const float y, int &out segment_index, float &out t, float &out px, float &out py,
 		const float max_distance=0, float threshold=1,
-		const CurveArcInterpolation arc_length_interpolation=None, const bool interpolate_result=false
+		const bool arc_length_interpolation=true,
+		const bool adjust_initial_binary_factor=true,
+		const bool interpolate_result=true
 		, const bool odb=true)
 	{
 		icap = 0;
@@ -959,8 +944,7 @@ class MultiCurve
 		int arc_index = -1;
 		CurveArc@ clostest_arc = null;
 		float dist = INFINITY;
-		float dist_a = INFINITY;
-		int force_iteration = 0;
+		float dist_interpolated = INFINITY;
 		
 		for(int i = 0; i < end; i++)
 		{
@@ -977,171 +961,54 @@ class MultiCurve
 			for(int j = i > 0 && closed ? 1 : 0; j < v.arc_count; j++)
 			{
 				CurveArc@ c = v.arcs[j];
-				
-				float c_dist = -1;
-				float c_dist_a = -1;
+				float c_dist_interpolated = INFINITY;
 				
 				// Project the point onto the current arc segment to find a more accurate initial guess.
-				if(j > 0 && arc_length_interpolation == CurveArcInterpolation::Linear)
+				if(arc_length_interpolation && j > 0 && c.dx != 0 || c.dy != 0)
 				{
 					CurveArc@ c0 = v.arcs[j - 1];
-					float dx = c.x - c0.x;
-					float dy = c.y - c0.y;
+					float arc_local_t = ((x - c0.x) * c.dx + (y - c0.y) * c.dy) / c.length_sqr;
 					
-					if(dx != 0 || dy != 0)
+					if(arc_local_t > 0 && arc_local_t < 1)
 					{
-						float pt = ((x - c0.x) * dx + (y - c0.y) * dy) / (dx * dx + dy * dy);
+						// TODO: Add option to eval curve and project, or just use linear point.
+						float arc_t = c0.t + (c.t - c0.t) * arc_local_t;
+						eval_point(i, arc_t, _ct1.x, _ct1.y);
+						if(odb) eval_count_2++;
 						
-						if(pt > 0 && pt < 1)
-						{
-							//_ct1.t = _ct1.t + (1 - _ct1.t) * 0.25;
-							float ft = c0.t + (c.t - c0.t) * pt;
-							eval_point(i, ft, _ct1.x, _ct1.y);
-							if(odb) eval_count_2++;
-							//_ct1.x = c0.x + dx * _ct1.t;
-							//_ct1.y = c0.y + dy * _ct1.t;
-							
-							float lx = c0.x + dx * pt;
-							float ly = c0.y + dy * pt;
-							
-							//db.line(22, 22, _ct1.x,  _ct1.y, x, y, 3 * db_zf, 0x33ffff00, true, 1);
-							if(odb) db.dot(22, 22, _ct1.x,  _ct1.y, 3*db_zf, 0xffffff00, 45, true, 1);
-							if(odb) db.dot(22, 22, lx, ly, 3*db_zf, 0xffff00ff, 45, true, 1);
-							if(odb) db.line(22, 22, lx, ly, x, y, 2*db_zf, 0x33ff00ff, true, 1);
-							
-							dx = x - lx;
-							dy = y - ly;
-							//normalize(dx, dy, dx, dy);
-							float xx2, yy2;
-							project(_ct1.x - lx, _ct1.y - ly, dx, dy, xx2, yy2);
-							xx2 += lx;
-							yy2 += ly;
-							if(odb) db.dot(22, 22, xx2, yy2, 3*db_zf, 0xffff55ff, 45, true, 1);
-							
-							const float xxx = (xx2 - x) * (xx2 - x) + (yy2 - y) * (yy2 - y);
-							const float xxx2 = (_ct1.x - x) * (_ct1.x - x) + (_ct1.y - y) * (_ct1.y - y);
-							if(xxx < xxx2)
-							{
-								c_dist_a = xxx;
-								//_ct1.x = xx2;
-								//_ct1.y = yy2;
-							}
-							else
-							{
-								force_iteration = 0;
-							}
-							
-							//const float arc_l = sqrt(dx * dx + dy * dy);
-							//const float nx = dx / arc_l;
-							//const float ny = dy / arc_l;
-							//float x22 = _ct1.x;
-							//float y22 = _ct1.y;
-							//float dist_diff = 0;
-							//const float line_l = sqrt(dx * pt * dx * pt + dy * pt * dy * pt);
-							//
-							//int ccc = 0;
-							//puts(j+' -------------------------');
-							//do
-							//{
-							//	float cx, cy;
-							//	project(x22 - c0.x, y22 - c0.y, nx, ny, cx, cy);
-							//	
-							//	float c_l = sqrt(cx * cx + cy * cy);
-							//	
-							//	dist_diff = c_l - line_l;
-							//	pt = clamp01(pt - dist_diff / c.length);
-							//	ft = c0.t + (c.t - c0.t) * pt;
-							//	eval_point(i, ft, x22, y22);
-							//	if(odb) eval_count_2++;
-							//	if(odb) db.dot(22, 24, x22, y22, 2*db_zf, 0xaaff0000, 45, true, 1);
-							//	project(x22 - c0.x, y22 - c0.y, nx, ny, cx, cy);
-							//	c_l = sqrt(cx * cx + cy * cy);
-							//	puts(dist_diff, c_l - line_l);
-							//	//if(ccc++ == 5)
-							//	{
-							//	//	puts('XX');
-							//		break;
-							//	}
-							//}
-							//while(abs(dist_diff) > threshold);
-							
-							@c = _ct1;
-							c.t = ft;
-						}
+						float linear_x = c0.x + c.dx * arc_local_t;
+						float linear_y = c0.y + c.dy * arc_local_t;
+						
+						if(odb) db.dot(22, 22, _ct1.x,  _ct1.y, 3*db_zf, 0xffffff00, 45, true, 1);
+						if(odb) db.dot(22, 22, linear_x, linear_y, 3*db_zf, 0xffff00ff, 45, true, 1);
+						if(odb) db.line(22, 22, linear_x, linear_y, x, y, 2*db_zf, 0x33ff00ff, true, 1);
+						
+						// Take the interpolated curve point (which could actually be farther away) and project it back onto the
+						// perpendicular line from the closest linear point to get closer to the curve but also closer to the desired point.
+						float curve_guess_x, curve_guess_y;
+						project(_ct1.x - linear_x, _ct1.y - linear_y, x - linear_x, y - linear_y, curve_guess_x, curve_guess_y);
+						curve_guess_x += linear_x;
+						curve_guess_y += linear_y;
+						if(odb) db.dot(22, 22, curve_guess_x, curve_guess_y, 3*db_zf, 0xffff55ff, 45, true, 1);
+						
+						c_dist_interpolated = min(
+							(curve_guess_x - x) * (curve_guess_x - x) + (curve_guess_y - y) * (curve_guess_y - y),
+							(_ct1.x - x) * (_ct1.x - x) + (_ct1.y - y) * (_ct1.y - y)
+						);
+						
+						@c = _ct1;
+						c.t = arc_t;
 					}
 				}
 				
-				if(j > 0 && arc_length_interpolation == CurveArcInterpolation::Eval)
-				{
-					CurveArc@ c0 = v.arcs[j - 1];
-					float dx = c.x - c0.x;
-					float dy = c.y - c0.y;
-					float mt;
-					float cm_dist;
-					float t0 = c0.t;
-					float t1 = c.t;
-					
-					int ccc = 0;
-					if(dx != 0 || dy != 0)
-					{
-						float pt = ((x - c0.x) * dx + (y - c0.y) * dy) / (dx * dx + dy * dy);
-						
-						if(pt > 0 && pt < 1)
-						{
-							dx = x - c0.x;
-							dy = y - c0.y;
-							float c0_dist = dx * dx + dy * dy;
-							
-							dx = x - c.x;
-							dy = y - c.y;
-							float c1_dist = dx * dx + dy * dy;
-							
-							if(pt < 0)
-							{
-								cm_dist = c0_dist;
-							}
-							else if(pt > 1)
-							{
-								cm_dist = c1_dist;
-							}
-							else
-							{
-								mt = t0 + (t1 - t0) * pt;
-								eval_point(i, mt, _ct1.x, _ct1.y);
-								if(odb) eval_count_2++;
-								
-								dx = x - _ct1.x;
-								dy = y - _ct1.y;
-								cm_dist = dx * dx + dy * dy;
-							}
-							
-							if(odb && pt > 0 && pt < 1) db.dot(22, 22, _ct1.x,  _ct1.y, 3*db_zf, 0xffffff00, 45, true, 1);
-							
-							do
-							{
-								//if(cm_dist <= c0_dist && cm_dist <= c0_dist)
-								
-								break;
-							}
-							while(true);
-						}
-					}
-				}
+				const float dx = x - c.x;
+				const float dy = y - c.y;
+				const float c_dist = dx * dx + dy * dy;
 				
-				//if(c_dist_r == -1)
-				{
-					const float dx = x - c.x;
-					const float dy = y - c.y;
-					c_dist = dx * dx + dy * dy;
-				}
-				//else
-				//{
-				//	c_dist = c_dist_r;
-				//}
-				
-				if((c_dist_a != -1 ? c_dist_a : c_dist) > dist_a)
+				if((c_dist_interpolated < c_dist ? c_dist_interpolated : c_dist) > dist_interpolated)
 					continue;
 				
+				// Copy an interpolated guess over to _ct2 so it's not overwritten by temporary calcualtions in later iterations.
 				if(@c == @_ct1)
 				{
 					_ct2 = _ct1;
@@ -1149,7 +1016,7 @@ class MultiCurve
 				}
 				
 				dist = c_dist;
-				dist_a = c_dist_a != -1 ? c_dist_a : c_dist;
+				dist_interpolated = c_dist_interpolated != INFINITY ? c_dist_interpolated : c_dist;
 				segment_index = i;
 				arc_index = j;
 				@clostest_arc = c;
@@ -1206,14 +1073,14 @@ class MultiCurve
 		if(odb) db.print(' t2 - '+str(t2,3)+':'+str(p2x,3), 0xffffffff, di++, 1);
 		if(odb) db.print('        '+str(sqrt((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y)),3), 0xffffffff, di++, 1);
 		
-		//if(dist_r != -1)
-		//	dist = dist_r;
-		
 		threshold *= threshold;
+		
+		// TODO: Use the percentage difference between the projected linear point and evaluated point to choose a more suitable initial factor.
+		//       The greater the difference the closer to 0.95 and the smaller closer to 0.15
+		
 		// Interpolating the initial guess usually makes it more acurate.
 		// Making the bounds tighter initially and slowly increasing back to 0.5 seems to save on iterations and reach the threshold somewhat faster.
-		float factor = tf && arc_length_interpolation >= CurveArcInterpolation::Linear ? 0.15 : 0.5;
-		//factor = 0.5;
+		float factor = arc_length_interpolation && adjust_initial_binary_factor ? 0.15 : 0.5;
 		
 		do
 		{
@@ -1236,6 +1103,9 @@ class MultiCurve
 			eval_point(i2, fraction(t2m), p2mx, p2my);
 			if(odb) eval_count++;
 			const float dist2m = (p2mx - x) * (p2mx - x) + (p2my - y) * (p2my - y);
+			
+			if(icap == 0 && odb) db.dot(22, 22, p1mx, p1my, 3*db_zf, 0x66ff0000, 45, true, 1);
+			if(icap == 0 && odb) db.dot(22, 22, p2mx, p2my, 3*db_zf, 0x6600ff00, 45, true, 1);
 			
 			//if(odb) db.print(' > -1 : '+i1+'/'+str(fraction(t1m), 3)+':'+str(p1mx,3)+' '+str(sqrt(dist1m),3), 0xffffffff, di++, 1);
 			//if(odb) db.print('    m : '+str(t, 3)+':'+str(px,3)+' '+str(sqrt(dist),3), 0xffffffff, di++, 1);
@@ -1287,7 +1157,7 @@ class MultiCurve
 			//factor = 0.5;
 			factor = factor + (0.5 - factor) * 0.25;
 		}
-		while(force_iteration-- > 0 || (p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold && !closeTo(t1, t2));
+		while((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold && !closeTo(t1, t2));
 		
 		// TODO: Option to interpolate between closest points to produce a smoother result, which may not lie exactly on the curve.
 		

@@ -13,7 +13,8 @@ class script : MultiCurveDebugColourCallback
 	
 	[persist] float speed = 1;
 	[persist] bool low_precision = false;
-	[persist] bool adaptive_length_factor = true;
+	[persist] bool adaptive_stretch_factor = true;
+	[persist] bool adjust_initial_binary_factor = true;
 	[persist] bool render_arc_lengths = false;
 	
 	scene@ g;
@@ -94,7 +95,7 @@ class script : MultiCurveDebugColourCallback
 	{
 		const string name = info.name;
 		
-		if(name == 'low_precision' || name == 'adaptive_length_factor')
+		if(name == 'low_precision' || name == 'adaptive_stretch_factor')
 		{
 			update_curve_precision();
 			curve_changed = true;
@@ -179,7 +180,7 @@ class script : MultiCurveDebugColourCallback
 		}
 		if(check_pressed(VK::U))
 		{
-			adaptive_length_factor = !adaptive_length_factor;
+			adaptive_stretch_factor = !adaptive_stretch_factor;
 			update_curve_precision();
 			curve_changed = true;
 		}
@@ -212,8 +213,7 @@ class script : MultiCurveDebugColourCallback
 		}
 		if(check_pressed(VK::Y))
 		{
-			curve.tf = !curve.tf;
-			puts(' tight initial: ' + curve.tf);
+			adjust_initial_binary_factor = !adjust_initial_binary_factor;
 		}
 		//for(uint i = 0; i < curve.vertices.length; i++)
 		//{
@@ -244,12 +244,11 @@ class script : MultiCurveDebugColourCallback
 		@curve.db = debug;
 		curve.db_zf = zoom_factor;
 		//debug.print('', 'eval_count');
+		
 		closest_point.found = curve.closest_point(
 			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-			0, 1, CurveArcInterpolation::Linear, true, true);
-		//closest_point2.found = curve.closest_point(
-		//	mouse.x, mouse.y, closest_point2.i, closest_point2.t, closest_point2.x, closest_point2.y,
-		//	0, 0.001, CurveArcInterpolation::Linear, false, false);
+			0, 1, true, adjust_initial_binary_factor, true, true);
+		
 		debug.print('evals: ' + curve.eval_count+'/'+curve.eval_count_2, 0xff00ffff, 'eval_count', 120, false);
 		
 		t += speed * 0.25 * DT;
@@ -556,22 +555,24 @@ class script : MultiCurveDebugColourCallback
 	
 	private void update_curve_precision()
 	{
+		MultiCuveSubdivisionSettings@  settings = curve.subdivision_settings;
+		
 		if(low_precision)
 		{
-			curve.adaptive_angle = 10;
-			curve.adaptive_max_subdivisions = 1;
-			curve.adaptive_min_length = 1;
-			curve.adaptive_angle_max = 90;
+			settings.angle_min = 10;
+			settings.max_subdivisions = 1;
+			settings.length_min = 1;
+			settings.angle_max = 90;
 		}
 		else
 		{
-			curve.adaptive_angle = 5;
-			curve.adaptive_max_subdivisions = 3;
-			curve.adaptive_min_length = 0;
-			curve.adaptive_angle_max = 65;
+			settings.angle_min = 5;
+			settings.max_subdivisions = 4;
+			settings.length_min = 0;
+			settings.angle_max = 65;
 		}
 		
-		curve.adaptive_length_factor = adaptive_length_factor ? 0.1 : 0.0;
+		settings.max_stretch_factor = adaptive_stretch_factor ? 0.2 : 0.0;
 	}
 	
 	private void display_text(const string txt, const int frames=1)
