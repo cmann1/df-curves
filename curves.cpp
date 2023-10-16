@@ -17,6 +17,7 @@ class script : MultiCurveDebugColourCallback
 	[persist] bool adaptive_stretch_factor = true;
 	[persist] bool adjust_initial_binary_factor = true;
 	[persist] bool render_arc_lengths = false;
+	[persist] float max_mouse_distance = 0;
 	
 	scene@ g;
 	input_api@ input;
@@ -199,6 +200,7 @@ class script : MultiCurveDebugColourCallback
 		if(check_pressed(VK::LeftBrace))
 		{
 			render_arc_lengths = !render_arc_lengths;
+			editor_sync_vars_menu();
 		}
 		
 		if(mouse_in_scene && mouse.scroll != 0)
@@ -250,7 +252,7 @@ class script : MultiCurveDebugColourCallback
 		
 		closest_point.found = curve.closest_point(
 			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-			0, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
+			max_mouse_distance, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
 		
 		t += speed * 0.25 * DT;
 		

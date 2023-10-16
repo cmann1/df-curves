@@ -913,8 +913,7 @@ class MultiCurve
 	  * @param adjust_initial_binary_factor If true can potentially reduce the number of iterations needed to reach the threshold by skewing
 	  *   the binary search range on the initial guess.
 	  * @param interpolate_result If true interpolates the t value of the end result which can result in smoother results with larger threshold values.
-	  * @return true if a point was found within `max_distance`
-	  */
+	  * @return true if a point was found within `max_distance` */
 	bool closest_point(
 		const float x, const float y, int &out segment_index, float &out t, float &out px, float &out py,
 		const float max_distance=0, float threshold=1,
@@ -943,13 +942,12 @@ class MultiCurve
 		
 		for(int i = 0; i < end; i++)
 		{
-			if(i != 1) continue;
 			CurveVertex@ v = vertices[i];
 			
-			if(max_distance > 0 && (
-				x < v.x1 - max_distance || x > v.x2 + max_distance ||
-				y < v.y1 - max_distance || y > v.y2 + max_distance))
-				continue;
+			//if(max_distance > 0 && (
+			//	x < v.x1 - max_distance || x > v.x2 + max_distance ||
+			//	y < v.y1 - max_distance || y > v.y2 + max_distance))
+			//	continue;
 			
 			// Start at 1 because the starting point of this segment is the same as the end point of the previous,
 			// which has already been tested.
@@ -1059,9 +1057,9 @@ class MultiCurve
 		
 		if(adjust_initial_binary_factor)
 		{
-			binary_search_factor = arc_length_interpolation ? map_clamped(
-				sqrt(guess_dist) / clostest_arc.length,
-				0.1, 0.5, 0.15, 0.95) : 0.15;
+			binary_search_factor = arc_length_interpolation && clostest_arc.length != 0
+				? map_clamped(sqrt(guess_dist) / clostest_arc.length, 0.1, 0.5, 0.15, 0.95)
+				: 0.15;
 		}
 		else
 		{
@@ -1129,9 +1127,6 @@ class MultiCurve
 		}
 		while((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold && !closeTo(t1, t2));
 		
-		if(max_distance > 0 && (x - px) * (x - px) + (y - py) * (y - py) < max_distance * max_distance)
-			return false;
-		
 		if(interpolate_result)
 		{
 			const float dx = p2x - p1x;
@@ -1150,6 +1145,9 @@ class MultiCurve
 		{
 			t = fraction(t);
 		}
+		
+		if(max_distance > 0 && (x - px) * (x - px) + (y - py) * (y - py) > max_distance * max_distance)
+			return false;
 		
 		return true;
 	}
