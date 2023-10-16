@@ -8,7 +8,7 @@ class MultiCuveSubdivisionSettings
 	/** Specified in degrees. */
 	float angle_min = 5;
 	
-	float max_stretch_factor = 0.1;
+	float max_stretch_factor = 0.35;
 	
 	float length_min = 0;
 	

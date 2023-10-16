@@ -13,6 +13,7 @@ class script : MultiCurveDebugColourCallback
 	
 	[persist] float speed = 1;
 	[persist] bool low_precision = false;
+	[persist] bool arc_length_interpolation = true;
 	[persist] bool adaptive_stretch_factor = true;
 	[persist] bool adjust_initial_binary_factor = true;
 	[persist] bool render_arc_lengths = false;
@@ -183,6 +184,17 @@ class script : MultiCurveDebugColourCallback
 			adaptive_stretch_factor = !adaptive_stretch_factor;
 			update_curve_precision();
 			curve_changed = true;
+			editor_sync_vars_menu();
+		}
+		if(check_pressed(VK::I))
+		{
+			arc_length_interpolation = !arc_length_interpolation;
+			editor_sync_vars_menu();
+		}
+		if(check_pressed(VK::Y))
+		{
+			adjust_initial_binary_factor = !adjust_initial_binary_factor;
+			editor_sync_vars_menu();
 		}
 		if(check_pressed(VK::LeftBrace))
 		{
@@ -211,10 +223,6 @@ class script : MultiCurveDebugColourCallback
 			curve.tension = 1;
 			curve_changed = true;
 		}
-		if(check_pressed(VK::Y))
-		{
-			adjust_initial_binary_factor = !adjust_initial_binary_factor;
-		}
 		//for(uint i = 0; i < curve.vertices.length; i++)
 		//{
 		//	CurveVertex@ p = curve.vertices[i];
@@ -240,16 +248,9 @@ class script : MultiCurveDebugColourCallback
 			curve_changed = false;
 		}
 		
-		debug.reversed_print = false;
-		@curve.db = debug;
-		curve.db_zf = zoom_factor;
-		//debug.print('', 'eval_count');
-		
 		closest_point.found = curve.closest_point(
 			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-			0, 1, true, adjust_initial_binary_factor, true, true);
-		
-		debug.print('evals: ' + curve.eval_count+'/'+curve.eval_count_2, 0xff00ffff, 'eval_count', 120, false);
+			0, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
 		
 		t += speed * 0.25 * DT;
 		
@@ -566,13 +567,13 @@ class script : MultiCurveDebugColourCallback
 		}
 		else
 		{
-			settings.angle_min = 5;
+			settings.angle_min = 6;
 			settings.max_subdivisions = 4;
 			settings.length_min = 0;
 			settings.angle_max = 65;
 		}
 		
-		settings.max_stretch_factor = adaptive_stretch_factor ? 0.2 : 0.0;
+		settings.max_stretch_factor = adaptive_stretch_factor ? 0.35 : 0.0;
 	}
 	
 	private void display_text(const string txt, const int frames=1)

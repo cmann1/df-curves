@@ -59,18 +59,3 @@ enum CurveVertexType
 	
 }
 
-enum CurveArcInterpolation
-{
-	
-	/** No interpolation. */
-	None,
-	
-	/** Interpolate t values linearly between closest arc length segments. */
-	Linear,
-	
-	/** Interpolate t values linearly between closest arc length segments then use that value to evaluate
-	 * a more exact position on the curve. */
-	Eval,
-	
-}
-

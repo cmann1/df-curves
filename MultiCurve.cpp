@@ -902,18 +902,16 @@ class MultiCurve
 	
 	// --
 	
-	Debug@ db;
-	float db_zf = 1;
-	int eval_count = 0;
-	int eval_count_2 = 0;
-	int icap=0;
-	bool tf = true;
 	/**
 	  * @param max_distance If > 0, only points closer than this will be returned. Can also potentially reduce the amount of work needed
 	  *   by skipping segments that are out of range with simple bounds checks.
 	  * @param threshold When the distance between tested points becomes smaller than this, stop looking.
-	  * @param arc_length_interpolation If true 
-	  * @param adjust_initial_binary_factor If true 
+	  * @param arc_length_interpolation If true can provide more accurate reults near loops or where the arc subdivisions do not have enough resolution
+	  *   at the cost of more curve evaluations.
+	  *   First it finds the closest point on the linear arc segments, samples the curve at the interpolated t value, and projects that point back onto the
+	  *   normal vector giving a much better guess at how close a segment is to the desired point.
+	  * @param adjust_initial_binary_factor If true can potentially reduce the number of iterations needed to reach the threshold by skewing
+	  *   the binary search range on the initial guess.
 	  * @param interpolate_result If true interpolates the t value of the end result which can result in smoother results with larger threshold values.
 	  * @return true if a point was found within `max_distance`
 	  */
@@ -922,12 +920,8 @@ class MultiCurve
 		const float max_distance=0, float threshold=1,
 		const bool arc_length_interpolation=true,
 		const bool adjust_initial_binary_factor=true,
-		const bool interpolate_result=true
-		, const bool odb=true)
+		const bool interpolate_result=true)
 	{
-		icap = 0;
-		if(odb) eval_count = 0;
-		if(odb) eval_count_2 = 0;
 		if(vertex_count == 0 || vertices[0].arc_count == 0)
 			return false;
 		
@@ -945,6 +939,7 @@ class MultiCurve
 		CurveArc@ clostest_arc = null;
 		float dist = INFINITY;
 		float dist_interpolated = INFINITY;
+		float guess_dist = -1;
 		
 		for(int i = 0; i < end; i++)
 		{
@@ -962,55 +957,50 @@ class MultiCurve
 			{
 				CurveArc@ c = v.arcs[j];
 				float c_dist_interpolated = INFINITY;
+				float c_guess_dist = -1;
 				
 				// Project the point onto the current arc segment to find a more accurate initial guess.
-				if(arc_length_interpolation && j > 0 && c.dx != 0 || c.dy != 0)
+				if(arc_length_interpolation && j > 0 && (c.dx != 0 || c.dy != 0))
 				{
 					CurveArc@ c0 = v.arcs[j - 1];
 					float arc_local_t = ((x - c0.x) * c.dx + (y - c0.y) * c.dy) / c.length_sqr;
 					
 					if(arc_local_t > 0 && arc_local_t < 1)
 					{
-						// TODO: Add option to eval curve and project, or just use linear point.
+						const float linear_x = c0.x + c.dx * arc_local_t;
+						const float linear_y = c0.y + c.dy * arc_local_t;
 						float arc_t = c0.t + (c.t - c0.t) * arc_local_t;
+						
 						eval_point(i, arc_t, _ct1.x, _ct1.y);
-						if(odb) eval_count_2++;
 						
-						float linear_x = c0.x + c.dx * arc_local_t;
-						float linear_y = c0.y + c.dy * arc_local_t;
-						
-						if(odb) db.dot(22, 22, _ct1.x,  _ct1.y, 3*db_zf, 0xffffff00, 45, true, 1);
-						if(odb) db.dot(22, 22, linear_x, linear_y, 3*db_zf, 0xffff00ff, 45, true, 1);
-						if(odb) db.line(22, 22, linear_x, linear_y, x, y, 2*db_zf, 0x33ff00ff, true, 1);
-						
-						// Take the interpolated curve point (which could actually be farther away) and project it back onto the
-						// perpendicular line from the closest linear point to get closer to the curve but also closer to the desired point.
+						// Take the interpolated curve point (which could be farther away) and project it back onto the
+						// perpendicular line from the closest linear point to get something that's hopefully closer to the curve and desired point.
 						float curve_guess_x, curve_guess_y;
 						project(_ct1.x - linear_x, _ct1.y - linear_y, x - linear_x, y - linear_y, curve_guess_x, curve_guess_y);
 						curve_guess_x += linear_x;
 						curve_guess_y += linear_y;
-						if(odb) db.dot(22, 22, curve_guess_x, curve_guess_y, 3*db_zf, 0xffff55ff, 45, true, 1);
 						
 						c_dist_interpolated = min(
 							(curve_guess_x - x) * (curve_guess_x - x) + (curve_guess_y - y) * (curve_guess_y - y),
 							(_ct1.x - x) * (_ct1.x - x) + (_ct1.y - y) * (_ct1.y - y)
 						);
 						
+						c_guess_dist = (_ct1.x - curve_guess_x) * (_ct1.x - curve_guess_x) + (_ct1.y - curve_guess_y) * (_ct1.y - curve_guess_y);
+						
+						_ct1.length = c.length;
 						@c = _ct1;
 						c.t = arc_t;
 					}
 				}
 				
-				const float dx = x - c.x;
-				const float dy = y - c.y;
-				const float c_dist = dx * dx + dy * dy;
+				const float c_dist = (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y);
 				
 				if((c_dist_interpolated < c_dist ? c_dist_interpolated : c_dist) > dist_interpolated)
 					continue;
 				
-				// Copy an interpolated guess over to _ct2 so it's not overwritten by temporary calcualtions in later iterations.
-				if(@c == @_ct1)
+				if(c_dist_interpolated != INFINITY)
 				{
+					// Copy an interpolated guess over to _ct2 so it's not overwritten by temporary calcualtions using _ct1 in later iterations.
 					_ct2 = _ct1;
 					@c = _ct2;
 				}
@@ -1020,6 +1010,7 @@ class MultiCurve
 				segment_index = i;
 				arc_index = j;
 				@clostest_arc = c;
+				guess_dist = c_guess_dist;
 			}
 		}
 		
@@ -1043,15 +1034,6 @@ class MultiCurve
 			: closed || segment_index < end - 1 ? segment_index + 1
 			: segment_index;
 		
-		const int ai1 = arc_index > 0 ? arc_index - 1
-			: segment_index > 0 ? 1
-			: arc_index;
-		const int ai2 = arc_index < v.arc_count - 1 ? arc_index + 1
-			: segment_index < end - 1 ? 1
-			: arc_index;
-		int di = 0;
-		//if(odb) db.print(si1+'.'+ai1+'  '+segment_index+'.'+arc_index+'  '+si2+'.'+ai2, 0xffffffff, di++, 1);
-		
 		CurveArc@ c1 = arc_index > 0 ? v.arcs[arc_index - 1]
 			: segment_index > 0 ? vertices[segment_index - 1].arc_from_end(1)
 			: clostest_arc;
@@ -1065,13 +1047,6 @@ class MultiCurve
 		float p1y = c1.y;
 		float p2x = c2.x;
 		float p2y = c2.y;
-		if(odb) db.dot(22, 22, p1x,  p1y, 3*db_zf, 0xffff0000, 45, true, 1);
-		if(odb) db.dot(22, 22, p2x,  p2y, 3*db_zf, 0xff00ff00, 45, true, 1);
-		if(odb) db.print(str(x,y), 0xffff0000, di++, 1);
-		if(odb) db.print(' t1 - '+str(t1,3)+':'+str(p1x,3), 0xffffffff, di++, 1);
-		if(odb) db.print(' tm - '+str(t,3)+':'+str(px,3), 0xffffffff, di++, 1);
-		if(odb) db.print(' t2 - '+str(t2,3)+':'+str(p2x,3), 0xffffffff, di++, 1);
-		if(odb) db.print('        '+str(sqrt((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y)),3), 0xffffffff, di++, 1);
 		
 		threshold *= threshold;
 		
@@ -1080,36 +1055,35 @@ class MultiCurve
 		
 		// Interpolating the initial guess usually makes it more acurate.
 		// Making the bounds tighter initially and slowly increasing back to 0.5 seems to save on iterations and reach the threshold somewhat faster.
-		float factor = arc_length_interpolation && adjust_initial_binary_factor ? 0.15 : 0.5;
+		float binary_search_factor;
+		
+		if(adjust_initial_binary_factor)
+		{
+			binary_search_factor = arc_length_interpolation ? map_clamped(
+				sqrt(guess_dist) / clostest_arc.length,
+				0.1, 0.5, 0.15, 0.95) : 0.15;
+		}
+		else
+		{
+			binary_search_factor = 0.5;
+		}
 		
 		do
 		{
 			float p1mx, p1my;
 			float p2mx, p2my;
 			
-			// TODO: ?? Line project and interpolate t values instead of just using 0.5
-			// TODO: ?? Bias towards initial guess? If we assume it's more likely to be closer to this point then this could reduce a few steps.
-			
 			// Left side.
-			const float t1m = t + (t1 - t) * factor;
+			const float t1m = t + (t1 - t) * binary_search_factor;
 			const int i1 = (int(t1m) % vertex_count + vertex_count) % vertex_count;
 			eval_point(i1, fraction(t1m), p1mx, p1my);
-			if(odb) eval_count++;
 			const float dist1m = (p1mx - x) * (p1mx - x) + (p1my - y) * (p1my - y);
 			
 			// Right side.
-			const float t2m = t + (t2 - t) * factor;
+			const float t2m = t + (t2 - t) * binary_search_factor;
 			const int i2 = (int(t2m) % vertex_count + vertex_count) % vertex_count;
 			eval_point(i2, fraction(t2m), p2mx, p2my);
-			if(odb) eval_count++;
 			const float dist2m = (p2mx - x) * (p2mx - x) + (p2my - y) * (p2my - y);
-			
-			if(icap == 0 && odb) db.dot(22, 22, p1mx, p1my, 3*db_zf, 0x66ff0000, 45, true, 1);
-			if(icap == 0 && odb) db.dot(22, 22, p2mx, p2my, 3*db_zf, 0x6600ff00, 45, true, 1);
-			
-			//if(odb) db.print(' > -1 : '+i1+'/'+str(fraction(t1m), 3)+':'+str(p1mx,3)+' '+str(sqrt(dist1m),3), 0xffffffff, di++, 1);
-			//if(odb) db.print('    m : '+str(t, 3)+':'+str(px,3)+' '+str(sqrt(dist),3), 0xffffffff, di++, 1);
-			//if(odb) db.print('    1 : '+i2+'/'+str(fraction(t2m),3)+':'+str(p2mx,3)+' '+str(sqrt(dist2m),3), 0xffffffff, di++, 1);
 			
 			// Mid point is closest.
 			if(dist <= dist1m && dist <= dist2m)
@@ -1120,7 +1094,6 @@ class MultiCurve
 				t2 = t2m;
 				p2x = p2mx;
 				p2y = p2my;
-				//if(odb) db.print('        >  m', 0xffffffff, di++, 1);
 			}
 			// Left point is closest.
 			else if(dist1m < dist2m)
@@ -1132,7 +1105,6 @@ class MultiCurve
 				px = p1mx;
 				py = p1my;
 				dist = dist1m;
-				//if(odb) db.print('        > -1', 0xffffffff, di++, 1);
 			}
 			// Right point is closest.
 			else
@@ -1144,22 +1116,18 @@ class MultiCurve
 				px = p2mx;
 				py = p2my;
 				dist = dist2m;
-				//if(odb) db.print('        >  1', 0xffffffff, di++, 1);
 			}
 			
-			if(icap++ > 50 || eval_count > 150)
+			if(binary_search_factor > 0.5)
 			{
-				puts(' ????? '+str(p1x, p1y), str(p2x, p2y)+'  '+closeTo(t1, t2)+'  ' + str(t1, 20)+' '+str(t2, 20));
-				break;
+				binary_search_factor = 0.25;
 			}
-			//if(odb) db.print('        '+str(p1x)+' '+str(p2x)+' '+str(sqrt((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y)),3), 0xffffff00, di++, 1);
-			
-			//factor = 0.5;
-			factor = factor + (0.5 - factor) * 0.25;
+			else if(binary_search_factor < 0.5)
+			{
+				binary_search_factor = binary_search_factor + (0.5 - binary_search_factor) * 0.25;
+			}
 		}
 		while((p2x - p1x) * (p2x - p1x) + (p2y - p1y) * (p2y - p1y) > threshold && !closeTo(t1, t2));
-		
-		// TODO: Option to interpolate between closest points to produce a smoother result, which may not lie exactly on the curve.
 		
 		if(max_distance > 0 && (x - px) * (x - px) + (y - py) * (y - py) < max_distance * max_distance)
 			return false;
@@ -1176,17 +1144,12 @@ class MultiCurve
 				segment_index = (int(t) % vertex_count + vertex_count) % vertex_count;
 				t = fraction(t);
 				eval_point(segment_index, t, px, py);
-				if(odb) eval_count++;
 			}
 		}
 		else
 		{
 			t = fraction(t);
 		}
-		
-		if(odb) db.print(' === '+str(t, 3), 0xffffffff, di++, 1);
-		
-		//db.print(eval_count+'', 0xff00ffff, -1, 1, false);
 		
 		return true;
 	}
