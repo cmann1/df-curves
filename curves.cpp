@@ -119,7 +119,7 @@ class script : MultiCurveDebugColourCallback
 		zoom_factor = 1 / zoom;
 		
 		debug_draw.adaptive_min_length = 8 * zoom_factor;
-		debug_draw.adaptive_angle = map_clamped(zoom_factor, 0.1, 2, 2, 25);
+		debug_draw.adaptive_angle = map_clamped(zoom_factor, 0.1, 4, 2, 25);
 		
 		mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
 		const bool block_mouse = editor.mouse_in_gui() || space_down;
@@ -252,15 +252,13 @@ class script : MultiCurveDebugColourCallback
 		
 		closest_point.found = curve.closest_point(
 			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-			max_mouse_distance, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
+			max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
 		
 		t += speed * 0.25 * DT;
 		
 		debug.step();
 	}
 	private ClosestPointTest closest_point;
-	private ClosestPointTest closest_point2;
-	private float closest_point_x, closest_point_y;
 	
 	void editor_draw(float sub_frame)
 	{
@@ -278,7 +276,6 @@ class script : MultiCurveDebugColourCallback
 		if(render_arc_lengths)
 		{
 			segment_alpha = 0.25;
-			//debug_draw.normal_length = 1110;
 			debug_draw.normal_width = 0;
 			debug_draw.draw_curve(c, curve, zoom_factor);
 			segment_alpha = 1;
@@ -303,20 +300,14 @@ class script : MultiCurveDebugColourCallback
 		{
 			float dx = mouse.x - closest_point.x;
 			float dy = mouse.y - closest_point.y;
-			float le = sqrt(dx*dx +dy*dy);
-			dx/=le;
-			dy/=le;
-			dx*=30*zoom_factor;
-			dy*=30*zoom_factor;
+			float le = sqrt(dx * dx + dy * dy);
+			dx /= le;
+			dy /= le;
+			dx *= 30 * zoom_factor;
+			dy *= 30 * zoom_factor;
 			g.draw_line_world(22, 22, mouse.x, mouse.y, closest_point.x, closest_point.y, 2 * zoom_factor, 0x33ffffff);
 			draw_dot(g, 22, 22, closest_point.x, closest_point.y, 3 * zoom_factor, 0xffffffff, 45);
-			g.draw_line_world(22, 22, closest_point.x-dy, closest_point.y+dx, closest_point.x+dy, closest_point.y-dx, 1 * zoom_factor, 0x33ffffff);
-		}
-		
-		if(closest_point2.found)
-		{
-			g.draw_line_world(22, 22, mouse.x, mouse.y, closest_point2.x, closest_point2.y, 2 * zoom_factor, 0x22ff0000);
-			draw_dot(g, 22, 22, closest_point2.x, closest_point2.y, 3 * zoom_factor, 0x99ff0000, 45);
+			g.draw_line_world(22, 22, closest_point.x - dy, closest_point.y + dx, closest_point.x + dy, closest_point.y - dx, 1 * zoom_factor, 0x33ffffff);
 		}
 		
 		if(display_txt_timer > -1)

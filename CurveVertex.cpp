@@ -93,7 +93,7 @@ class CurveVertex : CurveControlPoint
 	
 	CurveArc@ arc_from_end(const int offset=0)
 	{
-		return arc_count > offset ? arcs[arc_count - 1 - offset] : arcs[0];
+		return offset < arc_count ? arcs[arc_count - 1 - offset] : arcs[0];
 	}
 	
 	CurveArc@ arc_from_start(const int offset=0)
