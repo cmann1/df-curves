@@ -53,7 +53,7 @@ class BSpline
 	
 	/** Generates the correct set of uniform knots based on the given properties.
 	  * See `eval` for a description of the properties.
-	  * Must be called and when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`. */
+	  * Must be called when the number of verices, the degree, clamped, or closed property have changed and after `set_vertices`. */
 	void generate_knots(const int degree, const bool clamped, const bool closed)
 	{
 		int v_count, degree_c;

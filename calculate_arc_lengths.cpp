@@ -1,15 +1,7 @@
+#include 'EvalFunc.cpp';
+
 namespace Curve
 {
-	
-	/** A function to evaluate a curve at the given segment index and t value.
-	  * @param segment The segment index.
-	  * @param t The t value within the segment in the ragfe 0..1.
-	  * @param x The x value of the returned point on the curve.
-	  * @param y The y value of the returned point on the curve.
-	  * @param normal_x The x value of the normal of the returned point on the curve.
-	  * @param normal_y The y value of the normal of the returned point on the curve.
-	  * @param normalise Whether or mot the returned normal values should be normalised to length 1. */
-	funcdef void EvalFunc(const int, const float, float &out, float &out, float &out, float &out, const bool);
 	
 	/** Subdivides a curve using the given eval func. Each `CurveVertex` is considered a separate segment of the curve,
 	  * and the results are stored in the `length` and `arcs` property of each vertex.

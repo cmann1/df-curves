@@ -34,28 +34,3 @@ enum CurveEndControl
 	Manual,
 	
 }
-
-enum CurveVertexType
-{
-	
-	/** This vertex has not been calculated/assigned yet. */
-	None,
-	
-	/** Comes to a sharp point with no handles/control points.
-	  * Only applicable for cubic and quadratic bezier curves. */
-	Square,
-	
-	/** Control points on either side of a vertex can be moved individually.
-	  * Only applicable for cubic and quadratic bezier curves. */
-	Manual,
-	
-	/** Angles for control point on either side of a vertex are mirrored but the lengths are independent.
-	  * Only applicable for cubic and quadratic bezier curves. */
-	Smooth,
-	
-	/** Both the angles and length for control point on either side of a vertex are mirrored.
-	  * Only applicable for cubic and quadratic bezier curves. */
-	Mirror,
-	
-}
-

@@ -4,8 +4,7 @@ namespace CubicBezier
 	// -- Eval --
 	
 	/** Calculate the position and normal at the given t value for a rational quadratic bezier curve defined by
-	  * two vertices (`p1` and `p4`) and two control point (`p2` and `p3`), and the corresponding ratios/weights.
-	 * @param normalise If false the returned normal values will not be normalised. */
+	  * two vertices (`p1` and `p4`) and two control point (`p2` and `p3`), and the corresponding ratios/weights. */
 	void eval(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
@@ -94,8 +93,7 @@ namespace CubicBezier
 	}
 	
 	/** Calculate the normal at the given t value for a rational quadratic bezier curve defined by
-	  * two vertices (`p1` and `p4`) and two control point (`p2` and `p3`), and the corresponding ratios/weights.
-	 * @param normalise If false the returned normal values will not be normalised. */
+	  * two vertices (`p1` and `p4`) and two control point (`p2` and `p3`), and the corresponding ratios/weights. */
 	void eval_normal(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
