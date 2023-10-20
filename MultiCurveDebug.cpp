@@ -574,16 +574,28 @@ class MultiCurveDebug
 		tf.colour(segment_index_label_clr);
 		
 		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
+		const float o = segment_index_label_offset * zoom_factor;
+		const float scale = segment_index_label_scale * zoom_factor;
 		
 		for(int i = 0; i <= v_count; i++)
 		{
-			CurveVertex@ v = curve.vertices[i];
-			
-			float x, y;
-			curve.eval_point(i, 0.5, x, y);
+			float x, y, nx, ny;
+			curve.eval(i, 0.5, x, y, nx, ny);
 			
 			tf.text(i + '');
-			c.draw_text(tf, x, y - segment_index_label_offset * zoom_factor, segment_index_label_scale * zoom_factor, segment_index_label_scale * zoom_factor, 0);
+			
+			if(abs(nx) > abs(ny))
+			{
+				tf.align_horizontal(int(-sign(nx)));
+				tf.align_vertical(0);
+			}
+			else
+			{
+				tf.align_horizontal(0);
+				tf.align_vertical(int(-sign(ny)));
+			}
+			
+			c.draw_text(tf, x + nx * o, y + ny * o, scale, scale, 0);
 		}
 	}
 	
