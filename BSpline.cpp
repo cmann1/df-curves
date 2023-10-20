@@ -252,7 +252,8 @@ class BSpline
 		x1 = y1 = INFINITY;
 		x2 = y2 = -INFINITY;
 		
-		for(int i = 0; i < vertex_count; i++)
+		const int end = closed ? vertex_count : vertex_count - 1;
+		for(int i = 0; i < end; i++)
 		{
 			CurveVertex@ v = vertices[i];
 			
@@ -275,7 +276,6 @@ class BSpline
 				if(!closed && (j < 0 || j >= vertex_count))
 					continue;
 				
-				//if(i == 0) puts(j);
 				CurveVertex@ v2 = vertices[(j % vertex_count + vertex_count) % vertex_count];
 				if(v2.x < v.x1) v.x1 = v2.x;
 				if(v2.y < v.y1) v.y1 = v2.y;
