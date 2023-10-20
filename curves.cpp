@@ -17,6 +17,7 @@ class script : MultiCurveDebugColourCallback
 	[persist] bool adaptive_stretch_factor = true;
 	[persist] bool adjust_initial_binary_factor = true;
 	[persist] bool render_arc_lengths = false;
+	[persist] bool render_segment_bboxes = true;
 	[persist] float max_mouse_distance = 0;
 	
 	scene@ g;
@@ -122,6 +123,7 @@ class script : MultiCurveDebugColourCallback
 		
 		debug_draw.adaptive_min_length = 8 * zoom_factor;
 		debug_draw.adaptive_angle = map_clamped(zoom_factor, 0.1, 4, 2, 25);
+		debug_draw.segment_bounding_box_width = render_segment_bboxes ? 2 : 0;
 		
 		mouse_in_scene = !editor.mouse_in_gui() && editor.editor_tab() == 'Scripts';
 		const bool block_mouse = editor.mouse_in_gui() || space_down;
