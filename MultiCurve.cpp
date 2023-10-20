@@ -310,7 +310,6 @@ class MultiCurve
 		if(index < 0 || index > segment_index_max)
 			return;
 		
-		puts('X');
 		invalidated = true;
 		vertices[index].invalidated = true;
 	}
