@@ -347,14 +347,6 @@ class MultiCurve
 			subdivision_settings.max_subdivisions,
 			subdivision_settings.angle_max * DEG2RAD, subdivision_settings.length_max);
 		
-		invalidated = false;
-		
-		const int end = segment_index_max;
-		for(int i = 0; i <= end; i++)
-		{
-			vertices[i].invalidated = false;
-		}
-		
 		// -- Calculate the bounding box.
 		
 		x1 = INFINITY;
@@ -380,6 +372,16 @@ class MultiCurve
 			default:
 				calc_bounding_box_linear();
 				break;
+		}
+		
+		// -- Finish
+		
+		invalidated = false;
+		
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
+		{
+			vertices[i].invalidated = false;
 		}
 	}
 	
