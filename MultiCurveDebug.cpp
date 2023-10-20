@@ -267,9 +267,10 @@ class MultiCurveDebug
 			return;
 		
 		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
-		const int count = curve_segments * v_count;
+		const int count = curve.type != CurveType::Linear ? curve_segments : 1;
 		const float adaptive_angle = adaptive_max_subdivisions > 0 ? this.adaptive_angle * DEG2RAD : 0;
 		const bool eval_normal = draw_curve && draw_normal || draw_normal || adaptive_angle > 0;
+		const int subdivisions = curve.type != CurveType::Linear && adaptive_angle > 0 ? adaptive_max_subdivisions : 0;
 		
 		for(int i = 0; i <= v_count; i++)
 		{
@@ -287,9 +288,9 @@ class MultiCurveDebug
 			float n1x = 0;
 			float n1y = 0;
 			
-			for(int j = 0; j <= curve_segments; j++)
+			for(int j = 0; j <= count; j++)
 			{
-				const float t2 = float(j) / curve_segments;
+				const float t2 = float(j) / count;
 				
 				float x2, y2, n2x, n2y;
 				
@@ -298,7 +299,7 @@ class MultiCurveDebug
 					i, v_count,
 					t1, t2, t2, x1, y1, n1x, n1y,
 					j > 0, draw_curve, draw_normal, eval_normal,
-					adaptive_angle, adaptive_angle > 0 ? adaptive_max_subdivisions : 0,
+					adaptive_angle, subdivisions,
 					x2, y2, n2x, n2y);
 				
 				t1 = t2;
