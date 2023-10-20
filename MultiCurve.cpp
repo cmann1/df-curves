@@ -337,6 +337,24 @@ class MultiCurve
 			}
 		}
 		
+		// -- Calculate arc lengths.
+		
+		length = Curve::calculate_arc_lengths(
+			@vertices, vertex_count, _closed,
+			eval_func_def, true, _type != Linear ? subdivision_settings.count : 1,
+			_type != Linear ? subdivision_settings.angle_min * DEG2RAD : 0,
+			subdivision_settings.max_stretch_factor, subdivision_settings.length_min,
+			subdivision_settings.max_subdivisions,
+			subdivision_settings.angle_max * DEG2RAD, subdivision_settings.length_max);
+		
+		invalidated = false;
+		
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
+		{
+			vertices[i].invalidated = false;
+		}
+		
 		// -- Calculate the bounding box.
 		
 		x1 = INFINITY;
@@ -362,24 +380,6 @@ class MultiCurve
 			default:
 				calc_bounding_box_linear();
 				break;
-		}
-		
-		// -- Calculate arc lengths.
-		
-		length = Curve::calculate_arc_lengths(
-			@vertices, vertex_count, _closed,
-			eval_func_def, true, _type != Linear ? subdivision_settings.count : 1,
-			_type != Linear ? subdivision_settings.angle_min * DEG2RAD : 0,
-			subdivision_settings.max_stretch_factor, subdivision_settings.length_min,
-			subdivision_settings.max_subdivisions,
-			subdivision_settings.angle_max * DEG2RAD, subdivision_settings.length_max);
-		
-		invalidated = false;
-		
-		const int end = segment_index_max;
-		for(int i = 0; i <= end; i++)
-		{
-			vertices[i].invalidated = false;
 		}
 	}
 	
@@ -1174,7 +1174,7 @@ class MultiCurve
 	
 	private void calc_bounding_box_b_spline()
 	{
-		b_spline.bounding_box_simple(
+		b_spline.bounding_box_basic(
 			vertex_count, _b_spline_degree, _closed,
 			x1, y1, x2, y2);
 	}

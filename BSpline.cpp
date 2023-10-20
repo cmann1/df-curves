@@ -236,6 +236,60 @@ class BSpline
 		}
 	}
 	
+	/** Calculates an approximate bounding box by taking the min/max of the vertices and first and last arc segment position.
+	  * Gives a tighter bounding box than `bounding_box_simple`, but requires arc lengths to have been updated. */
+	void bounding_box_basic(
+		const int vertex_count, const int degree, const bool closed,
+		float &out x1, float &out y1, float &out x2, float &out y2)
+	{
+		if(vertex_count == 0)
+			return;
+		
+		const int degree_c = clamp(degree, 2, vertex_count - 1);
+		const int o1 = (closed ? -degree_c / 2 : -(degree_c + 1) / 2) + 1;
+		const int o2 = (closed ? (degree_c + 1) / 2 : (degree_c + 1) / 2 + 1) - 1;
+		
+		x1 = y1 = INFINITY;
+		x2 = y2 = -INFINITY;
+		
+		for(int i = 0; i < vertex_count; i++)
+		{
+			CurveVertex@ v = vertices[i];
+			
+			v.x1 = v.x2 = v.x;
+			v.y1 = v.y2 = v.y;
+			
+			for(int j = 0; j < 2; j++)
+			{
+				CurveArc@ arc = j == 0 ? v.arcs[0] : v.arcs[v.arc_count - 1];
+				if(arc.x < v.x1) v.x1 = arc.x;
+				if(arc.y < v.y1) v.y1 = arc.y;
+				if(arc.x > v.x2) v.x2 = arc.x;
+				if(arc.y > v.y2) v.y2 = arc.y;
+			}
+			
+			for(int j = i + o1; j <= i + o2; j++)
+			{
+				if(j == i)
+					continue;
+				if(!closed && (j < 0 || j >= vertex_count))
+					continue;
+				
+				//if(i == 0) puts(j);
+				CurveVertex@ v2 = vertices[(j % vertex_count + vertex_count) % vertex_count];
+				if(v2.x < v.x1) v.x1 = v2.x;
+				if(v2.y < v.y1) v.y1 = v2.y;
+				if(v2.x > v.x2) v.x2 = v2.x;
+				if(v2.y > v.y2) v.y2 = v2.y;
+			}
+			
+			if(v.x1 < x1) x1 = v.x1;
+			if(v.y1 < y1) y1 = v.y1;
+			if(v.x2 > x2) x2 = v.x2;
+			if(v.y2 > y2) y2 = v.y2;
+		}
+	}
+	
 	/** Returns the range indicating how many vertices on each side of any given vertex will affect that vertex. */
 	void get_affected_vertex_offsets(const int vertex_count, const int degree, const bool closed, int &out o1, int &out o2)
 	{
