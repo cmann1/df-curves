@@ -16,6 +16,8 @@ class MultiCurveDebug
 	float vertex_size = 3;
 	float segment_bounding_box_width = 0;
 	float bounding_box_width = 3;
+	float segment_index_label_scale = 1;
+	float segment_index_label_offset = 10;
 	
 	uint line_clr = 0xffffffff;
 	uint normal_clr = 0xccff0000;
@@ -29,6 +31,7 @@ class MultiCurveDebug
 	uint cubic_cp2_clr = 0xff0000ff;
 	uint segment_bounding_box_clr = 0x44002222;
 	uint bounding_box_clr = 0x66002222;
+	uint segment_index_label_clr = 0x99ffffff;
 	
 	/** If set, allows choosing the curve line colour based on the segment index and absolute t value. */
 	MultiCurveDebugColourCallback@ segment_colour_callback;
@@ -54,8 +57,18 @@ class MultiCurveDebug
 	private CurveVertex p0;
 	private CurveVertex p3;
 	
-	float _clip_x1, _clip_y1;
-	float _clip_x2, _clip_y2;
+	private float _clip_x1, _clip_y1;
+	private float _clip_x2, _clip_y2;
+	
+	private textfield@ tf;
+	
+	MultiCurveDebug()
+	{
+		@tf = create_textfield();
+		tf.align_horizontal(0);
+		tf.align_vertical(1);
+		tf.set_font('envy_bold', 20);
+	}
 	
 	/** Draws all components of the curve based on this instance's properties. */
 	void draw(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
@@ -65,6 +78,7 @@ class MultiCurveDebug
 		draw_outline(c, curve, zoom_factor);
 		draw_curve(c, curve, zoom_factor);
 		draw_vertices(c, curve, zoom_factor);
+		draw_segment_labels(c, curve, zoom_factor);
 	}
 	
 	/** Draws the control points and connecting lines. */
@@ -549,6 +563,27 @@ class MultiCurveDebug
 						clr);
 				}
 			}
+		}
+	}
+	
+	void draw_segment_labels(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
+	{
+		if(segment_index_label_clr == 0 || segment_index_label_scale == 0)
+			return;
+		
+		tf.colour(segment_index_label_clr);
+		
+		const int v_count = curve.closed ? curve.vertex_count - 1 : curve.vertex_count - 2;
+		
+		for(int i = 0; i <= v_count; i++)
+		{
+			CurveVertex@ v = curve.vertices[i];
+			
+			float x, y;
+			curve.eval_point(i, 0.5, x, y);
+			
+			tf.text(i + '');
+			c.draw_text(tf, x, y - segment_index_label_offset * zoom_factor, segment_index_label_scale * zoom_factor, segment_index_label_scale * zoom_factor, 0);
 		}
 	}
 	
