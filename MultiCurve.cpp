@@ -220,7 +220,7 @@ class MultiCurve
 		get const { return _closed ? vertex_count - 1 : vertex_count - 2; }
 	}
 	
-	bool is_invalidate
+	bool is_invalidated
 	{
 		get const { return invalidated; }
 	}

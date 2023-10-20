@@ -217,7 +217,7 @@ class script : MultiCurveDebugColourCallback
 				case BSpline:
 					curve.b_spline_degree = clamp(curve.b_spline_degree - mouse.scroll, 2, 7);
 					display_text_at_curve('B-Spline degree: ' + curve.b_spline_degree, 25);
-					if(curve.is_invalidate)
+					if(curve.is_invalidated)
 					{
 						curve_changed = All;
 					}
