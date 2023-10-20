@@ -541,14 +541,11 @@ class MultiCurveDebug
 				{
 					CurveArc@ arc = @arcs[j];
 					
-					float n2x, n2y;
-					curve.eval_normal(i, arc.t, n2x, n2y, true);
-					
 					const uint clr = @segment_colour_callback != null
 						? segment_colour_callback.get_curve_line_colour(curve, i, v_count, arc.t)
 						: line_clr;
 					c.draw_line(
-						arc.x - n2x * nl, arc.y - n2y * nl, arc.x + n2x * nl, arc.y + n2y * nl, normal_width * zoom_factor,
+						arc.x - arc.nx * nl, arc.y - arc.ny * nl, arc.x + arc.nx * nl, arc.y + arc.ny * nl, normal_width * zoom_factor,
 						clr);
 				}
 			}
