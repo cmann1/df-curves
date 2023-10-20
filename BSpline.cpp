@@ -203,17 +203,8 @@ class BSpline
 			return;
 		
 		const int degree_c = clamp(degree, 2, vertex_count - 1);
-		
-		//if(closed)
-		//	o1 = -degree_c / 2;
-		//	o2 =  degree_c / 2 + 1;
-		//else
-		//	o1 = -degree_c + 1;
-		//	o2 =  degree_c;
-		
-		// How many extra vertices on the eft and right of each vertex affect the current vertex.
-		const int o1 = closed ? -degree_c / 2 :-degree_c + 1;
-		const int o2 = closed ? degree_c / 2 + 1 : degree_c;
+		const int o1 = closed ? -degree_c / 2 : -(degree_c + 1) / 2;
+		const int o2 = closed ? (degree_c + 1) / 2 : (degree_c + 1) / 2 + 1;
 		
 		x1 = y1 = INFINITY;
 		x2 = y2 = -INFINITY;
@@ -233,13 +224,8 @@ class BSpline
 			{
 				if(j == i)
 					continue;
-				if(!closed)
-				{
-					if(j < 0)
-						continue;
-					if(j >= vertex_count)
-						continue;
-				}
+				if(!closed && (j < 0 || j >= vertex_count))
+					continue;
 				
 				CurveVertex@ v2 = vertices[(j % vertex_count + vertex_count) % vertex_count];
 				if(v2.x < v.x1) v.x1 = v2.x;
@@ -248,6 +234,14 @@ class BSpline
 				if(v2.y > v.y2) v.y2 = v2.y;
 			}
 		}
+	}
+	
+	/** Returns the range indicating how many vertices on each side of any given vertex will affect that vertex. */
+	void get_affected_vertex_offsets(const int vertex_count, const int degree, const bool closed, int &out o1, int &out o2)
+	{
+		const int degree_c = clamp(degree, 2, vertex_count - 1);
+		o1 = closed ? -(degree_c + 1) / 2 : -(degree_c + 1) / 2 - 1;
+		o2 = closed ? degree_c / 2 : (degree_c + 1) / 2;
 	}
 	
 	// --

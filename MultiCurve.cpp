@@ -15,7 +15,6 @@
 class MultiCurve
 {
 	
-	// TODO: Only invalidate vertices/segments that change.
 	// TODO: Dragging curves.
 	// TODO: Option to not automatically calculate arc lengths.
 	// TODO: Debugdraw
@@ -159,6 +158,15 @@ class MultiCurve
 			invalidated = true;
 			invalidated_b_spline_knots = true;
 			invalidated_b_spline_vertices = true;
+			
+			if(_closed)
+			{
+				CurveVertex@ v = vert(0, -1);
+				if(@v != null)
+				{
+					v.invalidated = true;
+				}
+			}
 		}
 	}
 	
@@ -207,9 +215,14 @@ class MultiCurve
 		get { return vertex_count > 0 ? vertices[vertex_count - 1] : null; }
 	}
 	
-	const float segment_index_max
+	const int segment_index_max
 	{
-		get const { return closed ? vertex_count - 1 : vertex_count - 2; }
+		get const { return _closed ? vertex_count - 1 : vertex_count - 2; }
+	}
+	
+	bool is_invalidate
+	{
+		get const { return invalidated; }
 	}
 	
 	// --
@@ -222,15 +235,13 @@ class MultiCurve
 		control_point_start.type = None;
 		control_point_end.type = None;
 		
-		invalidated = true;
+		invalidate(0, vertex_count);
 		invalidated_b_spline_knots = true;
-		invalidated_b_spline_vertices = true;
 	}
 	
 	CurveVertex@ add_vertex(const float x, const float y)
 	{
-		vertices.insertLast(CurveVertex(x, y));
-		vertex_count++;
+		vertices.insertLast(CurveVertex(x, y, vertex_count++));
 		
 		init_bezier_control_points(false, vertex_count - 1, 1);
 		
@@ -242,25 +253,66 @@ class MultiCurve
 	}
 	
 	/** Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
-	  * Passing a vertex index in will invalidate only that vertex, potentially reducing the number of calculations.
-	  * Certain operation such as adding vertices, changing the curve type, etc. will automatically trigger invalidation, but directly setting properties
+	  * Certain operation such as adding vertices, changing the curve type, etc. will automatically invalidate the curve, but directly setting properties
 	  * such as vertex position will require manually calling `invalidate`. */
 	void invalidate()
 	{
+		if(vertex_count == 0)
+			return;
+		
 		invalidated = true;
 		invalidated_b_spline_vertices = true;
+		
+		const int end_index = segment_index_max;
+		for(int i = 0; i <= end_index; i++)
+		{
+			vertices[i].invalidated = true;
+		}
 	}
 	
-	/** Invalidates a single vertex, potentially reducing the number of calculations. */
+	/** Invalidate a single, or range of vertices. Potentially invalidates surrounding vertices depending on the curve type. */
 	void invalidate(const int start_index, const int end_index=-1)
 	{
-		invalidated = true;
+		if(vertex_count == 0)
+			return;
 		
-		const int i2 = end_index < 0 ? start_index : end_index;
-		for(int i = start_index; i <= end_index; i++)
+		invalidated = true;
+		invalidated_b_spline_vertices = true;
+		
+		int o1, o2;
+		get_affected_vertex_offsets(o1, o2);
+		
+		const int i1 = min(start_index < 0 ? 0 : start_index, vertex_count - 1) + o1;
+		const int i2 = min(end_index < 0 ? start_index : end_index, vertex_count - 1) + o2;
+		for(int i = i1; i <= i2; i++)
 		{
+			if(!_closed && (i < 0 || i >= vertex_count))
+				continue;
 			
+			vertices[(i % vertex_count + vertex_count) % vertex_count].invalidated = true;
 		}
+	}
+	
+	/** Invalidate a single vertix/curve segment.
+	  * Can be used when modifying a property that only affects the given segment, e.g. tension, or control points.
+	  * When modifying anything else, e.g. vertex position, use `invalidate` instead. */
+	void invalidate(const int index, const bool segment)
+	{
+		if(vertex_count == 0)
+			return;
+		
+		if(!segment)
+		{
+			invalidate(index);
+			return;
+		}
+		
+		if(index < 0 || index > segment_index_max)
+			return;
+		
+		puts('X');
+		invalidated = true;
+		vertices[index].invalidated = true;
 	}
 	
 	/** Must be called after `invalidate` and any time the curve is modified in any way.
@@ -317,13 +369,19 @@ class MultiCurve
 		
 		length = Curve::calculate_arc_lengths(
 			@vertices, vertex_count, _closed,
-			eval_func_def, _type != Linear ? subdivision_settings.count : 2,
+			eval_func_def, true, _type != Linear ? subdivision_settings.count : 1,
 			_type != Linear ? subdivision_settings.angle_min * DEG2RAD : 0,
 			subdivision_settings.max_stretch_factor, subdivision_settings.length_min,
 			subdivision_settings.max_subdivisions,
 			subdivision_settings.angle_max * DEG2RAD, subdivision_settings.length_max);
 		
 		invalidated = false;
+		
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
+		{
+			vertices[i].invalidated = false;
+		}
 	}
 	
 	/** Call to update/calculate some simple initial positions for new control points. Mostly for testing.
@@ -864,7 +922,7 @@ class MultiCurve
 		}
 		
 		const float ta = segment >= 0
-			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (_closed ? vertex_count : vertex_count - 1)
 			: t;
 		b_spline.eval(
 			b_spline_degree, b_spline_clamped, closed, 
@@ -881,7 +939,7 @@ class MultiCurve
 		}
 		
 		const float ta = segment >= 0
-			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (_closed ? vertex_count : vertex_count - 1)
 			: t;
 		b_spline.eval_point(
 			b_spline_degree, b_spline_clamped, closed, 
@@ -897,7 +955,7 @@ class MultiCurve
 		}
 		
 		const float ta = segment >= 0
-			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (closed ? vertex_count : vertex_count - 1)
+			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (_closed ? vertex_count : vertex_count - 1)
 			: t;
 		b_spline.eval_normal(
 			b_spline_degree, b_spline_clamped, closed, 
@@ -976,23 +1034,29 @@ class MultiCurve
 	/** Returns the vertex at `i + offset` wrapping around when < 0 or > vertex_count. */
 	CurveVertex@ vert(const int i, const int offset=0)
 	{
-		return vertices[((i + offset) % vertex_count + vertex_count) % vertex_count];
+		return vertex_count > 0
+			? @vertices[((i + offset) % vertex_count + vertex_count) % vertex_count]
+			: null;
 	}
 	
 	// -- Bounding box methods --
 	
 	private void calc_bounding_box_linear()
 	{
-		const int end = closed ? vertex_count : vertex_count - 1;
-		for(int i = 0; i < end; i++)
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
 		{
 			CurveVertex@ p1 = vertices[i];
-			CurveVertex@ p2 = vert(i, 1);
 			
-			p1.x1 = p1.x < p2.x ? p1.x : p2.x;
-			p1.y1 = p1.y < p2.y ? p1.y : p2.y;
-			p1.x2 = p1.x > p2.x ? p1.x : p2.x;
-			p1.y2 = p1.y > p2.y ? p1.y : p2.y;
+			if(p1.invalidated)
+			{
+				CurveVertex@ p2 = vert(i, 1);
+				
+				p1.x1 = p1.x < p2.x ? p1.x : p2.x;
+				p1.y1 = p1.y < p2.y ? p1.y : p2.y;
+				p1.x2 = p1.x > p2.x ? p1.x : p2.x;
+				p1.y2 = p1.y > p2.y ? p1.y : p2.y;
+			}
 			
 			if(p1.x1 < x1) x1 = p1.x1;
 			if(p1.y1 < y1) y1 = p1.y1;
@@ -1003,25 +1067,28 @@ class MultiCurve
 	
 	private void calc_bounding_box_catmull_rom()
 	{
-		const int end = closed ? vertex_count : vertex_count - 1;
-		for(int i = 0; i < end; i++)
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
 		{
 			CurveVertex@ p2, p3;
 			CurveControlPoint@ p1, p4;
 			get_segment_catmull_rom(i, p1, p2, p3, p4);
 			
-			float bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y;
-			CatmullRom::to_cubic_bezier(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, tension * p2.tension,
-				bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y);
-			bp2x += p2.x;
-			bp2y += p2.y;
-			bp3x += p3.x;
-			bp3y += p3.y;
-			
-			CubicBezier::bounding_box(
-				bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y,
-				p2.x1, p2.y1, p2.x2, p2.y2);
+			if(p2.invalidated)
+			{
+				float bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y;
+				CatmullRom::to_cubic_bezier(
+					p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y, tension * p2.tension,
+					bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y);
+				bp2x += p2.x;
+				bp2y += p2.y;
+				bp3x += p3.x;
+				bp3y += p3.y;
+				
+				CubicBezier::bounding_box(
+					bp1x, bp1y, bp2x, bp2y, bp3x, bp3y, bp4x, bp4y,
+					p2.x1, p2.y1, p2.x2, p2.y2);
+			}
 			
 			if(p2.x1 < x1) x1 = p2.x1;
 			if(p2.y1 < y1) y1 = p2.y1;
@@ -1032,27 +1099,31 @@ class MultiCurve
 	
 	private void calc_bounding_box_quadratic_bezier()
 	{
-		const int end = closed ? vertex_count : vertex_count - 1;
-		for(int i = 0; i < end; i++)
+		const int end = segment_index_max;
+		for(int i = 0; i <= end; i++)
 		{
 			CurveVertex@ p1 = @vertices[i];
-			const CurveVertex@ p2 = vert(i, 1);
-			const CurveControlPoint@ cp = p1.quad_control_point;
 			
-			float sx1, sy1, sx2, sy2;
-			
-			if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
+			if(p1.invalidated)
 			{
-				QuadraticBezier::bounding_box(
-					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
-					p1.x1, p1.y1, p1.x2, p1.y2);
-			}
-			else
-			{
-				QuadraticBezier::bounding_box(
-					p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
-					p1.weight, cp.weight, p2.weight,
-					p1.x1, p1.y1, p1.x2, p1.y2);
+				const CurveVertex@ p2 = vert(i, 1);
+				const CurveControlPoint@ cp = p1.quad_control_point;
+				
+				float sx1, sy1, sx2, sy2;
+				
+				if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
+				{
+					QuadraticBezier::bounding_box(
+						p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+						p1.x1, p1.y1, p1.x2, p1.y2);
+				}
+				else
+				{
+					QuadraticBezier::bounding_box(
+						p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+						p1.weight, cp.weight, p2.weight,
+						p1.x1, p1.y1, p1.x2, p1.y2);
+				}
 			}
 			
 			if(p1.x1 < x1) x1 = p1.x1;
@@ -1064,31 +1135,35 @@ class MultiCurve
 	
 	private void calc_bounding_box_cubic_bezier(const int samples=6, const float padding=0.5)
 	{
-		const int end = closed ? vertex_count : vertex_count - 1;
+		const int end = _closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)
 		{
 			CurveVertex@ p1 = @vertices[i];
-			const CurveVertex@ p2 = vert(i, 1);
-			const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
-			const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
 			
-			float sx1, sy1, sx2, sy2;
-			
-			if(p1.weight == 1 && cp1.weight == 1 &&  cp2.weight == 1 && p2.weight == 1)
+			if(p1.invalidated)
 			{
-				CubicBezier::bounding_box(
-					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
-					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
-					p1.x1, p1.y1, p1.x2, p1.y2);
-			}
-			else
-			{
-				CubicBezier::bounding_box(
-					p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
-					p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
-					p1.weight, cp1.weight, cp2.weight, p2.weight,
-					p1.x1, p1.y1, p1.x2, p1.y2,
-					samples, padding);
+				const CurveVertex@ p2 = vert(i, 1);
+				const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
+				const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
+				
+				float sx1, sy1, sx2, sy2;
+				
+				if(p1.weight == 1 && cp1.weight == 1 &&  cp2.weight == 1 && p2.weight == 1)
+				{
+					CubicBezier::bounding_box(
+						p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
+						p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
+						p1.x1, p1.y1, p1.x2, p1.y2);
+				}
+				else
+				{
+					CubicBezier::bounding_box(
+						p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
+						p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
+						p1.weight, cp1.weight, cp2.weight, p2.weight,
+						p1.x1, p1.y1, p1.x2, p1.y2,
+						samples, padding);
+				}
 			}
 			
 			if(p1.x1 < x1) x1 = p1.x1;
@@ -1137,7 +1212,7 @@ class MultiCurve
 	
 	private void calc_segment_t(const int segment, const float t, float & out ts, int &out i)
 	{
-		const int max_i = closed ? vertex_count - 1 : vertex_count - 2;
+		const int max_i = _closed ? vertex_count - 1 : vertex_count - 2;
 		
 		if(segment < 0)
 		{
@@ -1155,6 +1230,29 @@ class MultiCurve
 		{
 			i = segment;
 			ts = t < 1 ? t : t > 0 ? t : 0;
+		}
+	}
+	
+	private void get_affected_vertex_offsets(int &out o1, int &out o2)
+	{
+		o1 = 0;
+		o2 = 0;
+		
+		switch(_type)
+		{
+			case CurveType::BSpline:
+				b_spline.get_affected_vertex_offsets(vertex_count, _b_spline_degree, _closed, o1, o2);
+				break;
+			case CurveType::CatmullRom:
+				o1 = -2;
+				o2 = 1;
+				break;
+			case CurveType::QuadraticBezier:
+			case CurveType::CubicBezier:
+			case CurveType::Linear:
+			default:
+				o1 = -1;
+				break;
 		}
 	}
 	

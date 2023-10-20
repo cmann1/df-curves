@@ -4,6 +4,7 @@
 class CurveControlPoint : CurvePoint
 {
 	
+	/** The weight/ratio for cubic, quadratic, and b-splines. */
 	[persist] float weight = 1;
 	
 	CurveControlPoint() { }
@@ -29,7 +30,8 @@ class CurveVertex : CurveControlPoint
 	
 	[option,1:Square,Manual,Smooth,Mirror]
 	CurveVertexType type = Smooth;
-	/** A per-segment tension for CatmullRom splines/ */
+	
+	/** A per-segment tension for CatmullRom splines */
 	[persist] float tension = 1;
 	
 	/** The right hand side control point for this vertex. Only applicable to quadratic bezier curves. */
@@ -39,6 +41,10 @@ class CurveVertex : CurveControlPoint
 	[persist] CurveControlPoint cubic_control_point_1(NAN, NAN);
 	/** The right hand side control point for this vertex. Only applicable to cubic bezier curves. */
 	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
+	
+	bool invalidated = true;
+	
+	int index;
 	
 	/** The bounding box of this curve segment. */
 	float x1, y1;
@@ -53,10 +59,11 @@ class CurveVertex : CurveControlPoint
 	
 	CurveVertex() { }
 	
-	CurveVertex(const float x, const float y)
+	CurveVertex(const float x, const float y, const int index=-1)
 	{
 		this.x = x;
 		this.y = y;
+		this.index = index;
 	}
 	
 	CurveVertex@ extrapolate(

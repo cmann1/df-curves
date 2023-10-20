@@ -9,6 +9,7 @@ namespace Curve
 	  * @param vertex_count The number of vertices.
 	  * @param closed Is the curve closed or open.
 	  * @param eval The curve evaluation function.
+	  * @param only_invalidated If true, only vertices with the `invalidate` field set to true will be recalculated.
 	  * @param division_count How many sections each segment/vertex will be broken into. The highter this number the more accurate the results.
 	  * @param angle_min If > 0, will subdivide each arc segment if the angle between the start and end of the segment is greater than this angle (radians).
 	  * @param max_stretch_factor If > 0 and < 1 attempts to make divisions more uniform in extreme cases, e.g. by weighted control points.
@@ -24,7 +25,7 @@ namespace Curve
 	  * @return The total length of the curve. */
 	float calculate_arc_lengths(
 		array<CurveVertex>@ vertices, const int vertex_count, const bool closed,
-		EvalFunc@ eval, const int division_count,
+		EvalFunc@ eval, const bool only_invalidated, const int division_count,
 		const float angle_min=0, const float max_stretch_factor=0,
 		const float length_min=0, const int max_subdivisions=0,
 		const float angle_max=0, const float length_max=0)
@@ -35,6 +36,10 @@ namespace Curve
 		for(int i = 0; i <= v_count; i++)
 		{
 			CurveVertex@ v = vertices[i];
+			
+			if(only_invalidated && !v.invalidated)
+				continue;
+			
 			array<CurveArc>@ arcs = @v.arcs;
 			uint arc_count = 0;
 			v.length = total_length;
@@ -127,13 +132,13 @@ namespace Curve
 		out_dy = y2 - y1;
 		out_arc_length_sqr = out_dx * out_dx + out_dy * out_dy;
 		out_arc_length = sqrt(out_arc_length_sqr);
-		out_nx = out_arc_length != 0 ? out_dx / out_arc_length : 0.0;
-		out_ny = out_arc_length != 0 ? out_dy / out_arc_length : 0.0;
+		out_nx = out_arc_length != 0 ? out_dy / out_arc_length : 0.0;
+		out_ny = out_arc_length != 0 ? -out_dx / out_arc_length : 0.0;
 		out_total_length = total_length + out_arc_length;
 		out_t_length = t2 - t1;
 		
 		const bool allow_subdivide = max_subdivisions > 0 && (length_min <= 0 || out_arc_length > length_min);
-		const float angle_diff = angle_max > 0 || allow_subdivide
+		const float angle_diff = angle_min > 0 && allow_subdivide
 			? acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) : 0.0;
 		
 		const bool subdivide =

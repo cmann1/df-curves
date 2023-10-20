@@ -39,11 +39,13 @@ class script : MultiCurveDebugColourCallback
 	EditState state = Idle;
 	
 	CurveControlPoint@ drag_point;
+	int drag_index;
 	float drag_ox, drag_oy;
+	ClosestPointTest closest_point;
 	
 	MultiCurve curve;
 	MultiCurveDebug debug_draw;
-	bool curve_changed;
+	CurveChange curve_changed = None;
 	
 	uint seed = 0;
 	bool is_rand;
@@ -77,20 +79,20 @@ class script : MultiCurveDebugColourCallback
 		debug_draw.adaptive_angle = 2;
 		debug_draw.adaptive_max_subdivisions = 5;
 		@debug_draw.segment_colour_callback = this;
-		
-		curve.type = CubicBezier;
-		curve.closed = true;
-		
-		recreate_spline();
 	}
 	
 	void on_editor_start()
 	{
 		update_curve_precision();
 		
+		curve.type = CubicBezier;
+		curve.closed = true;
+		
+		recreate_spline();
+		
 		curve.invalidate();
 		curve.validate();
-		curve_changed = false;
+		curve_changed = None;
 	}
 	
 	void editor_var_changed(var_info@ info)
@@ -100,7 +102,7 @@ class script : MultiCurveDebugColourCallback
 		if(name == 'low_precision' || name == 'adaptive_stretch_factor')
 		{
 			update_curve_precision();
-			curve_changed = true;
+			curve_changed = All;
 		}
 	}
 	
@@ -145,12 +147,12 @@ class script : MultiCurveDebugColourCallback
 		if(check_pressed(VK::M))
 		{
 			curve.closed = !curve.closed;
-			curve_changed = true;
+			curve_changed = All;
 		}
 		if(check_pressed(VK::K) && curve.type == BSpline)
 		{
 			curve.b_spline_clamped = !curve.b_spline_clamped;
-			curve_changed = true;
+			curve_changed = All;
 		}
 		if(check_pressed(VK::N))
 		{
@@ -172,19 +174,19 @@ class script : MultiCurveDebugColourCallback
 				case CurveEndControl::Automatic: curve.end_controls = CurveEndControl::Manual; break;
 				case CurveEndControl::Manual: curve.end_controls = CurveEndControl::AutomaticAngle; break;
 			}
-			curve_changed = true;
+			curve_changed = All;
 		}
 		if(check_pressed(VK::P))
 		{
 			low_precision = !low_precision;
 			update_curve_precision();
-			curve_changed = true;
+			curve_changed = All;
 		}
 		if(check_pressed(VK::U))
 		{
 			adaptive_stretch_factor = !adaptive_stretch_factor;
 			update_curve_precision();
-			curve_changed = true;
+			curve_changed = All;
 			editor_sync_vars_menu();
 		}
 		if(check_pressed(VK::I))
@@ -210,12 +212,15 @@ class script : MultiCurveDebugColourCallback
 				case CatmullRom:
 					curve.tension = clamp(curve.tension - mouse.scroll * 0.1, 0.25, 30.0);
 					display_text_at_curve('Tension: ' + str(curve.tension), 25);
-					curve_changed = true;
+					curve_changed = All;
 					break;
 				case BSpline:
 					curve.b_spline_degree = clamp(curve.b_spline_degree - mouse.scroll, 2, 7);
 					display_text_at_curve('B-Spline degree: ' + curve.b_spline_degree, 25);
-					curve_changed = true;
+					if(curve.is_invalidate)
+					{
+						curve_changed = All;
+					}
 					break;
 			}
 		}
@@ -223,31 +228,18 @@ class script : MultiCurveDebugColourCallback
 		if(mouse_in_scene && mouse.middle_press)
 		{
 			curve.tension = 1;
-			curve_changed = true;
+			curve_changed = All;
 		}
-		//for(uint i = 0; i < curve.vertices.length; i++)
-		//{
-		//	CurveVertex@ p = curve.vertices[i];
-		//	p.type = Square;
-		//	p.weight = curve.type == CubicBezier
-		//		? map(sin((t * 4 + PI * 1.5 + i * 2 + 2) * 0.2), -1, 1, 0.0001, 6)
-		//		: map(sin((t * 4 + PI * 1.5 + i * 1) * 0.4), -1, 1, 0.01, 12);
-		//	p.tension = map(sin((t * 4 + PI + i) * 0.5), -1, 1, 0.2, 2);
-		//	
-		//	p.quad_control_point.weight = map(sin((t * 4 + PI * 1.5 + i) * 0.4), -1, 1, 0.0001, 6);
-		//	p.cubic_control_point_1.weight = map(sin((t * 4 + PI * 1.5 + i * 2) * 0.4), -1, 1, 0.0001, 6);
-		//	p.cubic_control_point_2.weight = map(sin((t * 4 + PI * 1.5 + i * 2 + 1) * 0.4), -1, 1, 0.0001, 6);
-		//}
-		//curve.vertices[1].cubic_control_point_1.weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 6);
-		//curve.vertices[1].weight = map(sin((t * 8 + PI * 1.5) * 0.2), -1, 1, 0.01, 2);
-		//curve.tension = map(sin((t * 4 + PI) * 0.5), -1, 1, 0.2, 1);
-		//curve.vertices[0].tension = map(sin((t + PI + 1.2) * 1.3), -1, 1, 0.2, 10);
 		
-		if(curve_changed)
+		if(curve_changed != None)
 		{
-			curve.invalidate();
+			if(curve_changed == All)
+			{
+				curve.invalidate();
+			}
+			
 			curve.validate();
-			curve_changed = false;
+			curve_changed = None;
 		}
 		
 		closest_point.found = curve.closest_point(
@@ -258,7 +250,6 @@ class script : MultiCurveDebugColourCallback
 		
 		debug.step();
 	}
-	private ClosestPointTest closest_point;
 	
 	void editor_draw(float sub_frame)
 	{
@@ -285,6 +276,7 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.draw_control_points(c, curve, zoom_factor);
 			debug_draw.draw_arch_lengths(c, curve, zoom_factor);
 			debug_draw.draw_vertices(c, curve, zoom_factor);
+			debug_draw.draw_segment_labels(c, curve, zoom_factor);
 		}
 		else
 		{
@@ -338,7 +330,7 @@ class script : MultiCurveDebugColourCallback
 					}
 				}
 				@drag_point = null;
-				curve_changed = true;
+				curve_changed = All;
 			}
 			return;
 		}
@@ -371,6 +363,7 @@ class script : MultiCurveDebugColourCallback
 		if(!mouse.left_down)
 		{
 			@drag_point = null;
+			drag_index = -1;
 			state = Idle;
 			return;
 		}
@@ -379,7 +372,10 @@ class script : MultiCurveDebugColourCallback
 		{
 			drag_point.x = mouse.x + drag_ox;
 			drag_point.y = mouse.y + drag_oy;
-			curve_changed = true;
+			
+			CurveVertex@ v = cast<CurveVertex@>(drag_point);
+			curve.invalidate(drag_index, @v == null);
+			curve_changed = Validate;
 		}
 	}
 	
@@ -388,6 +384,7 @@ class script : MultiCurveDebugColourCallback
 		if(!mouse.right_down)
 		{
 			@drag_point = null;
+			drag_index = -1;
 			state = Idle;
 			return;
 		}
@@ -403,14 +400,17 @@ class script : MultiCurveDebugColourCallback
 					v.tension = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.25, 30.0);
 					display_txt.text('Tension: ' + str(v.tension));
 				}
+				
+				curve.invalidate(drag_index);
 			}
 			else
 			{
 				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.05, 60.0);
 				display_txt.text('Weight: ' + str(drag_point.weight));
+				
+				curve.invalidate(drag_index, @v == null);
+				curve_changed = Validate;
 			}
-			
-			curve_changed = true;
 		}
 		
 		if(curve.type == CatmullRom)
@@ -435,6 +435,7 @@ class script : MultiCurveDebugColourCallback
 		const float max_dist = size * zoom_factor;
 		@result = null;
 		float closest_dist = MAX_FLOAT;
+		drag_index = -1;
 		
 		const int start_i = curve.end_controls == CurveEndControl::Manual && curve.type == CatmullRom
 			? -2 : 0;
@@ -450,6 +451,7 @@ class script : MultiCurveDebugColourCallback
 			{
 				closest_dist = dist;
 				@result = p;
+				drag_index = clamp(i, 0, curve.vertex_count - 1);
 			}
 		}
 		
@@ -464,6 +466,7 @@ class script : MultiCurveDebugColourCallback
 		const float max_dist = size * size * zoom_factor * zoom_factor;
 		@result = null;
 		float closest_dist = MAX_FLOAT;
+		drag_index = -1;
 		
 		const int cp_i1 = curve.type == QuadraticBezier ? -1 : 0;
 		const int cp_i2 = curve.type == QuadraticBezier ? 0 : 2;
@@ -488,6 +491,7 @@ class script : MultiCurveDebugColourCallback
 				{
 					closest_dist = dist;
 					@result = cp;
+					drag_index = j == 0 ? mod(i - 1, curve.vertex_count) : i;
 				}
 			}
 		}
@@ -529,7 +533,7 @@ class script : MultiCurveDebugColourCallback
 		curve.init_bezier_control_points(true);
 		//curve.vertices[2].quad_control_point.set(-100, 200);
 		
-		curve_changed = true;
+		curve_changed = All;
 	}
 	
 	uint get_curve_line_colour(const MultiCurve@ curve, const int segment_index, const int segment_max, const float t)
@@ -627,5 +631,14 @@ class ClosestPointTest
 	float y;
 	float t;
 	int i;
+	
+}
+
+enum CurveChange
+{
+	
+	None,
+	Validate,
+	All,
 	
 }
