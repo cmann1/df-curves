@@ -300,6 +300,8 @@ class BSpline
 	
 	// -- Modification --
 	
+	/** Inserts a vertex at the given t value. The curve shape may not be fully preserved after insertion.
+	  * `set_vertices` and `generate_knots` need to be called before and after. */
 	int insert_vertex(
 		const int degree, const bool clamped, const bool closed,
 		const float t)
@@ -310,7 +312,7 @@ class BSpline
 		
 		const int span = find_span(degree_c, u);
 		const int multiplicity = knot_multiplicity(u);
-		if(multiplicity == degree_c)
+		if(multiplicity >= degree_c)
 			return vertex_count;
 		
 		const int offset = closed ? degree_c / 2 : 0;
@@ -350,8 +352,6 @@ class BSpline
 			c.y = (1 - a) * c.y + a * c1.y;
 			c.w = (1 - a) * c.w + a * c1.w;
 		}
-		//vertices_weighted[li + offset] = tmp[0];
-		//vertices_weighted[w_index + offset] = tmp[degree_c - multiplicity - 1];
 		
 		knots_length++;
 		while(int(knots.length) < knots_length)
@@ -374,21 +374,13 @@ class BSpline
 		
 		for(int i = li; i <= w_index; ++i)
 		{
-			vertices_weighted[i + offset] = tmp[i - li];
 			CurvePointW@ vp = @vertices_weighted[i + offset];
 			CurveVertex@ p = @vertices[i % vertex_count];
+			vp = tmp[i - li];
 			p.x = vp.x / vp.w;
 			p.y = vp.y / vp.w;
 			p.weight = vp.w;
 		}
-		
-		
-		
-		//@vp = @vertices_weighted[li + offset];
-		//@p = @vertices[li % vertex_count];
-		//p.x = vp.x / vp.w;
-		//p.y = vp.y / vp.w;
-		//p.weight = vp.w;
 		
 		return vertex_count;
 	}

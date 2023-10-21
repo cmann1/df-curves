@@ -329,21 +329,7 @@ class MultiCurve
 		if(!invalidated)
 			return;
 		
-		// -- Update BSplines.
-		
-		if(_type == CurveType::BSpline)
-		{
-			if(invalidated_b_spline_vertices)
-			{
-				b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
-				invalidated_b_spline_vertices = false;
-			}
-			if(invalidated_b_spline_knots)
-			{
-				b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
-				invalidated_b_spline_knots = false;
-			}
-		}
+		validate_b_spline();
 		
 		// -- Calculate arc lengths.
 		
@@ -390,6 +376,23 @@ class MultiCurve
 		for(int i = 0; i <= end; i++)
 		{
 			vertices[i].invalidated = false;
+		}
+	}
+	
+	private void validate_b_spline()
+	{
+		if(_type != CurveType::BSpline)
+			return;
+		
+		if(invalidated_b_spline_vertices)
+		{
+			b_spline.set_vertices(@vertices, vertex_count, _b_spline_degree, _b_spline_clamped, _closed);
+			invalidated_b_spline_vertices = false;
+		}
+		if(invalidated_b_spline_knots)
+		{
+			b_spline.generate_knots(_b_spline_degree, _b_spline_clamped, _closed);
+			invalidated_b_spline_knots = false;
 		}
 	}
 	
@@ -996,6 +999,8 @@ class MultiCurve
 	{
 		if(_type != BSpline)
 			return null;
+		
+		validate_b_spline();
 		
 		const float ta = calc_b_spline_t(segment, t);
 		vertex_count = b_spline.insert_vertex(b_spline_degree, b_spline_clamped, closed, ta);
