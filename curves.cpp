@@ -254,19 +254,26 @@ class script : MultiCurveDebugColourCallback
 			curve_changed = None;
 		}
 		
-		closest_point.found = curve.closest_point(
-			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-			max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
-		
-		if(closest_point.found)
+		if(state == Idle)
 		{
-			closest_point.from_x = mouse.x;
-			closest_point.from_y = mouse.y;
-			closest_point.dx = closest_point.from_x - closest_point.x;
-			closest_point.dy = closest_point.from_y - closest_point.y;
-			closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
-			closest_point.nx = closest_point.dx / closest_point.dist;
-			closest_point.ny = closest_point.dy / closest_point.dist;
+			closest_point.found = curve.closest_point(
+				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
+				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
+			
+			if(closest_point.found)
+			{
+				closest_point.from_x = mouse.x;
+				closest_point.from_y = mouse.y;
+				closest_point.dx = closest_point.from_x - closest_point.x;
+				closest_point.dy = closest_point.from_y - closest_point.y;
+				closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
+				closest_point.nx = closest_point.dx / closest_point.dist;
+				closest_point.ny = closest_point.dy / closest_point.dist;
+			}
+		}
+		else
+		{
+			closest_point.found = false;
 		}
 		
 		t += speed * 0.25 * DT;
@@ -389,6 +396,122 @@ class script : MultiCurveDebugColourCallback
 			drag_oy = drag_point.weight;
 			state = DragWeight;
 			return;
+		}
+		
+		if(closest_point.found && curve.type == QuadraticBezier)
+		{
+			CurveVertex@ p1 = curve.vertices[closest_point.i];
+			CurveVertex@ p3 = curve.vert(closest_point.i, 1);
+			CurveControlPoint@ p2 = p1.quad_control_point;
+			
+			float a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y;
+			float b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y;
+			float a_r1, a_r2, a_r3;
+			float b_r1, b_r2, b_r3;
+			QuadraticBezier::split(
+				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.weight, p2.weight, p3.weight,
+				closest_point.t,
+				a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y,
+				b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y,
+				a_r1, a_r2, a_r3,
+				b_r1, b_r2, b_r3);
+			
+			const uint a_clr = 0xff00ffff;
+			const uint b_clr = 0xff00ff00;
+			g.draw_line_world(22, 23, a_p1x, a_p1y, a_p2x, a_p2y, zoom_factor, a_clr);
+			g.draw_line_world(22, 23, a_p2x, a_p2y, a_p3x, a_p3y, zoom_factor, a_clr);
+			g.draw_line_world(22, 23, b_p1x, b_p1y, b_p2x, b_p2y, zoom_factor, b_clr);
+			g.draw_line_world(22, 23, b_p2x, b_p2y, b_p3x, b_p3y, zoom_factor, b_clr);
+			
+			float ax1 = 0, ay1 = 0;
+			float bx1 = 0, by1 = 0;
+			for(int i = 0, e = 115; i <= e; i++)
+			{
+				const float t = float(i) / e;
+				float ax2, ay2;
+				float bx2, by2;
+				QuadraticBezier::eval_point(
+					a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y,
+					a_r1, a_r2, a_r3,
+					t, ax2, ay2);
+				QuadraticBezier::eval_point(
+					b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y,
+					b_r1, b_r2, b_r3,
+					t, bx2, by2);
+				
+				if(i > 0)
+				{
+					g.draw_line_world(22, 23, ax1, ay1, ax2, ay2, 2 * zoom_factor, a_clr);
+					g.draw_line_world(22, 23, bx1, by1, bx2, by2, 2 * zoom_factor, b_clr);
+				}
+				
+				ax1 = ax2;
+				ay1 = ay2;
+				bx1 = bx2;
+				by1 = by2;
+			}
+		}
+		else if(closest_point.found && curve.type == CubicBezier)
+		{
+			CurveVertex@ p1 = curve.vertices[closest_point.i];
+			CurveVertex@ p4 = curve.vert(closest_point.i, 1);
+			CurveControlPoint@ p2 = p1.cubic_control_point_2;
+			CurveControlPoint@ p3 = p4.cubic_control_point_1;
+			
+			float a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y;
+			float b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y;
+			float a_r1, a_r2, a_r3, a_r4;
+			float b_r1, b_r2, b_r3, b_r4;
+			CubicBezier::split(
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
+				p1.weight, p2.weight, p3.weight, p4.weight,
+				closest_point.t,
+				a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y,
+				b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y,
+				a_r1, a_r2, a_r3, a_r4,
+				b_r1, b_r2, b_r3, b_r4);
+			
+			const uint a_clr = 0xff00ffff;
+			const uint b_clr = 0xff00ff00;
+			g.draw_line_world(22, 23, a_p1x, a_p1y, a_p2x, a_p2y, zoom_factor, a_clr);
+			g.draw_line_world(22, 23, a_p2x, a_p2y, a_p3x, a_p3y, zoom_factor, a_clr);
+			g.draw_line_world(22, 23, a_p3x, a_p3y, a_p4x, a_p4y, zoom_factor, a_clr);
+			g.draw_line_world(22, 23, b_p1x, b_p1y, b_p2x, b_p2y, zoom_factor, b_clr);
+			g.draw_line_world(22, 23, b_p2x, b_p2y, b_p3x, b_p3y, zoom_factor, b_clr);
+			g.draw_line_world(22, 23, b_p3x, b_p3y, b_p4x, b_p4y, zoom_factor, b_clr);
+			
+			float ax1 = 0, ay1 = 0;
+			float bx1 = 0, by1 = 0;
+			for(int i = 0, e = 115; i <= e; i++)
+			{
+				const float t = float(i) / e;
+				float ax2, ay2;
+				float bx2, by2;
+				CubicBezier::eval_point(
+					a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y,
+					a_r1, a_r2, a_r3, a_r4,
+					t, ax2, ay2);
+				CubicBezier::eval_point(
+					b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y,
+					b_r1, b_r2, b_r3, b_r4,
+					t, bx2, by2);
+				
+				if(i > 0)
+				{
+					g.draw_line_world(22, 23, ax1, ay1, ax2, ay2, 2 * zoom_factor, a_clr);
+					g.draw_line_world(22, 23, bx1, by1, bx2, by2, 2 * zoom_factor, b_clr);
+				}
+				
+				ax1 = ax2;
+				ay1 = ay2;
+				bx1 = bx2;
+				by1 = by2;
+			}
+		}
+		else if(closest_point.found && curve.type == BSpline)
+		{
+			
 		}
 	}
 	
