@@ -9,6 +9,10 @@
 #include 'closest_point.cpp';
 #include 'CurveVertex.cpp';
 #include 'MultiCuveSubdivisionSettings.cpp';
+#include 'cubic_split.cpp';
+#include 'cubic_split_rational.cpp';
+#include 'quadratic_split.cpp';
+#include 'quadratic_split_rational.cpp';
 
 /** A higher level wrapper designed for editing/manipulating curves with support for several
   * different types as well as chaining multiple curves together. */
@@ -88,7 +92,7 @@ class MultiCurve
 	/** The b-spline knot vector requires regneration after vertices are added/removed. */
 	private bool invalidated_b_spline_knots = true;
 	
-	private BSpline@ b_spline;
+	/*private*/ BSpline@ b_spline;
 	
 	/** Temp points used when calculating automatic end control points. */
 	private CurveVertex p0;
@@ -926,9 +930,7 @@ class MultiCurve
 			return;
 		}
 		
-		const float ta = segment >= 0
-			? (segment + (t > 0 ? t : t < 1 ? t : 1)) / (_closed ? vertex_count : vertex_count - 1)
-			: t;
+		const float ta = calc_b_spline_t(segment, t);
 		b_spline.eval(
 			b_spline_degree, b_spline_clamped, closed, 
 			ta, x, y, normal_x, normal_y,
@@ -987,6 +989,21 @@ class MultiCurve
 			interpolate_result,
 			x1, y1, x2, y2);
 	}
+	
+	// -- Modification methods --
+	
+	CurveVertex@ insert_vertex(const int segment, const float t)
+	{
+		if(_type != BSpline)
+			return null;
+		
+		const float ta = calc_b_spline_t(segment, t);
+		vertex_count = b_spline.insert_vertex(b_spline_degree, b_spline_clamped, closed, ta);
+		
+		return vertices[segment < 0 ? int(t) : segment];
+	}
+	
+	// --
 	
 	/** Returns the vertices/control points for the segment at `i` based whether the curve is open/closed, etc. */
 	void get_segment_catmull_rom(const int i, CurveControlPoint@ &out p1, CurveVertex@ &out p2, CurveVertex@ &out p3, CurveControlPoint@ &out p4)
@@ -1236,6 +1253,13 @@ class MultiCurve
 			i = segment;
 			ts = t < 1 ? t : t > 0 ? t : 0;
 		}
+	}
+	
+	private float calc_b_spline_t(const int segment, const float t)
+	{
+		return segment >= 0
+			? (segment + (t > 0 && t < 1 ? t : t <= 0 ? 0 : 1)) / (_closed ? vertex_count : vertex_count - 1)
+			: t;
 	}
 	
 	private void get_affected_vertex_offsets(int &out o1, int &out o2)

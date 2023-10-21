@@ -39,7 +39,7 @@ class BSpline
 		}
 		
 		// Offset the index just so that the start of the curve (t=0) aligns better with the start vertex.
-		const int offset = closed ? degree_c /= 2 : 0;
+		const int offset = closed ? degree_c / 2 : 0;
 		
 		for(int i = -offset; i < v_count - offset; i++)
 		{
@@ -88,7 +88,7 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
-		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Find span and corresponding non-zero basis functions.
 		const int span = find_span(degree_c, u);
@@ -139,7 +139,7 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
-		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Find span and corresponding non-zero basis functions
 		const int span = find_span(degree_c, u);
@@ -172,7 +172,7 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
-		const float u = t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree_c);
+		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Calculate the normal vector.
 		curve_derivatives_rational(degree_c, closed, u, 1);
@@ -298,6 +298,101 @@ class BSpline
 		o2 = closed ? degree_c / 2 : (degree_c + 1) / 2;
 	}
 	
+	// -- Modification --
+	
+	int insert_vertex(
+		const int degree, const bool clamped, const bool closed,
+		const float t)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = init_t(v_count, degree_c, closed, t);
+		
+		const int span = find_span(degree_c, u);
+		const int multiplicity = knot_multiplicity(u);
+		if(multiplicity == degree_c)
+			return vertex_count;
+		
+		const int offset = closed ? degree_c / 2 : 0;
+		
+		// Copy affected control points
+		array<CurvePointW>@ tmp = @curve_wders;
+		while(int(tmp.length) < degree_c - multiplicity + 1)
+		{
+			tmp.resize(tmp.length * 2);
+		}
+		for(int i = 0; i < degree_c - multiplicity + 1; i++)
+		{
+			tmp[i] = vertices_weighted[span - degree_c + i + offset];
+		}
+		
+		// Shift vertices up.
+		vertex_count++;
+		while(int(vertices_weighted.length) < vertex_count)
+		{
+			vertices_weighted.resize(vertices_weighted.length * 2);
+		}
+		
+		const int w_index = span - multiplicity;
+		for(int i = vertex_count - 1; i >= w_index; i--)
+		{
+			vertices_weighted[i + offset] = vertices_weighted[i - 1 + offset];
+		}
+		
+		// Modify affected control point
+		const int li = span - degree_c + 1;
+		for(int i = 0; i < degree_c - multiplicity; i++)
+		{
+			const float a = (u - knots[li + i]) / (knots[i + span + 1] - knots[li + i]);
+			CurvePointW@ c = @tmp[i];
+			CurvePointW@ c1 = @tmp[i + 1];
+			c.x = (1 - a) * c.x + a * c1.x;
+			c.y = (1 - a) * c.y + a * c1.y;
+			c.w = (1 - a) * c.w + a * c1.w;
+		}
+		//vertices_weighted[li + offset] = tmp[0];
+		//vertices_weighted[w_index + offset] = tmp[degree_c - multiplicity - 1];
+		
+		knots_length++;
+		while(int(knots.length) < knots_length)
+		{
+			knots.resize(knots.length * 2);
+		}
+		
+		// Shift knots up and insert new.
+		knots.insertAt(span + 1, u);
+		
+		// Insert vertex and convert back to cartesian coordinates
+		if(w_index < vertex_count)
+		{
+			vertices.insertAt(w_index, CurveVertex(0, 0));
+		}
+		else
+		{
+			vertices.resize(vertices.length + 1);
+		}
+		
+		for(int i = li; i <= w_index; ++i)
+		{
+			vertices_weighted[i + offset] = tmp[i - li];
+			CurvePointW@ vp = @vertices_weighted[i + offset];
+			CurveVertex@ p = @vertices[i % vertex_count];
+			p.x = vp.x / vp.w;
+			p.y = vp.y / vp.w;
+			p.weight = vp.w;
+		}
+		
+		
+		
+		//@vp = @vertices_weighted[li + offset];
+		//@p = @vertices[li % vertex_count];
+		//p.x = vp.x / vp.w;
+		//p.y = vp.y / vp.w;
+		//p.weight = vp.w;
+		
+		return vertex_count;
+	}
+	
 	// --
 	
 	private void init_params(
@@ -307,6 +402,11 @@ class BSpline
 	{
 		out_degree = clamp(degree, 2, vertex_count - 1);
 		out_v_count = closed ? vertex_count + out_degree + 1 : vertex_count;
+	}
+	
+	private float init_t(const int v_count, const int degree, const bool closed, const float t)
+	{
+		return t * (closed ? 1 - 1.0 / (vertex_count + 1) : 1.0) * (v_count - degree);
 	}
 	
 	private void curve_derivatives_rational(
@@ -575,6 +675,21 @@ class BSpline
 		}
 		
 		return mid;
+	}
+	
+	private int knot_multiplicity(const float u)
+	{
+		int multiplicity = 0;
+		
+		for(int i = knots_length - 1; i >= 0; i--)
+		{
+			if(closeTo(u, knots[i]))
+			{
+				multiplicity++;
+			}
+		}
+		
+		return multiplicity;
 	}
 	
 	private int calc_binomial(const int n, const int k)
