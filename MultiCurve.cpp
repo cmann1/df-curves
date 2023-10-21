@@ -16,7 +16,10 @@ class MultiCurve
 {
 	
 	// TODO: Dragging curves.
-	// TODO: Option to not automatically calculate arc lengths.
+	// TODO: Remove vertices.
+	// TODO: Splitting segments.
+	// TODO: Adding vertices.
+	// TODO: ? Option to not automatically calculate arc lengths.
 	// TODO: Debugdraw
 	// 		- View bounds - don't draw things outside of this
 	// 			- Aslo check individual arc/adaptive segments? This wouldn't be 100% reliable since an arc segment can extend beyound the p1>p2 bounding box.

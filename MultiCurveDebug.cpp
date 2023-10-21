@@ -18,6 +18,10 @@ class MultiCurveDebug
 	float bounding_box_width = 3;
 	float segment_index_label_scale = 1;
 	float segment_index_label_offset = 10;
+	float hover_vertex_size_mult = 1;
+	float hover_control_point_size_mult = 1.25;
+	float hover_outline_thickness = 2;
+	float hover_outline_blend = 0.65;
 	
 	uint line_clr = 0xffffffff;
 	uint normal_clr = 0xccff0000;
@@ -32,6 +36,10 @@ class MultiCurveDebug
 	uint segment_bounding_box_clr = 0x44002222;
 	uint bounding_box_clr = 0x66002222;
 	uint segment_index_label_clr = 0x99ffffff;
+	uint hover_outline_clr = 0x77000000;
+	
+	int hovered_vertex_index = -1;
+	int hovered_control_point_index = 0;
 	
 	/** If set, allows choosing the curve line colour based on the segment index and absolute t value. */
 	MultiCurveDebugColourCallback@ segment_colour_callback;
@@ -79,6 +87,7 @@ class MultiCurveDebug
 		draw_curve(c, curve, zoom_factor);
 		draw_vertices(c, curve, zoom_factor);
 		draw_segment_labels(c, curve, zoom_factor);
+		draw_hovered(c, curve, zoom_factor);
 	}
 	
 	/** Draws the control points and connecting lines. */
@@ -126,7 +135,7 @@ class MultiCurveDebug
 					}
 				}
 				
-				if(control_point_size > 0)
+				if(control_point_size > 0 && (i != hovered_vertex_index || hovered_control_point_index != 1))
 				{
 					c.draw_rectangle(
 						cp.x - cps, cp.y - cps,
@@ -152,18 +161,26 @@ class MultiCurveDebug
 				if(curve.closed || i > 0)
 				{
 					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, cpw, multiply_alpha(cubic_cp1_clr, 0.5));
-					c.draw_rectangle(
-						p.x + cp1.x - cps, p.y + cp1.y - cps,
-						p.x + cp1.x + cps, p.y + cp1.y + cps,
-						45, cubic_cp1_clr);
+					
+					if(hovered_control_point_index != 2 || mod(i - 1, curve.vertex_count) != hovered_vertex_index)
+					{
+						c.draw_rectangle(
+							p.x + cp1.x - cps, p.y + cp1.y - cps,
+							p.x + cp1.x + cps, p.y + cp1.y + cps,
+							45, cubic_cp1_clr);
+					}
 				}
 				if(curve.closed || i < curve.vertex_count - 1)
 				{
 					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, cpw, multiply_alpha(cubic_cp2_clr, 0.5));
-					c.draw_rectangle(
-						p.x + cp2.x - cps, p.y + cp2.y - cps,
-						p.x + cp2.x + cps, p.y + cp2.y + cps,
-						45, cubic_cp1_clr);
+					
+					if(hovered_control_point_index != 1 || i != hovered_vertex_index)
+					{
+						c.draw_rectangle(
+							p.x + cp2.x - cps, p.y + cp2.y - cps,
+							p.x + cp2.x + cps, p.y + cp2.y + cps,
+							45, cubic_cp2_clr);
+					}
 				}
 			}
 		}
@@ -429,6 +446,9 @@ class MultiCurveDebug
 		
 		for(int i = 0; i < curve.vertex_count; i++)
 		{
+			if(i == hovered_vertex_index && hovered_control_point_index == 0)
+				continue;
+			
 			CurveVertex@ p = curve.vertices[i];
 			
 			if(clip && (p.x > _clip_x2 || p.x < _clip_x1 || p.y > _clip_y2 || p.y < _clip_y1))
@@ -437,6 +457,108 @@ class MultiCurveDebug
 			c.draw_rectangle(
 				p.x - vs, p.y - vs,
 				p.x + vs, p.y + vs,
+				45, vertex_clr);
+		}
+		
+		if(hovered_vertex_index >= 0 && hovered_control_point_index == 0 && hovered_vertex_index < curve.vertex_count)
+		{
+			CurveVertex@ p = curve.vertices[hovered_vertex_index];
+			
+			const float hvs = vs * hover_vertex_size_mult;
+			
+			if(hover_outline_thickness > 0 && hover_outline_clr != 0)
+			{
+				const float ovs = hvs + hover_outline_thickness * zoom_factor;
+				c.draw_rectangle(
+					p.x - ovs, p.y - ovs,
+					p.x + ovs, p.y + ovs,
+					45, hover_outline_clr);
+			}
+			
+			c.draw_rectangle(
+				p.x - hvs, p.y - hvs,
+				p.x + hvs, p.y + hvs,
+				45, vertex_clr);
+		}
+		
+		if(hovered_control_point_index != 0 && control_point_size > 0)
+		{
+			if(curve.type == CurveType::QuadraticBezier)
+			{
+				CurveVertex@ p = curve.vertices[hovered_vertex_index];
+				
+			}
+		}
+	}
+	
+	void draw_hovered(canvas@ c, MultiCurve@ curve, const float zoom_factor=1)
+	{
+		if(hovered_control_point_index != 0 && control_point_size > 0)
+		{
+			const float cps = control_point_size * hover_control_point_size_mult * zoom_factor;
+			
+			if(curve.type == CurveType::QuadraticBezier)
+			{
+				CurveVertex@ p = curve.vertices[hovered_vertex_index];
+				CurveControlPoint@ cp = p.quad_control_point;
+				
+				if(hover_outline_thickness > 0 && hover_outline_clr != 0)
+				{
+					const float ovs = cps + hover_outline_thickness * zoom_factor;
+					
+					c.draw_rectangle(
+						cp.x - ovs, cp.y - ovs,
+						cp.x + ovs, cp.y + ovs,
+						45, colour::lerp(quad_cp_clr, hover_outline_clr, hover_outline_blend));
+				}
+				
+				c.draw_rectangle(
+					cp.x - cps, cp.y - cps,
+					cp.x + cps, cp.y + cps,
+					45, quad_cp_clr);
+			}
+			else if(curve.type == CurveType::CubicBezier)
+			{
+				CurveVertex@ p = curve.vertices[hovered_control_point_index == 1 ? hovered_vertex_index : (hovered_vertex_index + 1) % curve.vertex_count];
+				CurveControlPoint@ cp = hovered_control_point_index == 1 ? p.cubic_control_point_2 : p.cubic_control_point_1;
+				const uint cp_clr = hovered_control_point_index == 1 ? cubic_cp2_clr : cubic_cp1_clr;
+				const float x = p.x + cp.x;
+				const float y = p.y + cp.y;
+				
+				if(hover_outline_thickness > 0 && hover_outline_clr != 0)
+				{
+					const float ovs = cps + hover_outline_thickness * zoom_factor;
+					
+					c.draw_rectangle(
+						x - ovs, y - ovs,
+						x + ovs, y + ovs,
+						45, colour::lerp(cp_clr, hover_outline_clr, hover_outline_blend));
+				}
+				
+				c.draw_rectangle(
+					x - cps, y - cps,
+					x + cps, y + cps,
+					45, cp_clr);
+			}
+		}
+		else if(hovered_vertex_index >= 0 && hovered_vertex_index < curve.vertex_count)
+		{
+			CurveVertex@ p = curve.vertices[hovered_vertex_index];
+			
+			const float hvs = vertex_size * zoom_factor * hover_vertex_size_mult;
+			
+			if(hover_outline_thickness > 0 && hover_outline_clr != 0)
+			{
+				const float ovs = hvs + hover_outline_thickness * zoom_factor;
+				c.draw_rectangle(
+					p.x - ovs, p.y - ovs,
+					p.x + ovs, p.y + ovs,
+					45, colour::lerp(vertex_clr, hover_outline_clr, hover_outline_blend));
+			}
+			
+			c.draw_rectangle(
+				p.x - hvs, p.y - hvs,
+				p.x + hvs, p.y + hvs,
 				45, vertex_clr);
 		}
 	}
