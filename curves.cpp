@@ -367,7 +367,7 @@ class script : MultiCurveDebugColourCallback
 				if(curve.type != CatmullRom)
 				{
 					hover_point.weight = 1;
-					curve.invalidate(drag_vertex_index, @v != null);
+					curve.invalidate(drag_vertex_index, @v == null);
 					curve_changed = Validate;
 				}
 				else if(@v != null)

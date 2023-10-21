@@ -44,8 +44,6 @@ class CurveVertex : CurveControlPoint
 	
 	bool invalidated = true;
 	
-	int index;
-	
 	/** The bounding box of this curve segment. */
 	float x1, y1;
 	float x2, y2;
@@ -59,11 +57,10 @@ class CurveVertex : CurveControlPoint
 	
 	CurveVertex() { }
 	
-	CurveVertex(const float x, const float y, const int index=-1)
+	CurveVertex(const float x, const float y)
 	{
 		this.x = x;
 		this.y = y;
-		this.index = index;
 	}
 	
 	CurveVertex@ extrapolate(

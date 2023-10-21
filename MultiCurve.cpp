@@ -244,7 +244,7 @@ class MultiCurve
 	
 	CurveVertex@ add_vertex(const float x, const float y)
 	{
-		vertices.insertLast(CurveVertex(x, y, vertex_count++));
+		vertices.insertLast(CurveVertex(x, y));
 		
 		init_bezier_control_points(false, vertex_count - 1, 1);
 		
@@ -252,7 +252,7 @@ class MultiCurve
 		invalidated_b_spline_knots = true;
 		invalidated_b_spline_vertices = true;
 		
-		return @vertices[vertex_count - 1];
+		return @vertices[vertex_count++];
 	}
 	
 	/** Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
@@ -314,6 +314,7 @@ class MultiCurve
 			return;
 		
 		invalidated = true;
+		invalidated_b_spline_vertices = true;
 		vertices[index].invalidated = true;
 	}
 	
