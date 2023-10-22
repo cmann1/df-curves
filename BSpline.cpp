@@ -385,6 +385,82 @@ class BSpline
 		return vertex_count;
 	}
 	
+	/** Inserts a vertex at the given segment and t value by simply linearly interpolating the vertices.
+	  * `set_vertices` and `generate_knots` will need to be called after.
+	  * @return The newly inserted vertex index. */
+	int insert_vertex_linear(
+		const int degree, const bool clamped, const bool closed,
+		int segment, float t)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		const float u = init_t(v_count, degree_c, closed, t);
+		
+		if(degree_c % 2 == 0)
+		{
+			t -= 0.5;
+			if(!closed && segment == 0 && t < 0.5)
+			{
+				t = (t + 0.5) * 0.5;
+				if(segment > 0)
+				{
+					segment--;
+				}
+			}
+			else if(t < 0)
+			{
+				if(closed || segment > 0)
+				{
+					t += 1;
+					segment = ((segment - 1) % vertex_count + vertex_count) % vertex_count;
+				}
+				else
+				{
+					t = 0;
+				}
+			}
+		}
+		
+		CurveVertex@ p1 = vertices[segment];
+		CurveVertex@ p2 = vertices[(segment + 1) % vertex_count];
+		
+		if(segment + 1 < vertex_count)
+		{
+			vertices.insertAt(segment + 1, CurveVertex(0, 0));
+		}
+		else
+		{
+			vertices.resize(vertices.length + 1);
+		}
+		vertex_count++;
+		
+		CurveVertex@ p = vertices[segment + 1];
+		if(closed || segment < vertex_count - 2)
+		{
+			p.x = p1.x + (p2.x - p1.x) * (0.5 + t * 0.5);
+			p.y = p1.y + (p2.y - p1.y) * (0.5 + t * 0.5);
+			p.weight = p1.weight + (p2.weight - p1.weight) * t;
+		}
+		else
+		{
+			p.x = p1.x;
+			p.y = p1.y;
+			p.weight = p1.weight;
+		}
+		
+		if(closed || segment + 3 < vertex_count)
+		{
+			@p = vertices[(segment + 2) % vertex_count];
+			@p2 = vertices[(segment + 3) % vertex_count];
+			p.x = p.x + (p2.x - p.x) * t * 0.5;
+			p.y = p.y + (p2.y - p.y) * t * 0.5;
+			p.weight = p.weight + (p2.weight - p.weight) * t;
+		}
+		
+		const int tt =  int(segment + t + 1);
+		return tt % vertex_count;
+	}
+	
 	// --
 	
 	private void init_params(

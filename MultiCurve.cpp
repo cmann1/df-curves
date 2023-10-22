@@ -995,17 +995,18 @@ class MultiCurve
 	
 	// -- Modification methods --
 	
-	CurveVertex@ insert_vertex(const int segment, const float t)
+	int insert_vertex(const int segment, const float t)
 	{
 		if(_type != BSpline)
-			return null;
+			return -1;
 		
 		validate_b_spline();
 		
 		const float ta = calc_b_spline_t(segment, t);
-		vertex_count = b_spline.insert_vertex(b_spline_degree, b_spline_clamped, closed, ta);
+		const int new_index = b_spline.insert_vertex_linear(b_spline_degree, b_spline_clamped, closed, segment, t);
+		vertex_count++;
 		
-		return vertices[segment < 0 ? int(t) : segment];
+		return new_index;
 	}
 	
 	// --

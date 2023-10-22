@@ -515,15 +515,17 @@ class script : MultiCurveDebugColourCallback
 			@mc.b_spline = BSpline();
 			mc.b_spline.set_vertices(mc.vertices, mc.vertex_count, mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
 			mc.b_spline.generate_knots(mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-			CurveVertex@ v = mc.insert_vertex(closest_point.i, closest_point.t);
-			mc.b_spline.set_vertices(mc.vertices, mc.vertex_count, mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-			mc.b_spline.generate_knots(mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-			//mc.invalidate();
-			//mc.validate();
+			const int new_index = mc.insert_vertex(closest_point.i, closest_point.t);
+			CurveVertex@ v = new_index != -1 ? curve.vert(new_index) : null;
 			if(@v != null)
 			{
+				mc.b_spline.set_vertices(mc.vertices, mc.vertex_count, mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
+				mc.b_spline.generate_knots(mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
+				//mc.invalidate();
+				//mc.validate();
+				
 				MultiCurveDebug dd = debug_draw;
-				dd.hovered_vertex_index = (closest_point.i) % mc.vertex_count;
+				dd.hovered_vertex_index = new_index;
 				//@dd.segment_colour_callback = null;
 				c.sub_layer(c.sub_layer() + 1);
 				c.push();
