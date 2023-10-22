@@ -366,6 +366,7 @@ class BSpline
 		if(w_index < vertex_count)
 		{
 			vertices.insertAt(w_index, CurveVertex(0, 0));
+			vertices[w_index].init_control_points();
 		}
 		else
 		{
@@ -435,6 +436,8 @@ class BSpline
 		vertex_count++;
 		
 		CurveVertex@ p = vertices[segment + 1];
+		p.init_control_points();
+		
 		if(closed || segment < vertex_count - 2)
 		{
 			p.x = p1.x + (p2.x - p1.x) * (0.5 + t * 0.5);

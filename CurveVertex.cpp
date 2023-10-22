@@ -67,6 +67,14 @@ class CurveVertex : CurveControlPoint
 		this.y = y;
 	}
 	
+	/** Required because using `insertAt` with an array of non-handles will break these references. */
+	void init_control_points()
+	{
+		@quad_control_point.vertex = this;
+		@cubic_control_point_1.vertex = this;
+		@cubic_control_point_2.vertex = this;
+	}
+	
 	CurveVertex@ extrapolate(
 		const CurveVertex@ p1, const CurveVertex@ p2, const CurveVertex@ p3=null,
 		const float angle_multiplier=0.75, const float length_multiplier=1)
