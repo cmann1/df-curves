@@ -84,7 +84,19 @@ namespace Curve
 						// Take the interpolated curve point (which could be farther away) and project it back onto the
 						// perpendicular line from the closest linear point to get something that's hopefully closer to the curve and desired point.
 						float curve_guess_x, curve_guess_y;
-						project(arc_x - linear_x, arc_y - linear_y, x - linear_x, y - linear_y, curve_guess_x, curve_guess_y);
+						const float bx = x - linear_x;
+						const float by = y - linear_y;
+						if(bx != 0 || by != 0)
+						{
+							const float dp = (arc_x - linear_x) * bx + (arc_y - linear_y) * by;
+							curve_guess_x = ( dp / (bx * bx + by * by) ) * bx;
+							curve_guess_y = ( dp / (bx * bx + by * by) ) * by;
+						}
+						else
+						{
+							curve_guess_x = 0;
+							curve_guess_y = 0;
+						}
 						curve_guess_x += linear_x;
 						curve_guess_y += linear_y;
 						
