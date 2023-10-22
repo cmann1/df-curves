@@ -15,7 +15,7 @@ namespace Curve
 	  * @param x1 y1 x2 y2 The bounding box of the curve. Only required when `max_distance` > 0.
 	  * @return true if a point was found within `max_distance` */
 	bool closest_point(
-		array<CurveVertex> vertices, const int vertex_count, const bool closed,
+		array<CurveVertex>@ vertices, const int vertex_count, const bool closed,
 		EvalPointFunc@ eval_point,
 		const float x, const float y, int &out segment_index, float &out out_t, float &out out_x, float &out out_y,
 		const float max_distance=0, float threshold=1,
@@ -24,7 +24,7 @@ namespace Curve
 		const bool interpolate_result=true,
 		const float x1=-INFINITY, const float y1=-INFINITY, const float x2=INFINITY, const float y2=INFINITY)
 	{
-				if(vertex_count == 0 || vertices[0].arc_count == 0)
+		if(vertex_count == 0 || vertices[0].arc_count == 0)
 			return false;
 		
 		const int end = closed ? vertex_count : vertex_count - 1;
