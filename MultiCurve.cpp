@@ -1248,23 +1248,33 @@ class MultiCurve
 			
 			if(p1.invalidated)
 			{
-				const CurveVertex@ p2 = vert(i, 1);
-				const CurveControlPoint@ cp = p1.quad_control_point;
+				const CurveVertex@ p3 = vert(i, 1);
 				
-				float sx1, sy1, sx2, sy2;
-				
-				if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
+				// Linear fallback.
+				if(p1.type == Square && p3.type == Square)
 				{
-					QuadraticBezier::bounding_box(
-						p1.x, p1.y, p1.x + cp.x, p1.y + cp.y, p2.x, p2.y,
-						p1.x1, p1.y1, p1.x2, p1.y2);
+					p1.x1 = p1.x < p3.x ? p1.x : p3.x;
+					p1.y1 = p1.y < p3.y ? p1.y : p3.y;
+					p1.x2 = p1.x > p3.x ? p1.x : p3.x;
+					p1.y2 = p1.y > p3.y ? p1.y : p3.y;
 				}
 				else
 				{
-					QuadraticBezier::bounding_box(
-						p1.x, p1.y, p1.x + cp.x, p1.y + cp.y, p2.x, p2.y,
-						p1.weight, cp.weight, p2.weight,
-						p1.x1, p1.y1, p1.x2, p1.y2);
+					const CurveControlPoint@ p2 = p1.quad_control_point;
+					
+					if(p1.weight == p2.weight && p2.weight == p3.weight)
+					{
+						QuadraticBezier::bounding_box(
+							p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
+							p1.x1, p1.y1, p1.x2, p1.y2);
+					}
+					else
+					{
+						QuadraticBezier::bounding_box(
+							p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
+							p1.weight, p2.weight, p3.weight,
+							p1.x1, p1.y1, p1.x2, p1.y2);
+					}
 				}
 			}
 			
@@ -1284,27 +1294,57 @@ class MultiCurve
 			
 			if(p1.invalidated)
 			{
-				const CurveVertex@ p2 = vert(i, 1);
-				const CurveControlPoint@ cp1 = p1.cubic_control_point_2;
-				const CurveControlPoint@ cp2 = p2.cubic_control_point_1;
+				const CurveVertex@ p4 = vert(i, 1);
 				
-				float sx1, sy1, sx2, sy2;
-				
-				if(p1.weight == 1 && cp1.weight == 1 &&  cp2.weight == 1 && p2.weight == 1)
+				// Linear fallback.
+				if(p1.type == Square && p4.type == Square)
 				{
-					CubicBezier::bounding_box(
-						p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
-						p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
-						p1.x1, p1.y1, p1.x2, p1.y2);
+					p1.x1 = p1.x < p4.x ? p1.x : p4.x;
+					p1.y1 = p1.y < p4.y ? p1.y : p4.y;
+					p1.x2 = p1.x > p4.x ? p1.x : p4.x;
+					p1.y2 = p1.y > p4.y ? p1.y : p4.y;
+				}
+				// Quadratic fallback.
+				else if(p1.type == Square || p4.type == Square)
+				{
+					const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+					const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+					
+					if(p1.weight == p2.weight && p2.weight == p4.weight)
+					{
+						QuadraticBezier::bounding_box(
+							p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+							p1.x1, p1.y1, p1.x2, p1.y2);
+					}
+					else
+					{
+						QuadraticBezier::bounding_box(
+							p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+							p1.weight, p2.weight, p4.weight,
+							p1.x1, p1.y1, p1.x2, p1.y2);
+					}
 				}
 				else
 				{
-					CubicBezier::bounding_box(
-						p1.x, p1.y, p1.x + cp1.x, p1.y + cp1.y,
-						p2.x + cp2.x, p2.y + cp2.y, p2.x, p2.y,
-						p1.weight, cp1.weight, cp2.weight, p2.weight,
-						p1.x1, p1.y1, p1.x2, p1.y2,
-						samples, padding);
+					const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+					const CurveControlPoint@ p3 = p4.cubic_control_point_1;
+					
+					if(p1.weight == p2.weight && p2.weight == p3.weight)
+					{
+						CubicBezier::bounding_box(
+							p1.x, p1.y, p1.x + p2.x, p1.y + p2.y,
+							p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
+							p1.x1, p1.y1, p1.x2, p1.y2);
+					}
+					else
+					{
+						CubicBezier::bounding_box(
+							p1.x, p1.y, p1.x + p2.x, p1.y + p2.y,
+							p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
+							p1.weight, p2.weight, p3.weight, p4.weight,
+							p1.x1, p1.y1, p1.x2, p1.y2,
+							samples, padding);
+					}
 				}
 			}
 			
