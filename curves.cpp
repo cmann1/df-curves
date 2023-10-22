@@ -352,8 +352,9 @@ class script : MultiCurveDebugColourCallback
 		// Update hover.
 		if(
 			mouse_in_scene && (
-			get_vertex_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index) ||
-			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index)))
+			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index) ||
+			get_vertex_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index)
+			))
 		{
 			@hover_vertex = cast<CurveVertex@>(hover_point);
 			hover_is_vertex = @hover_vertex != null;
