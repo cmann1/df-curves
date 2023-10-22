@@ -19,6 +19,7 @@
 class MultiCurve
 {
 	
+	// TODO: Allow per-control point squareness
 	// TODO: Dragging curves.
 	// TODO: Remove vertices.
 	// TODO: Splitting segments.
@@ -420,7 +421,10 @@ class MultiCurve
 		const int end = from_index + count < vertex_count ? from_index + count : vertex_count;
 		for(int i = from_index; i < end; i++)
 		{
-			CurveVertex@ p1 = @vertices[i];
+			CurveVertex@ p1 = vert(i);
+			if(@p1 == null)
+				continue;
+			
 			CurveControlPoint@ cp1 = p1.cubic_control_point_1;
 			CurveControlPoint@ cp2 = p1.cubic_control_point_2;
 			
@@ -451,7 +455,9 @@ class MultiCurve
 		const int end = from_index + count <= vertex_count ? from_index + count : vertex_count;
 		for(int i = from_index; i < end; i++)
 		{
-			CurveVertex@ p1 = @vertices[i];
+			CurveVertex@ p1 = @vert(i);
+			if(@p1 == null)
+				continue;
 			CurveControlPoint@ cp = p1.quad_control_point;
 			
 			if(!force && !is_nan(cp.x))
@@ -750,10 +756,18 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p3 = vert(i, 1);
+		
+		// Linear fallback.
+		if(p1.type == Square && p3.type == Square)
+		{
+			eval_linear(segment, t, x, y, normal_x, normal_y);
+			return;
+		}
+		
 		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval(
 				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
@@ -778,10 +792,18 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p3 = vert(i, 1);
+		
+		// Linear fallback.
+		if(p1.type == Square && p3.type == Square)
+		{
+			eval_linear_point(segment, t, x, y);
+			return;
+		}
+		
 		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval_point(
 				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
@@ -806,10 +828,18 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p3 = vert(i, 1);
+		
+		// Linear fallback.
+		if(p1.type == Square && p3.type == Square)
+		{
+			eval_linear_normal(segment, t, normal_x, normal_y);
+			return;
+		}
+		
 		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval_normal(
 				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
@@ -835,25 +865,53 @@ class MultiCurve
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
-		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1.cubic_control_point_2, p1)
-			: p1;
-		CurveControlPoint@ p3 = p4.type != Square
-			? this.p3.added(p4.cubic_control_point_1, p4)
-			: p4;
+		
+		// Linear fallback.
+		if(p1.type == Square && p4.type == Square)
+		{
+			eval_linear(segment, t, x, y, normal_x, normal_y);
+			return;
+		}
+		
+		// Quadratic fallback.
+		if(p1.type == Square || p4.type == Square)
+		{
+			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			
+			// Non-rational.
+			if(p1.weight == p2.weight && p2.weight == p4.weight)
+			{
+				QuadraticBezier::eval(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					ti, x, y, normal_x, normal_y, normalise);
+			}
+			// Rational.
+			else
+			{
+				QuadraticBezier::eval(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					p1.weight, p2.weight, p4.weight,
+					ti, x, y, normal_x, normal_y, normalise);
+			}
+			return;
+		}
+		
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1 && p4.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
 		{
 			CubicBezier::eval(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				ti, x, y, normal_x, normal_y, normalise);
 		}
 		// Rational.
 		else
 		{
 			CubicBezier::eval(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
 				ti, x, y, normal_x, normal_y, normalise);
 		}
@@ -867,25 +925,53 @@ class MultiCurve
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
-		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1.cubic_control_point_2, p1)
-			: p1;
-		CurveControlPoint@ p3 = p4.type != Square
-			? this.p3.added(p4.cubic_control_point_1, p4)
-			: p4;
+		
+		// Linear fallback.
+		if(p1.type == Square && p4.type == Square)
+		{
+			eval_linear_point(segment, t, x, y);
+			return;
+		}
+		
+		// Quadratic fallback.
+		if(p1.type == Square || p4.type == Square)
+		{
+			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			
+			// Non-rational.
+			if(p1.weight == p2.weight && p2.weight == p4.weight)
+			{
+				QuadraticBezier::eval_point(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					ti, x, y);
+			}
+			// Rational.
+			else
+			{
+				QuadraticBezier::eval_point(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					p1.weight, p2.weight, p4.weight,
+					ti, x, y);
+			}
+			return;
+		}
+		
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1 && p4.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
 		{
 			CubicBezier::eval_point(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				ti, x, y);
 		}
 		// Rational.
 		else
 		{
 			CubicBezier::eval_point(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
 				ti, x, y);
 		}
@@ -899,25 +985,53 @@ class MultiCurve
 		
 		CurveVertex@ p1 = @vertices[i];
 		CurveVertex@ p4 = vert(i, 1);
-		CurveControlPoint@ p2 = p1.type != Square
-			? this.p0.added(p1.cubic_control_point_2, p1)
-			: p1;
-		CurveControlPoint@ p3 = p4.type != Square
-			? this.p3.added(p4.cubic_control_point_1, p4)
-			: p4;
+		
+		// Linear fallback.
+		if(p1.type == Square && p4.type == Square)
+		{
+			eval_linear_normal(segment, t, normal_x, normal_y);
+			return;
+		}
+		
+		// Quadratic fallback.
+		if(p1.type == Square || p4.type == Square)
+		{
+			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			
+			// Non-rational.
+			if(p1.weight == p2.weight && p2.weight == p4.weight)
+			{
+				QuadraticBezier::eval_normal(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					ti, normal_x, normal_y, normalise);
+			}
+			// Rational.
+			else
+			{
+				QuadraticBezier::eval_normal(
+					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					p1.weight, p2.weight, p4.weight,
+					ti, normal_x, normal_y, normalise);
+			}
+			return;
+		}
+		
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
-		if(p1.weight == 1 && p2.weight == 1 && p3.weight == 1 && p4.weight == 1)
+		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
 		{
 			CubicBezier::eval_normal(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				ti, normal_x, normal_y, normalise);
 		}
 		// Rational.
 		else
 		{
 			CubicBezier::eval_normal(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
 				ti, normal_x, normal_y, normalise);
 		}

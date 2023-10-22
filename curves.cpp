@@ -5,6 +5,7 @@
 #include '../lib/enums/GVB.cpp';
 #include '../lib/enums/VK.cpp';
 
+#include 'CurveTypeUtils.cpp';
 #include 'MultiCurve.cpp';
 #include 'MultiCurveDebug.cpp';
 
@@ -40,7 +41,11 @@ class script : MultiCurveDebugColourCallback
 	EditState state = Idle;
 	
 	CurveControlPoint@ hover_point;
+	CurveVertex@ hover_vertex;
+	bool hover_is_vertex;
 	CurveControlPoint@ drag_point;
+	CurveVertex@ drag_vertex;
+	bool drag_is_vertex;
 	int hover_vertex_index;
 	int hover_segment_index;
 	int hover_control_point_index;
@@ -92,8 +97,8 @@ class script : MultiCurveDebugColourCallback
 	{
 		update_curve_precision();
 		
-		curve.type = BSpline;
 		curve.closed = true;
+		curve.type = QuadraticBezier;
 		
 		recreate_spline();
 		
@@ -176,7 +181,7 @@ class script : MultiCurveDebugColourCallback
 			}
 			curve.invalidate();
 			curve.validate();
-			display_text_at_curve('Curve type: ' + get_curve_name(curve.type), 30);
+			display_text_at_curve('Curve type: ' + Curve::get_type_name(curve.type), 30);
 		}
 		if(check_pressed(VK::L) && curve.type == CatmullRom)
 		{
@@ -267,8 +272,8 @@ class script : MultiCurveDebugColourCallback
 				closest_point.dx = closest_point.from_x - closest_point.x;
 				closest_point.dy = closest_point.from_y - closest_point.y;
 				closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
-				closest_point.nx = closest_point.dx / closest_point.dist;
-				closest_point.ny = closest_point.dy / closest_point.dist;
+				closest_point.nx = closest_point.dist != 0 ? closest_point.dx / closest_point.dist : 0;
+				closest_point.ny = closest_point.dist != 0 ? closest_point.dy / closest_point.dist : 0;
 			}
 		}
 		else
@@ -343,12 +348,16 @@ class script : MultiCurveDebugColourCallback
 			get_vertex_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index) ||
 			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index))
 		{
+			@hover_vertex = cast<CurveVertex@>(hover_point);
+			hover_is_vertex = @hover_vertex != null;
+			
 			debug_draw.hovered_vertex_index = hover_vertex_index;
 			debug_draw.hovered_control_point_index = hover_control_point_index;
 		}
 		else
 		{
 			@hover_point = null;
+			@hover_vertex = null;
 			hover_segment_index = -1;
 			hover_vertex_index = -1;
 			hover_control_point_index = 0;
@@ -358,22 +367,35 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.hovered_control_point_index = 0;
 		}
 		
+		if(mouse_in_scene && mouse.left_press && shift_down && @hover_vertex != null)
+		{
+			switch(hover_vertex.type)
+			{
+				case Square: hover_vertex.type = Smooth; break;
+				case Smooth: hover_vertex.type = Square; break;
+			}
+			
+			curve.invalidate(hover_vertex_index);
+			curve_changed = Validate;
+			
+			display_text(Curve::get_vertex_type_name(hover_vertex.type), 30);
+			return;
+		}
+		
 		if(mouse_in_scene && mouse.right_double_click && alt_down)
 		{
 			if(@hover_point != null)
 			{
-				CurveVertex@ v = cast<CurveVertex@>(hover_point);
-				
 				if(curve.type != CatmullRom)
 				{
 					hover_point.weight = 1;
-					curve.invalidate(drag_vertex_index, @v == null);
+					curve.invalidate(hover_vertex_index, !hover_is_vertex);
 					curve_changed = Validate;
 				}
-				else if(@v != null)
+				else if(hover_is_vertex)
 				{
-					v.tension = 1;
-					curve.invalidate(drag_vertex_index, true);
+					hover_vertex.tension = 1;
+					curve.invalidate(hover_vertex_index, true);
 					curve_changed = Validate;
 				}
 			}
@@ -541,7 +563,7 @@ class script : MultiCurveDebugColourCallback
 	{
 		if(!mouse.left_down)
 		{
-			@drag_point = null;
+			stop_drag();
 			state = Idle;
 			return;
 		}
@@ -551,8 +573,7 @@ class script : MultiCurveDebugColourCallback
 			drag_point.x = mouse.x + drag_ox;
 			drag_point.y = mouse.y + drag_oy;
 			
-			CurveVertex@ v = cast<CurveVertex@>(drag_point);
-			curve.invalidate(drag_segment_index, @v == null);
+			curve.invalidate(drag_segment_index, !drag_is_vertex);
 			curve_changed = Validate;
 		}
 	}
@@ -561,21 +582,19 @@ class script : MultiCurveDebugColourCallback
 	{
 		if(!mouse.right_down)
 		{
-			@drag_point = null;
+			stop_drag();
 			state = Idle;
 			return;
 		}
-		
-		CurveVertex@ v = cast<CurveVertex@>(drag_point);
 		
 		if(mouse.moved)
 		{
 			if(curve.type == CatmullRom)
 			{
-				if(@v != null)
+				if(drag_is_vertex)
 				{
-					v.tension = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.25, 30.0);
-					display_txt.text('Tension: ' + str(v.tension));
+					drag_vertex.tension = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.25, 30.0);
+					display_txt.text('Tension: ' + str(drag_vertex.tension));
 				}
 				
 				curve.invalidate(drag_segment_index, true);
@@ -583,19 +602,19 @@ class script : MultiCurveDebugColourCallback
 			}
 			else
 			{
-				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, 0.05, 60.0);
+				drag_point.weight = clamp(drag_oy + (mouse.x - drag_ox) / zoom_factor * 0.2, drag_is_vertex ? 0.05 : 0.001, 60.0);
 				display_txt.text('Weight: ' + str(drag_point.weight));
 				
-				curve.invalidate(drag_segment_index, @v == null);
+				curve.invalidate(drag_segment_index, !drag_is_vertex);
 				curve_changed = Validate;
 			}
 		}
 		
 		if(curve.type == CatmullRom)
 		{
-			if(@v != null)
+			if(drag_is_vertex)
 			{
-				display_txt.text('Tension: ' + str(v.tension));
+				display_txt.text('Tension: ' + str(drag_vertex.tension));
 			}
 		}
 		else
@@ -658,6 +677,10 @@ class script : MultiCurveDebugColourCallback
 		for(int i = 0; i < curve.vertex_count; i++)
 		{
 			CurveVertex@ p = curve.vertices[i];
+			CurveVertex@ p2 = curve.vert(i, 1);
+			
+			if(p.type == Square && (p2.type == Square || curve.type == CubicBezier))
+				continue;
 			
 			for(int j = cp_i1; j < cp_i2; j++)
 			{
@@ -688,9 +711,20 @@ class script : MultiCurveDebugColourCallback
 	void start_drag_hover()
 	{
 		@drag_point = hover_point;
+		@drag_vertex = hover_vertex;
+		drag_is_vertex = hover_is_vertex;
 		drag_segment_index = hover_segment_index;
 		drag_vertex_index = hover_vertex_index;
 		drag_control_point_index = hover_control_point_index;
+	}
+	
+	void stop_drag()
+	{
+		@drag_point = null;
+		@drag_vertex = null;
+		drag_segment_index = -1;
+		drag_vertex_index = -1;
+		drag_control_point_index = 0;
 	}
 	
 	void recreate_spline()
@@ -791,20 +825,6 @@ class script : MultiCurveDebugColourCallback
 	private bool check_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_gvb(gvb); }
 	private bool check_pressed_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_pressed_gvb(gvb); }
 	private bool check_release_gvb(const int gvb) { return !is_polling_keyboard && input.key_check_released_gvb(gvb); }
-	
-	private string get_curve_name(const CurveType type)
-	{
-		switch(curve.type)
-		{
-			case CurveType::Linear: return 'Linear';
-			case CurveType::QuadraticBezier: return 'QuadraticBezier';
-			case CurveType::CubicBezier: return 'CubicBezier';
-			case CurveType::CatmullRom: return 'CatmullRom';
-			case CurveType::BSpline: return 'BSpline';
-		}
-		
-		return 'Unknown';
-	}
 	
 }
 

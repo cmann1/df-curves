@@ -108,6 +108,10 @@ class MultiCurveDebug
 			
 			if(curve.type == CurveType::QuadraticBezier)
 			{
+				CurveVertex@ p2 = curve.vert(i, 1);
+				
+				if(p.type == Square && p2.type == Square)
+					continue;
 				if(!curve.closed && i == curve.vertex_count - 1)
 					continue;
 				
@@ -115,7 +119,6 @@ class MultiCurveDebug
 				
 				if(clip)
 				{
-					CurveVertex@ p2 = curve.vert(i, 1);
 					const float x1 = min(min(p.x, cp.x), p2.x);
 					const float y1 = min(min(p.y, cp.y), p2.y);
 					const float x2 = max(max(p.x, cp.x), p2.x);
@@ -130,7 +133,6 @@ class MultiCurveDebug
 					
 					if(int(i) < curve.vertex_count - 1 || curve.closed)
 					{
-						CurveVertex@ p2 = curve.vert(i, 1);
 						c.draw_line(p2.x, p2.y, cp.x, cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
 					}
 				}
@@ -145,6 +147,9 @@ class MultiCurveDebug
 			}
 			else if(curve.type == CurveType::CubicBezier)
 			{
+				if(p.type == Square)
+					continue;
+				
 				CurveControlPoint@ cp1 = p.cubic_control_point_1;
 				CurveControlPoint@ cp2 = p.cubic_control_point_2;
 				
