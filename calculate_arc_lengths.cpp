@@ -133,6 +133,8 @@ namespace Curve
 	{
 		out_dx = x2 - x1;
 		out_dy = y2 - y1;
+		if(is_nan(out_dx)) out_dx = 0;
+		if(is_nan(out_dy)) out_dy = 0;
 		out_arc_length_sqr = out_dx * out_dx + out_dy * out_dy;
 		out_arc_length = sqrt(out_arc_length_sqr);
 		out_nx = out_arc_length != 0 ? out_dy / out_arc_length : 0.0;
