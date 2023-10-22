@@ -53,6 +53,7 @@ class script : MultiCurveDebugColourCallback
 	int drag_segment_index;
 	int drag_control_point_index;
 	float drag_ox, drag_oy;
+	float drag_cp_x, drag_cp_y;
 	ClosestPointTest closest_point;
 	
 	MultiCurve curve;
@@ -175,10 +176,6 @@ class script : MultiCurveDebugColourCallback
 		if(check_pressed(VK::OemComma))
 		{
 			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
-			if(curve.type == QuadraticBezier)
-			{
-				curve.init_bezier_control_points(true);
-			}
 			curve.invalidate();
 			curve.validate();
 			display_text_at_curve('Curve type: ' + Curve::get_type_name(curve.type), 30);
@@ -344,6 +341,7 @@ class script : MultiCurveDebugColourCallback
 	
 	void state_idle()
 	{
+		// Update hover.
 		if(
 			get_vertex_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index) ||
 			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index))
@@ -367,6 +365,7 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.hovered_control_point_index = 0;
 		}
 		
+		// Change vertex shape.
 		if(mouse_in_scene && mouse.left_press && shift_down && @hover_vertex != null)
 		{
 			switch(hover_vertex.type)
@@ -382,6 +381,7 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
+		// Reset weight.
 		if(mouse_in_scene && mouse.right_double_click && alt_down)
 		{
 			if(@hover_point != null)
@@ -402,15 +402,24 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
+		// Start dragging.
 		if(mouse_in_scene && mouse.left_press && @hover_point != null)
 		{
 			start_drag_hover();
 			drag_ox = drag_point.x - mouse.x;
 			drag_oy = drag_point.y - mouse.y;
+			
+			if(drag_is_vertex && curve.type == QuadraticBezier)
+			{
+				drag_cp_x = drag_vertex.x + drag_vertex.quad_control_point.x;
+				drag_cp_y = drag_vertex.y + drag_vertex.quad_control_point.y;
+			}
+			
 			state = DragVertex;
 			return;
 		}
 		
+		// Start dragging weight.
 		if(mouse_in_scene && mouse.right_press && alt_down && @hover_point != null)
 		{
 			start_drag_hover();
@@ -419,6 +428,8 @@ class script : MultiCurveDebugColourCallback
 			state = DragWeight;
 			return;
 		}
+		
+		// DEBUG Split >>>>
 		
 		if(closest_point.found && curve.type == QuadraticBezier)
 		{
@@ -572,6 +583,12 @@ class script : MultiCurveDebugColourCallback
 		{
 			drag_point.x = mouse.x + drag_ox;
 			drag_point.y = mouse.y + drag_oy;
+			
+			if(drag_is_vertex && curve.type == QuadraticBezier)
+			{
+				drag_vertex.quad_control_point.x = drag_cp_x - drag_vertex.x;
+				drag_vertex.quad_control_point.y = drag_cp_y - drag_vertex.y;
+			}
 			
 			curve.invalidate(drag_segment_index, !drag_is_vertex);
 			curve_changed = Validate;
