@@ -6,6 +6,7 @@
 #include 'QuadraticBezierRational.cpp';
 
 #include 'calculate_arc_lengths.cpp';
+#include 'catmull_rom_to_cubic_bezier.cpp';
 #include 'closest_point.cpp';
 #include 'CurveVertex.cpp';
 #include 'MultiCuveSubdivisionSettings.cpp';
