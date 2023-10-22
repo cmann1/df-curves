@@ -141,10 +141,10 @@ namespace Curve
 		const float angle_diff = angle_min > 0 && allow_subdivide
 			? acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) : 0.0;
 		
-		const bool subdivide =
+		const bool subdivide = out_arc_length != 0 && (
 			angle_max > 0 && acos(clamp(n1x * n2x + n1y * n2y, -1.0, 1.0)) > angle_max ||
 			length_max > 0 && out_dx * out_dx + out_dy * out_dy > length_max * length_max ||
-			allow_subdivide && angle_diff > angle_min;
+			allow_subdivide && angle_diff > angle_min);
 		
 		// Calculate the mid point between t1 and t2.
 		const float tm = (t1 + t2) * 0.5;
