@@ -815,7 +815,7 @@ class script : MultiCurveDebugColourCallback
 			settings.angle_max = 65;
 		}
 		
-		settings.max_stretch_factor = adaptive_stretch_factor ? 0.35 : 0.0;
+		settings.max_stretch_factor = adaptive_stretch_factor ? 0.2 : 0.0;
 	}
 	
 	private void display_text(const string txt, const int frames=1)
