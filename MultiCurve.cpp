@@ -92,6 +92,9 @@ class MultiCurve
 	/** The b-spline knot vector requires regneration after vertices are added/removed. */
 	private bool invalidated_b_spline_knots = true;
 	
+	/** Control points may not be initialised after changing curve type. */
+	private bool invalidated_control_points = true;
+	
 	/*private*/ BSpline@ b_spline;
 	
 	/** Temp points used when calculating automatic end control points. */
@@ -149,6 +152,7 @@ class MultiCurve
 			invalidated = true;
 			invalidated_b_spline_knots = true;
 			invalidated_b_spline_vertices = true;
+			invalidated_control_points = true;
 		}
 	}
 	
@@ -303,6 +307,12 @@ class MultiCurve
 	{
 		if(!invalidated)
 			return;
+		
+		if(invalidated_control_points)
+		{
+			init_bezier_control_points();
+			invalidated_control_points = false;
+		}
 		
 		validate_b_spline();
 		
@@ -1105,19 +1115,180 @@ class MultiCurve
 		return v;
 	}
 	
+	// -- Insert vertex --
+	//{
+	
+	/** Inserts a vertex in the given segment index, at the given position. */
+	int insert_vertex(const int segment, const float x, const float y)
+	{
+		int index;
+		CurveVertex@ p;
+		
+		if(segment >= vertex_count - 2)
+		{
+			vertices.resize(vertices.length + 1);
+			index = vertex_count++;
+			@p = vertices[index];
+		}
+		else
+		{
+			index = max(segment + 1, 0);
+			vertices.insertAt(index, CurveVertex());
+			vertex_count++;
+			@p = vertices[index];
+			p.init_control_points();
+		}
+		
+		p.x = x;
+		p.y = y;
+		
+		if(_type == CurveType::BSpline)
+		{
+			invalidated_b_spline_knots = true;
+			invalidated_b_spline_vertices = true;
+		}
+		
+		invalidate(index);
+		
+		return index;
+	}
+		
+	/** Inserts a vertex in the given segment index and t value, attempting to preserve the curve shape. */
 	int insert_vertex(const int segment, const float t)
 	{
-		if(_type != BSpline)
+		if(segment < 0 || segment >= vertex_count - (_closed ? 0 : 1))
 			return -1;
 		
-		validate_b_spline();
+		switch(_type)
+		{
+			case CurveType::CatmullRom:
+				return insert_vertex_catmull_rom(segment, t);
+			case CurveType::QuadraticBezier:
+				return insert_vertex_quadratic_bezier(segment, t);
+			case CurveType::CubicBezier:
+				return insert_vertex_cubic_bezier(segment, t);
+			case CurveType::BSpline:
+				return insert_vertex_b_spline(segment, t);
+			case CurveType::Linear:
+			default:
+				return insert_vertex_linear(segment, t);
+		}
 		
+		return -1;
+	}
+	
+	private int insert_vertex_linear(const int segment, const float t)
+	{
+		float x, y;
+		eval_linear_point(segment, t, x, y);
+		return insert_vertex(segment, x, y);
+	}
+	
+	private int insert_vertex_catmull_rom(const int segment, const float t)
+	{
+		return -1;
+	}
+	
+	private int insert_vertex_quadratic_bezier(const int segment, const float t)
+	{
+		CurveVertex@ p1 = vert(segment);
+		CurveVertex@ p3 = vert(segment, 1);
+		CurveControlPoint@ p2 = p1.quad_control_point;
+		
+		// Linear fallback.
+		if(p2.type == Square)
+		{
+			const int index = insert_vertex_linear(segment, t);
+			CurveVertex@ b1 = vertices[index];
+			b1.type = Square;
+			b1.quad_control_point.type = Square;
+			init_quadratic_bezier_control_points(true, index, 1);
+			return index;
+		}
+		
+		float a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y;
+		float a_r2, m_r, b_r2;
+		
+		// Non-rational.
+		if(p1.weight == p2.weight && p2.weight == p3.weight)
+		{
+			a_r2 = m_r = b_r2 = p1.weight;
+			
+			QuadraticBezier::split(
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
+				t,
+				a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y);
+		}
+		// Rational.
+		else
+		{
+			QuadraticBezier::split(
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
+				p1.weight, p2.weight, p3.weight,
+				t,
+				a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y,
+				a_r2, m_r, b_r2);
+		}
+		
+		CurveVertex@ a1 = vertices[segment];
+		a1.quad_control_point.type = Smooth;
+		a1.quad_control_point.x = a_p2x - a1.x;
+		a1.quad_control_point.y = a_p2y - a1.y;
+		a1.quad_control_point.weight = a_r2;
+		
+		const int index = insert_vertex(segment, m_x, m_y);
+		CurveVertex@ b1 = vertices[index];
+		b1.weight = m_r;
+		b1.quad_control_point.type = Smooth;
+		b1.quad_control_point.x = b_p2x - m_x;
+		b1.quad_control_point.y = b_p2y - m_y;
+		b1.quad_control_point.weight = b_r2;
+		
+		return index;
+	}
+	
+	private int insert_vertex_cubic_bezier(const int segment, const float t)
+	{
+		CurveVertex@ p1 = vert(segment);
+		CurveVertex@ p4 = vert(segment, 1);
+		CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		CurveControlPoint@ p3 = p4.cubic_control_point_1;
+		
+		// Linear fallback.
+		if(p2.type == Square && p3.type == Square)
+		{
+			const int index = insert_vertex_linear(segment, t);
+			CurveVertex@ b1 = vertices[index];
+			b1.type = Square;
+			init_cubic_bezier_control_points(true, index, 1);
+			b1.cubic_control_point_1.type = Square;
+			b1.cubic_control_point_2.type = Square;
+			return index;
+		}
+		
+		// Quadratic fallback.
+		if(p2.type == Square || p3.type == Square)
+		{
+			return -1;
+		}
+		
+		return -1;
+	}
+	
+	private int insert_vertex_b_spline(const int segment, const float t)
+	{
 		const float ta = calc_b_spline_t(segment, t);
 		const int new_index = b_spline.insert_vertex_linear(b_spline_degree, b_spline_clamped, closed, segment, t);
 		vertex_count++;
 		
+		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
+		invalidate(new_index);
+		
 		return new_index;
 	}
+	
+	//}
 	
 	/** Sets the type for the given vertex or control point.
 	  * If the given point is a vertex, the control points on either side may be set depending on the curve type.
@@ -1224,6 +1395,18 @@ class MultiCurve
 		return vertex_count > 0
 			? @vertices[((i + offset) % vertex_count + vertex_count) % vertex_count]
 			: null;
+	}
+	
+	/** Returns an index based on the given segment and t value that better aligns with the actual curve.
+	  * Only relevant for b-splines where the curve points may not line up exactly with vertices. */
+	int get_adjusted_segment_index(const int segment, const float t)
+	{
+		if(_type != BSpline)
+			return segment;
+		
+		return b_spline.get_adjusted_segment_index(
+			_b_spline_degree, _b_spline_clamped, _closed,
+			segment, t);
 	}
 	
 	// -- Bounding box methods --

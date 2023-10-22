@@ -399,27 +399,7 @@ class BSpline
 		
 		if(degree_c % 2 == 0)
 		{
-			t -= 0.5;
-			if(!closed && segment == 0 && t < 0.5)
-			{
-				t = (t + 0.5) * 0.5;
-				if(segment > 0)
-				{
-					segment--;
-				}
-			}
-			else if(t < 0)
-			{
-				if(closed || segment > 0)
-				{
-					t += 1;
-					segment = ((segment - 1) % vertex_count + vertex_count) % vertex_count;
-				}
-				else
-				{
-					t = 0;
-				}
-			}
+			get_adjusted_segment_index(closed, segment, t, segment, t);
 		}
 		
 		CurveVertex@ p1 = vertices[segment];
@@ -462,6 +442,52 @@ class BSpline
 		
 		const int tt =  int(segment + t + 1);
 		return tt % vertex_count;
+	}
+	
+	/** Returns an index based on the given segment and t value that better aligns with the actual curve.
+	  * since curve points may not line up exactly with vertices. */
+	int get_adjusted_segment_index(
+		const int degree, const bool clamped, const bool closed,
+		int segment, float t)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		
+		if(degree_c % 2 != 0)
+			return segment;
+		
+		get_adjusted_segment_index(closed, segment, t, segment, t);
+		
+		return (int(segment + t - 0.5) % vertex_count + vertex_count) % vertex_count;
+	}
+	
+	private void get_adjusted_segment_index(
+		const bool closed, const int segment, const float t,
+		int &out out_segment, float &out out_t)
+	{
+		out_segment = segment;
+		out_t = t - 0.5;
+		
+		if(!closed && out_segment == 0 && t < 0.5)
+		{
+			out_t = (out_t + 0.5) * 0.5;
+			if(out_segment > 0)
+			{
+				out_segment--;
+			}
+		}
+		else if(out_t < 0)
+		{
+			if(closed || out_segment > 0)
+			{
+				out_t += 1;
+				out_segment = ((out_segment - 1) % vertex_count + vertex_count) % vertex_count;
+			}
+			else
+			{
+				out_t = 0;
+			}
+		}
 	}
 	
 	// --

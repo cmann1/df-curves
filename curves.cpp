@@ -99,7 +99,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = QuadraticBezier;
+		curve.type = CubicBezier;
 		
 		recreate_spline();
 		
@@ -146,6 +146,34 @@ class script : MultiCurveDebugColourCallback
 		shift_down = input.key_check_gvb(GVB::Shift);
 		alt_down = input.key_check_gvb(GVB::Alt);
 		is_polling_keyboard = input.is_polling_keyboard();
+		
+		if(state == Idle)
+		{
+			closest_point.found = curve.closest_point(
+				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
+				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
+			
+			if(closest_point.found)
+			{
+				closest_point.from_x = mouse.x;
+				closest_point.from_y = mouse.y;
+				closest_point.dx = closest_point.from_x - closest_point.x;
+				closest_point.dy = closest_point.from_y - closest_point.y;
+				closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
+				closest_point.nx = closest_point.dist != 0 ? closest_point.dx / closest_point.dist : 0;
+				closest_point.ny = closest_point.dist != 0 ? closest_point.dy / closest_point.dist : 0;
+				
+				closest_point.hover = closest_point.dist <= debug_draw.line_width * 1.5 * zoom_factor;
+			}
+			else
+			{
+				closest_point.hover = false;
+			}
+		}
+		else
+		{
+			closest_point.found = false;
+		}
 		
 		switch(state)
 		{
@@ -256,28 +284,6 @@ class script : MultiCurveDebugColourCallback
 			curve_changed = None;
 		}
 		
-		if(state == Idle)
-		{
-			closest_point.found = curve.closest_point(
-				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
-			
-			if(closest_point.found)
-			{
-				closest_point.from_x = mouse.x;
-				closest_point.from_y = mouse.y;
-				closest_point.dx = closest_point.from_x - closest_point.x;
-				closest_point.dy = closest_point.from_y - closest_point.y;
-				closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
-				closest_point.nx = closest_point.dist != 0 ? closest_point.dx / closest_point.dist : 0;
-				closest_point.ny = closest_point.dist != 0 ? closest_point.dy / closest_point.dist : 0;
-			}
-		}
-		else
-		{
-			closest_point.found = false;
-		}
-		
 		t += speed * 0.25 * DT;
 		
 		debug.step();
@@ -301,7 +307,9 @@ class script : MultiCurveDebugColourCallback
 			const float nx =  closest_point.ny * 30 * zoom_factor;
 			const float ny = -closest_point.nx * 30 * zoom_factor;
 			g.draw_line_world(22, 22, closest_point.from_x, closest_point.from_y, closest_point.x, closest_point.y, 2 * zoom_factor, 0x33ffffff);
-			draw_dot(g, 22, 22, closest_point.x, closest_point.y, 3 * zoom_factor, 0xffffffff, 45);
+			draw_dot(
+				g, 22, closest_point.hover ? 24 : 22, closest_point.x, closest_point.y, 3 * zoom_factor,
+				closest_point.hover ? 0xffffffff : 0x55ffffff, 45);
 			g.draw_line_world(22, 22, closest_point.x - nx, closest_point.y - ny, closest_point.x + nx, closest_point.y + ny, 1 * zoom_factor, 0x33ffffff);
 		}
 		
@@ -343,8 +351,9 @@ class script : MultiCurveDebugColourCallback
 	{
 		// Update hover.
 		if(
+			mouse_in_scene && (
 			get_vertex_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index) ||
-			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index))
+			get_control_point_at_mouse(hover_point, hover_segment_index, hover_vertex_index, hover_control_point_index)))
 		{
 			@hover_vertex = cast<CurveVertex@>(hover_point);
 			hover_is_vertex = @hover_vertex != null;
@@ -365,8 +374,11 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.hovered_control_point_index = 0;
 		}
 		
+		if(!mouse_in_scene)
+			return;
+		
 		// Change vertex type.
-		if(mouse_in_scene && mouse.left_press && shift_down && @hover_point != null)
+		if(mouse.left_press && shift_down && @hover_point != null)
 		{
 			CurveControlType new_type = Smooth;
 			switch(hover_point.type)
@@ -383,7 +395,7 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Reset weight.
-		if(mouse_in_scene && mouse.right_double_click && alt_down)
+		if(mouse.right_double_click && alt_down)
 		{
 			if(@hover_point != null)
 			{
@@ -404,24 +416,17 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Start dragging.
-		if(mouse_in_scene && mouse.left_press && @hover_point != null)
+		if(mouse.left_press && @hover_point != null)
 		{
 			start_drag_hover();
-			drag_ox = drag_point.x - mouse.x;
-			drag_oy = drag_point.y - mouse.y;
-			
-			if(drag_is_vertex && curve.type == QuadraticBezier)
-			{
-				drag_cp_x = drag_vertex.x + drag_vertex.quad_control_point.x;
-				drag_cp_y = drag_vertex.y + drag_vertex.quad_control_point.y;
-			}
+			init_drag();
 			
 			state = DragVertex;
 			return;
 		}
 		
 		// Start dragging weight.
-		if(mouse_in_scene && mouse.right_press && alt_down && @hover_point != null)
+		if(mouse.right_press && alt_down && @hover_point != null)
 		{
 			start_drag_hover();
 			drag_ox = mouse.x;
@@ -430,63 +435,51 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
+		// Insert vertex.
+		if(mouse.left_press && ctrl_down && @hover_point == null)
+		{
+			int i = curve.get_adjusted_segment_index(closest_point.i, closest_point.t);
+			int new_index;
+			
+			if(closest_point.hover)
+			{
+				new_index = curve.insert_vertex(i, closest_point.t);
+			}
+			else if(closest_point.found)
+			{
+				new_index = curve.insert_vertex(i, mouse.x, mouse.y);
+				curve.init_bezier_control_points(true, new_index - 1, 2);
+			}
+			else
+			{
+				new_index = curve.insert_vertex(curve.vertex_count, mouse.x, mouse.y);
+				curve.init_bezier_control_points(true, new_index);
+			}
+			
+			if(new_index != -1)
+			{
+				curve_changed = Validate;
+				
+				CurveVertex@ v = curve.vertices[new_index];
+				
+				debug_draw.hovered_vertex_index = new_index;
+				debug_draw.hovered_control_point_index = 0;
+				@drag_point = v;
+				@drag_vertex = v;
+				drag_is_vertex = true;
+				drag_segment_index = new_index;
+				drag_vertex_index = new_index;
+				drag_control_point_index = 0;
+				
+				init_drag();
+				state = DragVertex;
+			}
+			return;
+		}
+		
 		// DEBUG Split >>>>
 		
-		if(closest_point.found && curve.type == QuadraticBezier)
-		{
-			CurveVertex@ p1 = curve.vertices[closest_point.i];
-			CurveVertex@ p3 = curve.vert(closest_point.i, 1);
-			CurveControlPoint@ p2 = p1.quad_control_point;
-			
-			float a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y;
-			float b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y;
-			float a_r1, a_r2, a_r3;
-			float b_r1, b_r2, b_r3;
-			QuadraticBezier::split(
-				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
-				p1.weight, p2.weight, p3.weight,
-				closest_point.t,
-				a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y,
-				b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y,
-				a_r1, a_r2, a_r3,
-				b_r1, b_r2, b_r3);
-			
-			const uint a_clr = 0xff00ffff;
-			const uint b_clr = 0xff00ff00;
-			g.draw_line_world(22, 23, a_p1x, a_p1y, a_p2x, a_p2y, zoom_factor, a_clr);
-			g.draw_line_world(22, 23, a_p2x, a_p2y, a_p3x, a_p3y, zoom_factor, a_clr);
-			g.draw_line_world(22, 23, b_p1x, b_p1y, b_p2x, b_p2y, zoom_factor, b_clr);
-			g.draw_line_world(22, 23, b_p2x, b_p2y, b_p3x, b_p3y, zoom_factor, b_clr);
-			
-			float ax1 = 0, ay1 = 0;
-			float bx1 = 0, by1 = 0;
-			for(int i = 0, e = 115; i <= e; i++)
-			{
-				const float t = float(i) / e;
-				float ax2, ay2;
-				float bx2, by2;
-				QuadraticBezier::eval_point(
-					a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y,
-					a_r1, a_r2, a_r3,
-					t, ax2, ay2);
-				QuadraticBezier::eval_point(
-					b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y,
-					b_r1, b_r2, b_r3,
-					t, bx2, by2);
-				
-				if(i > 0)
-				{
-					g.draw_line_world(22, 23, ax1, ay1, ax2, ay2, 2 * zoom_factor, a_clr);
-					g.draw_line_world(22, 23, bx1, by1, bx2, by2, 2 * zoom_factor, b_clr);
-				}
-				
-				ax1 = ax2;
-				ay1 = ay2;
-				bx1 = bx2;
-				by1 = by2;
-			}
-		}
-		else if(closest_point.found && curve.type == CubicBezier)
+		if(closest_point.found && curve.type == CubicBezier)
 		{
 			CurveVertex@ p1 = curve.vertices[closest_point.i];
 			CurveVertex@ p4 = curve.vert(closest_point.i, 1);
@@ -501,10 +494,17 @@ class script : MultiCurveDebugColourCallback
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
 				closest_point.t,
-				a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y,
-				b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y,
-				a_r1, a_r2, a_r3, a_r4,
-				b_r1, b_r2, b_r3, b_r4);
+				a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y, b_p2x, b_p2y, b_p3x, b_p3y,
+				a_r2, a_r3, a_r4, b_r2, b_r3);
+			a_r1 = p1.weight;
+			a_p1x = p1.x;
+			a_p1y = p1.y;
+			b_r1 = a_r4;
+			b_p1x = a_p4x;
+			b_p1y = a_p4y;
+			b_r4 = p4.weight;
+			b_p4x = p4.x;
+			b_p4y = p4.y;
 			
 			const uint a_clr = 0xff00ffff;
 			const uint b_clr = 0xff00ff00;
@@ -543,32 +543,6 @@ class script : MultiCurveDebugColourCallback
 				by1 = by2;
 			}
 		}
-		else if(closest_point.found && curve.type == BSpline)
-		{
-			MultiCurve mc = curve;
-			@mc.b_spline = BSpline();
-			mc.b_spline.set_vertices(mc.vertices, mc.vertex_count, mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-			mc.b_spline.generate_knots(mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-			const int new_index = mc.insert_vertex(closest_point.i, closest_point.t);
-			CurveVertex@ v = new_index != -1 ? curve.vert(new_index) : null;
-			if(@v != null)
-			{
-				mc.b_spline.set_vertices(mc.vertices, mc.vertex_count, mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-				mc.b_spline.generate_knots(mc.b_spline_degree, mc.b_spline_clamped, mc.closed);
-				//mc.invalidate();
-				//mc.validate();
-				
-				MultiCurveDebug dd = debug_draw;
-				dd.hovered_vertex_index = new_index;
-				//@dd.segment_colour_callback = null;
-				c.sub_layer(c.sub_layer() + 1);
-				c.push();
-				c.scale(1.1, 1.1);
-				dd.draw(c, mc, zoom_factor);
-				c.sub_layer(c.sub_layer() - 1);
-				c.pop();
-			}
-		}
 	}
 	
 	void state_drag_vertex()
@@ -585,7 +559,7 @@ class script : MultiCurveDebugColourCallback
 			drag_point.x = mouse.x + drag_ox;
 			drag_point.y = mouse.y + drag_oy;
 			
-			if(drag_is_vertex && curve.type == QuadraticBezier)
+			if(drag_is_vertex && curve.type == QuadraticBezier && drag_vertex.quad_control_point.type != Square)
 			{
 				drag_vertex.quad_control_point.x = drag_cp_x - drag_vertex.x;
 				drag_vertex.quad_control_point.y = drag_cp_y - drag_vertex.y;
@@ -735,6 +709,18 @@ class script : MultiCurveDebugColourCallback
 		drag_control_point_index = hover_control_point_index;
 	}
 	
+	void init_drag()
+	{
+		drag_ox = drag_point.x - mouse.x;
+		drag_oy = drag_point.y - mouse.y;
+		
+		if(drag_is_vertex && curve.type == QuadraticBezier)
+		{
+			drag_cp_x = drag_vertex.x + drag_vertex.quad_control_point.x;
+			drag_cp_y = drag_vertex.y + drag_vertex.quad_control_point.y;
+		}
+	}
+	
 	void stop_drag()
 	{
 		@drag_point = null;
@@ -858,6 +844,7 @@ class ClosestPointTest
 {
 	
 	bool found;
+	bool hover;
 	float from_x, from_y;
 	int i;
 	float t;
