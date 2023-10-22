@@ -23,16 +23,16 @@ class MultiCurveDebug
 	float hover_outline_thickness = 2;
 	float hover_outline_blend = 0.65;
 	
-	uint line_clr = 0xffffffff;
+	uint line_clr = 0xff222222;
 	uint normal_clr = 0xccff0000;
 	/** A colour used when rendering normals within subdivided segments.
 	  * Set to zero to use the standard normal colour. */
 	uint normal_adaptive_clr = 0xaaee7700;
 	uint outline_clr = 0x88999999;
-	uint vertex_clr = 0xffff00ff;
+	uint vertex_clr = 0xffc487f8;
 	uint quad_cp_clr = 0xffff0000;
-	uint cubic_cp1_clr = 0xffff0000;
-	uint cubic_cp2_clr = 0xff0000ff;
+	uint cubic_cp1_clr = 0xffff3322;
+	uint cubic_cp2_clr = 0xff5599ff;
 	uint segment_bounding_box_clr = 0x44002222;
 	uint bounding_box_clr = 0x66002222;
 	uint segment_index_label_clr = 0x99ffffff;
