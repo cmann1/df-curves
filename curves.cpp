@@ -431,7 +431,7 @@ class script : MultiCurveDebugColourCallback
 			float a_r1, a_r2, a_r3;
 			float b_r1, b_r2, b_r3;
 			QuadraticBezier::split(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
 				closest_point.t,
 				a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y,
@@ -689,8 +689,8 @@ class script : MultiCurveDebugColourCallback
 				
 				CurveControlPoint@ cp = j == -1 ? p.quad_control_point
 					: j == 0 ? p.cubic_control_point_1 : p.cubic_control_point_2;
-				const float cpx = (j != -1 ? p.x : 0) + cp.x - mouse.x;
-				const float cpy = (j != -1 ? p.y : 0) + cp.y - mouse.y;
+				const float cpx = p.x + cp.x - mouse.x;
+				const float cpy = p.y + cp.y - mouse.y;
 				
 				const float dist = cpx * cpx + cpy * cpy;
 				

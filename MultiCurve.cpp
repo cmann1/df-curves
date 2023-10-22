@@ -470,8 +470,8 @@ class MultiCurve
 			
 			if(force || is_nan(cp.x))
 			{
-				cp.x = p1.x + tx * 0.5;
-				cp.y = p1.y + ty * 0.5;
+				cp.x = tx * 0.5;
+				cp.y = ty * 0.5;
 			}
 		}
 	}
@@ -770,14 +770,14 @@ class MultiCurve
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				ti, x, y, normal_x, normal_y, normalise);
 		}
 		// Rational.
 		else
 		{
 			QuadraticBezier::eval(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
 				ti, x, y, normal_x, normal_y, normalise);
 		}
@@ -806,14 +806,14 @@ class MultiCurve
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval_point(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				ti, x, y);
 		}
 		// Rational.
 		else
 		{
 			QuadraticBezier::eval_point(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
 				ti, x, y);
 		}
@@ -842,14 +842,14 @@ class MultiCurve
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
 		{
 			QuadraticBezier::eval_normal(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				ti, normal_x, normal_y, normalise);
 		}
 		// Rational.
 		else
 		{
 			QuadraticBezier::eval_normal(
-				p1.x, p1.y, p2.x, p2.y, p3.x, p3.y,
+				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
 				ti, normal_x, normal_y, normalise);
 		}
@@ -1256,13 +1256,13 @@ class MultiCurve
 				if(p1.weight == 1 && cp.weight == 1 && p2.weight == 1)
 				{
 					QuadraticBezier::bounding_box(
-						p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+						p1.x, p1.y, p1.x + cp.x, p1.y + cp.y, p2.x, p2.y,
 						p1.x1, p1.y1, p1.x2, p1.y2);
 				}
 				else
 				{
 					QuadraticBezier::bounding_box(
-						p1.x, p1.y, cp.x, cp.y, p2.x, p2.y,
+						p1.x, p1.y, p1.x + cp.x, p1.y + cp.y, p2.x, p2.y,
 						p1.weight, cp.weight, p2.weight,
 						p1.x1, p1.y1, p1.x2, p1.y2);
 				}

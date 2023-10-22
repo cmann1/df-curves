@@ -119,29 +119,29 @@ class MultiCurveDebug
 				
 				if(clip)
 				{
-					const float x1 = min(min(p.x, cp.x), p2.x);
-					const float y1 = min(min(p.y, cp.y), p2.y);
-					const float x2 = max(max(p.x, cp.x), p2.x);
-					const float y2 = max(max(p.y, cp.y), p2.y);
+					const float x1 = min(min(p.x, p.x + cp.x), p2.x);
+					const float y1 = min(min(p.y, p.y + cp.y), p2.y);
+					const float x2 = max(max(p.x, p.x + cp.x), p2.x);
+					const float y2 = max(max(p.y, p.y + cp.y), p2.y);
 					if(x1 > _clip_x2 || x2 < _clip_x1 || y1 > _clip_y2 || y2 < _clip_y1)
 						continue;
 				}
 				
 				if(control_point_line_width > 0)
 				{
-					c.draw_line(p.x, p.y, cp.x, cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
+					c.draw_line(p.x, p.y, p.x + cp.x, p.y + cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
 					
 					if(int(i) < curve.vertex_count - 1 || curve.closed)
 					{
-						c.draw_line(p2.x, p2.y, cp.x, cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
+						c.draw_line(p2.x, p2.y, p.x + cp.x, p.y + cp.y, cpw, multiply_alpha(quad_cp_clr, 0.5));
 					}
 				}
 				
 				if(control_point_size > 0 && (i != hovered_vertex_index || hovered_control_point_index != 1))
 				{
 					c.draw_rectangle(
-						cp.x - cps, cp.y - cps,
-						cp.x + cps, cp.y + cps,
+						p.x + cp.x - cps, p.y + cp.y - cps,
+						p.x + cp.x + cps, p.y + cp.y + cps,
 						45, quad_cp_clr);
 				}
 			}
@@ -512,14 +512,14 @@ class MultiCurveDebug
 					const float ovs = cps + hover_outline_thickness * zoom_factor;
 					
 					c.draw_rectangle(
-						cp.x - ovs, cp.y - ovs,
-						cp.x + ovs, cp.y + ovs,
+						p.x + cp.x - ovs, p.y + cp.y - ovs,
+						p.x + cp.x + ovs, p.y + cp.y + ovs,
 						45, colour::lerp(quad_cp_clr, hover_outline_clr, hover_outline_blend));
 				}
 				
 				c.draw_rectangle(
-					cp.x - cps, cp.y - cps,
-					cp.x + cps, cp.y + cps,
+					p.x + cp.x - cps, p.y + cp.y - cps,
+					p.x + cp.x + cps, p.y + cp.y + cps,
 					45, quad_cp_clr);
 			}
 			else if(curve.type == CurveType::CubicBezier)
