@@ -19,6 +19,7 @@
 class MultiCurve
 {
 	
+	// TODO: ? Split eval and bounding box methods.
 	// TODO: Dragging curves.
 	// TODO: Remove vertices.
 	// TODO: Splitting segments.
@@ -1191,7 +1192,7 @@ class MultiCurve
 	
 	private int insert_vertex_quadratic_bezier(const int segment, const float t)
 	{
-		CurveVertex@ p1 = vert(segment);
+		CurveVertex@ p1 = vertices[segment];
 		CurveVertex@ p3 = vert(segment, 1);
 		CurveControlPoint@ p2 = p1.quad_control_point;
 		
@@ -1230,14 +1231,14 @@ class MultiCurve
 				a_r2, m_r, b_r2);
 		}
 		
-		CurveVertex@ a1 = vertices[segment];
-		a1.quad_control_point.type = Smooth;
-		a1.quad_control_point.x = a_p2x - a1.x;
-		a1.quad_control_point.y = a_p2y - a1.y;
-		a1.quad_control_point.weight = a_r2;
-		
 		const int index = insert_vertex(segment, m_x, m_y);
 		CurveVertex@ b1 = vertices[index];
+		
+		p1.quad_control_point.type = Smooth;
+		p1.quad_control_point.x = a_p2x - p1.x;
+		p1.quad_control_point.y = a_p2y - p1.y;
+		p1.quad_control_point.weight = a_r2;
+		
 		b1.weight = m_r;
 		b1.quad_control_point.type = Smooth;
 		b1.quad_control_point.x = b_p2x - m_x;
@@ -1249,7 +1250,7 @@ class MultiCurve
 	
 	private int insert_vertex_cubic_bezier(const int segment, const float t)
 	{
-		CurveVertex@ p1 = vert(segment);
+		CurveVertex@ p1 = vertices[segment];
 		CurveVertex@ p4 = vert(segment, 1);
 		CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		CurveControlPoint@ p3 = p4.cubic_control_point_1;
@@ -1269,10 +1270,104 @@ class MultiCurve
 		// Quadratic fallback.
 		if(p2.type == Square || p3.type == Square)
 		{
-			return -1;
+			CurveControlPoint@ qp2 = p2.type == Square ? p3 : p2;
+			CurveVertex@ p0 = p2.type == Square ? p4 : p1;
+			
+			float a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y;
+			float a_r2, m_r, b_r2;
+			
+			// Non-rational.
+			if(p1.weight == qp2.weight && qp2.weight == p4.weight)
+			{
+				a_r2 = m_r = b_r2 = p1.weight;
+				
+				QuadraticBezier::split(
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+					t,
+					a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y);
+			}
+			// Rational.
+			else
+			{
+				QuadraticBezier::split(
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+					p1.weight, qp2.weight, p4.weight,
+					t,
+					a_p2x, a_p2y, m_x, m_y, b_p2x, b_p2y,
+					a_r2, m_r, b_r2);
+			}
+			
+			const int index = insert_vertex(segment, m_x, m_y);
+			CurveVertex@ b1 = vertices[index];
+			b1.weight = m_r;
+			
+			CurveControlPoint@ a2 = p2.type == Square ? @b1.cubic_control_point_1 : @p2;
+			a2.type = Smooth;
+			a2.x = a_p2x - (p2.type == Square ? @b1 : @p1).x;
+			a2.y = a_p2y - (p2.type == Square ? @b1 : @p1).y;
+			a2.weight = a_r2;
+			
+			CurveControlPoint@ b2 = p2.type == Square ? @p3 : @b1.cubic_control_point_2;
+			b2.type = Smooth;
+			b2.x = b_p2x - (p2.type == Square ? @p4 : @b1).x;
+			b2.y = b_p2y - (p2.type == Square ? @p4 : @b1).y;
+			b2.weight = b_r2;
+			
+			if(p2.type == Square)
+			{
+				@b2 = @b1.cubic_control_point_2;
+				b2.type = Square;
+				b2.x = (p4.x - m_x) * 0.5;
+				b2.y = (p4.y - m_y) * 0.5;
+			}
+			
+			if(p3.type == Square)
+			{
+				@b2 = @b1.cubic_control_point_1;
+				b2.type = Square;
+				b2.x = (p1.x - m_x) * 0.5;
+				b2.y = (p1.y - m_y) * 0.5;
+			}
+			
+			return index;
 		}
 		
-		return -1;
+		float a_p2x, a_p2y, a_p3x, a_p3y, m_x, m_y;
+		float b_p2x, b_p2y, b_p3x, b_p3y;
+		float a_r2, a_r3, m_r, b_r2, b_r3;
+		
+		CubicBezier::split(
+			p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
+			p1.weight, p2.weight, p3.weight, p4.weight,
+			t,
+			a_p2x, a_p2y, a_p3x, a_p3y, m_x, m_y, b_p2x, b_p2y, b_p3x, b_p3y,
+			a_r2, a_r3, m_r, b_r2, b_r3);
+		
+		const int index = insert_vertex(segment, m_x, m_y);
+		CurveVertex@ b1 = vertices[index];
+		b1.type = p1.type;
+		
+		p2.x = a_p2x - p1.x;
+		p2.y = a_p2y - p1.y;
+		p2.weight = a_r2;
+		
+		CurveControlPoint@ cp = @b1.cubic_control_point_1;
+		cp.type = Smooth;
+		cp.x = a_p3x - m_x;
+		cp.y = a_p3y - m_y;
+		cp.weight = a_r3;
+		
+		@cp = @b1.cubic_control_point_2;
+		cp.type = Smooth;
+		cp.x = b_p2x - m_x;
+		cp.y = b_p2y - m_y;
+		cp.weight = b_r2;
+		
+		p3.x = b_p3x - p4.x;
+		p3.y = b_p3y - p4.y;
+		p3.weight = b_r3;
+		
+		return index;
 	}
 	
 	private int insert_vertex_b_spline(const int segment, const float t)

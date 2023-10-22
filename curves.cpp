@@ -302,7 +302,7 @@ class script : MultiCurveDebugColourCallback
 		//debug_draw.clip_y2 -= 250 * zoom_factor;
 		//outline_rect_outside(g, 22, 22, debug_draw.clip_x1, debug_draw.clip_y1, debug_draw.clip_x2, debug_draw.clip_y2, 5*zoom_factor, 0x88ff0000);
 		
-		if(closest_point.found)
+		if(closest_point.found && @hover_point == null)
 		{
 			const float nx =  closest_point.ny * 30 * zoom_factor;
 			const float ny = -closest_point.nx * 30 * zoom_factor;
@@ -475,73 +475,6 @@ class script : MultiCurveDebugColourCallback
 				state = DragVertex;
 			}
 			return;
-		}
-		
-		// DEBUG Split >>>>
-		
-		if(closest_point.found && curve.type == CubicBezier)
-		{
-			CurveVertex@ p1 = curve.vertices[closest_point.i];
-			CurveVertex@ p4 = curve.vert(closest_point.i, 1);
-			CurveControlPoint@ p2 = p1.cubic_control_point_2;
-			CurveControlPoint@ p3 = p4.cubic_control_point_1;
-			
-			float a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y;
-			float b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y;
-			float a_r1, a_r2, a_r3, a_r4;
-			float b_r1, b_r2, b_r3, b_r4;
-			CubicBezier::split(
-				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
-				p1.weight, p2.weight, p3.weight, p4.weight,
-				closest_point.t,
-				a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y, b_p2x, b_p2y, b_p3x, b_p3y,
-				a_r2, a_r3, a_r4, b_r2, b_r3);
-			a_r1 = p1.weight;
-			a_p1x = p1.x;
-			a_p1y = p1.y;
-			b_r1 = a_r4;
-			b_p1x = a_p4x;
-			b_p1y = a_p4y;
-			b_r4 = p4.weight;
-			b_p4x = p4.x;
-			b_p4y = p4.y;
-			
-			const uint a_clr = 0xff00ffff;
-			const uint b_clr = 0xff00ff00;
-			g.draw_line_world(22, 23, a_p1x, a_p1y, a_p2x, a_p2y, zoom_factor, a_clr);
-			g.draw_line_world(22, 23, a_p2x, a_p2y, a_p3x, a_p3y, zoom_factor, a_clr);
-			g.draw_line_world(22, 23, a_p3x, a_p3y, a_p4x, a_p4y, zoom_factor, a_clr);
-			g.draw_line_world(22, 23, b_p1x, b_p1y, b_p2x, b_p2y, zoom_factor, b_clr);
-			g.draw_line_world(22, 23, b_p2x, b_p2y, b_p3x, b_p3y, zoom_factor, b_clr);
-			g.draw_line_world(22, 23, b_p3x, b_p3y, b_p4x, b_p4y, zoom_factor, b_clr);
-			
-			float ax1 = 0, ay1 = 0;
-			float bx1 = 0, by1 = 0;
-			for(int i = 0, e = 115; i <= e; i++)
-			{
-				const float t = float(i) / e;
-				float ax2, ay2;
-				float bx2, by2;
-				CubicBezier::eval_point(
-					a_p1x, a_p1y, a_p2x, a_p2y, a_p3x, a_p3y, a_p4x, a_p4y,
-					a_r1, a_r2, a_r3, a_r4,
-					t, ax2, ay2);
-				CubicBezier::eval_point(
-					b_p1x, b_p1y, b_p2x, b_p2y, b_p3x, b_p3y, b_p4x, b_p4y,
-					b_r1, b_r2, b_r3, b_r4,
-					t, bx2, by2);
-				
-				if(i > 0)
-				{
-					g.draw_line_world(22, 23, ax1, ay1, ax2, ay2, 2 * zoom_factor, a_clr);
-					g.draw_line_world(22, 23, bx1, by1, bx2, by2, 2 * zoom_factor, b_clr);
-				}
-				
-				ax1 = ax2;
-				ay1 = ay2;
-				bx1 = bx2;
-				by1 = by2;
-			}
 		}
 	}
 	
