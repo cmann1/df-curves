@@ -14,12 +14,10 @@
 #include 'quadratic_split.cpp';
 #include 'quadratic_split_rational.cpp';
 
-/** A higher level wrapper designed for editing/manipulating curves with support for several
-  * different types as well as chaining multiple curves together. */
+/** A higher level wrapper designed for editing/manipulating different types of curves. */
 class MultiCurve
 {
 	
-	// TODO: Allow per-control point squareness
 	// TODO: Dragging curves.
 	// TODO: Remove vertices.
 	// TODO: Splitting segments.

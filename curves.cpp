@@ -173,9 +173,9 @@ class script : MultiCurveDebugColourCallback
 			is_rand = !is_rand;
 			recreate_spline();
 		}
-		if(check_pressed(VK::OemComma))
+		if(check_pressed(VK::LeftBrace) || check_pressed(VK::RightBrace))
 		{
-			curve.type = CurveType(mod(curve.type + (input.key_check_gvb(GVB::Shift) ? -1 : 1), BSpline + 1));
+			curve.type = CurveType(mod(curve.type + (check_pressed(VK::LeftBrace) ? -1 : 1), BSpline + 1));
 			curve.invalidate();
 			curve.validate();
 			display_text_at_curve('Curve type: ' + Curve::get_type_name(curve.type), 30);
@@ -213,7 +213,7 @@ class script : MultiCurveDebugColourCallback
 			adjust_initial_binary_factor = !adjust_initial_binary_factor;
 			editor_sync_vars_menu();
 		}
-		if(check_pressed(VK::LeftBrace))
+		if(check_pressed(VK::OemComma))
 		{
 			render_arc_lengths = !render_arc_lengths;
 			editor_sync_vars_menu();
