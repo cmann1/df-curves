@@ -365,19 +365,20 @@ class script : MultiCurveDebugColourCallback
 			debug_draw.hovered_control_point_index = 0;
 		}
 		
-		// Change vertex shape.
-		if(mouse_in_scene && mouse.left_press && shift_down && @hover_vertex != null)
+		// Change vertex type.
+		if(mouse_in_scene && mouse.left_press && shift_down && @hover_point != null)
 		{
-			switch(hover_vertex.type)
+			CurveControlType new_type = Smooth;
+			switch(hover_point.type)
 			{
-				case Square: hover_vertex.type = Smooth; break;
-				case Smooth: hover_vertex.type = Square; break;
+				case Square: new_type = Smooth; break;
+				case Smooth: new_type = Square; break;
 			}
 			
-			curve.invalidate(hover_vertex_index);
+			curve.set_control_type(hover_point, new_type);
 			curve_changed = Validate;
 			
-			display_text(Curve::get_vertex_type_name(hover_vertex.type), 30);
+			display_text(Curve::get_control_type_name(hover_point.type), 30);
 			return;
 		}
 		
@@ -696,9 +697,6 @@ class script : MultiCurveDebugColourCallback
 			CurveVertex@ p = curve.vertices[i];
 			CurveVertex@ p2 = curve.vert(i, 1);
 			
-			if(p.type == Square && (p2.type == Square || curve.type == CubicBezier))
-				continue;
-			
 			for(int j = cp_i1; j < cp_i2; j++)
 			{
 				if(!curve.closed && (i == 0 && j == 0 || i == curve.vertex_count - 1 && j == 1))
@@ -706,6 +704,8 @@ class script : MultiCurveDebugColourCallback
 				
 				CurveControlPoint@ cp = j == -1 ? p.quad_control_point
 					: j == 0 ? p.cubic_control_point_1 : p.cubic_control_point_2;
+				if(cp.type == Square)
+					continue;
 				const float cpx = p.x + cp.x - mouse.x;
 				const float cpy = p.y + cp.y - mouse.y;
 				

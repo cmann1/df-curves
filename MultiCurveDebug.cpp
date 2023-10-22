@@ -110,12 +110,12 @@ class MultiCurveDebug
 			{
 				CurveVertex@ p2 = curve.vert(i, 1);
 				
-				if(p.type == Square && p2.type == Square)
-					continue;
 				if(!curve.closed && i == curve.vertex_count - 1)
 					continue;
 				
 				CurveControlPoint@ cp = p.quad_control_point;
+				if(cp.type == Square)
+					continue;
 				
 				if(clip)
 				{
@@ -147,9 +147,6 @@ class MultiCurveDebug
 			}
 			else if(curve.type == CurveType::CubicBezier)
 			{
-				if(p.type == Square)
-					continue;
-				
 				CurveControlPoint@ cp1 = p.cubic_control_point_1;
 				CurveControlPoint@ cp2 = p.cubic_control_point_2;
 				
@@ -163,7 +160,7 @@ class MultiCurveDebug
 						continue;
 				}
 				
-				if(curve.closed || i > 0)
+				if(cp1.type != Square && (curve.closed || i > 0))
 				{
 					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, cpw, multiply_alpha(cubic_cp1_clr, 0.5));
 					
@@ -175,7 +172,7 @@ class MultiCurveDebug
 							45, cubic_cp1_clr);
 					}
 				}
-				if(curve.closed || i < curve.vertex_count - 1)
+				if(cp2.type != Square && (curve.closed || i < curve.vertex_count - 1))
 				{
 					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, cpw, multiply_alpha(cubic_cp2_clr, 0.5));
 					

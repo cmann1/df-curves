@@ -15,15 +15,15 @@ namespace Curve
 		return 'Unknown';
 	}
 	
-	string get_vertex_type_name(const CurveVertexType type)
+	string get_control_type_name(const CurveControlType type)
 	{
 		switch(type)
 		{
-			case CurveVertexType::Square: return 'Square';
-			case CurveVertexType::Manual: return 'Manual';
-			case CurveVertexType::Smooth: return 'Smooth';
-			case CurveVertexType::Mirror: return 'Mirror';
-			case CurveVertexType::None:
+			case CurveControlType::Square: return 'Square';
+			case CurveControlType::Manual: return 'Manual';
+			case CurveControlType::Smooth: return 'Smooth';
+			case CurveControlType::Mirror: return 'Mirror';
+			case CurveControlType::None:
 			default:
 				return 'None';
 		}

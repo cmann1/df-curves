@@ -4,15 +4,22 @@
 class CurveControlPoint : CurvePoint
 {
 	
+	[option,1:Square,Manual,Smooth,Mirror]
+	CurveControlType type = Smooth;
+	
 	/** The weight/ratio for cubic, quadratic, and b-splines. */
 	[persist] float weight = 1;
 	
+	/** The vertex this control point belongs to. */
+	CurveVertex@ vertex;
+	
 	CurveControlPoint() { }
 	
-	CurveControlPoint(const float x, const float y)
+	CurveControlPoint(const float x, const float y, CurveVertex@ vertex)
 	{
 		this.x = x;
 		this.y = y;
+		@this.vertex = vertex;
 	}
 	
 	CurveControlPoint@ added(const CurveControlPoint@ p1, const CurveControlPoint@ p2)
@@ -28,19 +35,16 @@ class CurveControlPoint : CurvePoint
 class CurveVertex : CurveControlPoint
 {
 	
-	[option,1:Square,Manual,Smooth,Mirror]
-	CurveVertexType type = Smooth;
-	
 	/** A per-segment tension for CatmullRom splines */
 	[persist] float tension = 1;
 	
 	/** The right hand side control point for this vertex. Only applicable to quadratic bezier curves. */
-	[persist] CurveControlPoint quad_control_point(NAN, NAN);
+	[persist] CurveControlPoint quad_control_point(NAN, NAN, @this);
 	
 	/** The left hand side control point for this vertex. Only applicable to cubic bezier curves. */
-	[persist] CurveControlPoint cubic_control_point_1(NAN, NAN);
+	[persist] CurveControlPoint cubic_control_point_1(NAN, NAN, @this);
 	/** The right hand side control point for this vertex. Only applicable to cubic bezier curves. */
-	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN);
+	[persist] CurveControlPoint cubic_control_point_2(NAN, NAN, @this);
 	
 	bool invalidated = true;
 	
@@ -128,7 +132,7 @@ class CurveArc
 	
 }
 
-enum CurveVertexType
+enum CurveControlType
 {
 	
 	/** This vertex has not been calculated/assigned yet. */

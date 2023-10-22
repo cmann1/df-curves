@@ -235,31 +235,6 @@ class MultiCurve
 	
 	// --
 	
-	void clear()
-	{
-		vertices.resize(0);
-		vertex_count = 0;
-		
-		control_point_start.type = None;
-		control_point_end.type = None;
-		
-		invalidate(0, vertex_count);
-		invalidated_b_spline_knots = true;
-	}
-	
-	CurveVertex@ add_vertex(const float x, const float y)
-	{
-		vertices.insertLast(CurveVertex(x, y));
-		
-		init_bezier_control_points(false, vertex_count - 1, 1);
-		
-		invalidated = true;
-		invalidated_b_spline_knots = true;
-		invalidated_b_spline_vertices = true;
-		
-		return @vertices[vertex_count++];
-	}
-	
 	/** Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
 	  * Certain operation such as adding vertices, changing the curve type, etc. will automatically invalidate the curve, but directly setting properties
 	  * such as vertex position will require manually calling `invalidate`. */
@@ -755,16 +730,15 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
+		const CurveControlPoint@ p2 = p1.quad_control_point;
 		const CurveVertex@ p3 = vert(i, 1);
 		
 		// Linear fallback.
-		if(p1.type == Square && p3.type == Square)
+		if(p2.type == Square)
 		{
 			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
@@ -792,15 +766,14 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveVertex@ p3 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Linear fallback.
-		if(p1.type == Square && p3.type == Square)
+		if(p2.type == Square)
 		{
 			eval_linear_point(segment, t, x, y);
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
@@ -827,16 +800,15 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
+		const CurveControlPoint@ p2 = p1.quad_control_point;
 		const CurveVertex@ p3 = vert(i, 1);
 		
 		// Linear fallback.
-		if(p1.type == Square && p3.type == Square)
+		if(p2.type == Square)
 		{
 			eval_linear_normal(segment, t, normal_x, normal_y);
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight)
@@ -863,42 +835,41 @@ class MultiCurve
 		float ti;
 		calc_segment_t(segment, t, ti, i);
 		
-		CurveVertex@ p1 = @vertices[i];
-		CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p4 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Linear fallback.
-		if(p1.type == Square && p4.type == Square)
+		if(p2.type == Square && p3.type == Square)
 		{
 			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
 		
 		// Quadratic fallback.
-		if(p1.type == Square || p4.type == Square)
+		if(p2.type == Square || p3.type == Square)
 		{
-			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
-			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
 			
 			// Non-rational.
-			if(p1.weight == p2.weight && p2.weight == p4.weight)
+			if(p1.weight == qp2.weight && qp2.weight == p4.weight)
 			{
 				QuadraticBezier::eval(
-					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					ti, x, y, normal_x, normal_y, normalise);
 			}
 			// Rational.
 			else
 			{
 				QuadraticBezier::eval(
-					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
-					p1.weight, p2.weight, p4.weight,
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+					p1.weight, qp2.weight, p4.weight,
 					ti, x, y, normal_x, normal_y, normalise);
 			}
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
-		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
@@ -923,42 +894,41 @@ class MultiCurve
 		float ti;
 		calc_segment_t(segment, t, ti, i);
 		
-		CurveVertex@ p1 = @vertices[i];
-		CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p4 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Linear fallback.
-		if(p1.type == Square && p4.type == Square)
+		if(p2.type == Square && p3.type == Square)
 		{
 			eval_linear_point(segment, t, x, y);
 			return;
 		}
 		
 		// Quadratic fallback.
-		if(p1.type == Square || p4.type == Square)
+		if(p2.type == Square || p3.type == Square)
 		{
-			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
-			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
 			
 			// Non-rational.
-			if(p1.weight == p2.weight && p2.weight == p4.weight)
+			if(p1.weight == qp2.weight && qp2.weight == p4.weight)
 			{
 				QuadraticBezier::eval_point(
-					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					ti, x, y);
 			}
 			// Rational.
 			else
 			{
 				QuadraticBezier::eval_point(
-					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
-					p1.weight, p2.weight, p4.weight,
+					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+					p1.weight, qp2.weight, p4.weight,
 					ti, x, y);
 			}
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
-		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
@@ -983,21 +953,23 @@ class MultiCurve
 		float ti;
 		calc_segment_t(segment, t, ti, i);
 		
-		CurveVertex@ p1 = @vertices[i];
-		CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p4 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Linear fallback.
-		if(p1.type == Square && p4.type == Square)
+		if(p2.type == Square && p3.type == Square)
 		{
 			eval_linear_normal(segment, t, normal_x, normal_y);
 			return;
 		}
 		
 		// Quadratic fallback.
-		if(p1.type == Square || p4.type == Square)
+		if(p2.type == Square || p3.type == Square)
 		{
-			const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
-			const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+			const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
 			
 			// Non-rational.
 			if(p1.weight == p2.weight && p2.weight == p4.weight)
@@ -1016,9 +988,6 @@ class MultiCurve
 			}
 			return;
 		}
-		
-		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
-		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
 		// Non-rational.
 		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
@@ -1109,6 +1078,34 @@ class MultiCurve
 	
 	// -- Modification methods --
 	
+	void clear()
+	{
+		vertices.resize(0);
+		vertex_count = 0;
+		
+		control_point_start.type = None;
+		control_point_end.type = None;
+		
+		invalidate(0, vertex_count);
+		invalidated_b_spline_knots = true;
+	}
+	
+	CurveVertex@ add_vertex(const float x, const float y)
+	{
+		vertices.resize(vertices.length + 1);
+		CurveVertex@ v = vertices[vertex_count++];
+		v.x = x;
+		v.y = y;
+		
+		init_bezier_control_points(false, vertex_count - 1, 1);
+		
+		invalidated = true;
+		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
+		
+		return v;
+	}
+	
 	int insert_vertex(const int segment, const float t)
 	{
 		if(_type != BSpline)
@@ -1121,6 +1118,55 @@ class MultiCurve
 		vertex_count++;
 		
 		return new_index;
+	}
+	
+	/** Sets the type for the given vertex or control point.
+	  * If the given point is a vertex, the control points on either side may be set depending on the curve type.
+	  * Certain types are only applicable to vertices. */
+	void set_control_type(CurveControlPoint@ point, const CurveControlType type)
+	{
+		if(type == CurveControlType::None)
+			return;
+		
+		CurveVertex@ v = cast<CurveVertex@>(point);
+		
+		if(@v != null)
+		{
+			const int index = vertices.findByRef(v);
+			
+			if(_type == QuadraticBezier || _type == CubicBezier)
+			{
+				if(index != -1)
+				{
+					CurveControlPoint@ cp_l = _type == CubicBezier ? @v.cubic_control_point_1 : _closed || index > 0 ? @vert(index, -1).quad_control_point : null;
+					CurveControlPoint@ cp_r = _type == CubicBezier ? @v.cubic_control_point_2 : @v.quad_control_point;
+					
+					if(@cp_l != null)
+					{
+						cp_l.type = type == Square ? Square : Smooth;
+					}
+					if(@cp_r != null)
+					{
+						cp_r.type = type == Square ? Square : Smooth;
+					}
+				}
+			}
+			
+			v.type = type;
+			invalidate(index);
+		}
+		else if(type != CurveControlType::Manual && type != CurveControlType::Mirror)
+		{
+			int index = vertices.findByRef(point.vertex);
+			
+			if(_type == CubicBezier && @point == @point.vertex.cubic_control_point_1)
+			{
+				index--;
+			}
+			
+			point.type = type;
+			invalidate((index % vertex_count + vertex_count) % vertex_count, true);
+		}
 	}
 	
 	// --
@@ -1249,9 +1295,10 @@ class MultiCurve
 			if(p1.invalidated)
 			{
 				const CurveVertex@ p3 = vert(i, 1);
+				const CurveControlPoint@ p2 = p1.quad_control_point;
 				
 				// Linear fallback.
-				if(p1.type == Square && p3.type == Square)
+				if(p2.type == Square)
 				{
 					p1.x1 = p1.x < p3.x ? p1.x : p3.x;
 					p1.y1 = p1.y < p3.y ? p1.y : p3.y;
@@ -1260,7 +1307,6 @@ class MultiCurve
 				}
 				else
 				{
-					const CurveControlPoint@ p2 = p1.quad_control_point;
 					
 					if(p1.weight == p2.weight && p2.weight == p3.weight)
 					{
@@ -1295,9 +1341,11 @@ class MultiCurve
 			if(p1.invalidated)
 			{
 				const CurveVertex@ p4 = vert(i, 1);
+				const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+				const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 				
 				// Linear fallback.
-				if(p1.type == Square && p4.type == Square)
+				if(p2.type == Square && p3.type == Square)
 				{
 					p1.x1 = p1.x < p4.x ? p1.x : p4.x;
 					p1.y1 = p1.y < p4.y ? p1.y : p4.y;
@@ -1305,30 +1353,27 @@ class MultiCurve
 					p1.y2 = p1.y > p4.y ? p1.y : p4.y;
 				}
 				// Quadratic fallback.
-				else if(p1.type == Square || p4.type == Square)
+				else if(p2.type == Square || p3.type == Square)
 				{
-					const CurveControlPoint@ p2 = p1.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
-					const CurveControlPoint@ p0 = p1.type == Square ? p4 : p1;
+					const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+					const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
 					
-					if(p1.weight == p2.weight && p2.weight == p4.weight)
+					if(p1.weight == qp2.weight && qp2.weight == p4.weight)
 					{
 						QuadraticBezier::bounding_box(
-							p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
+							p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 							p1.x1, p1.y1, p1.x2, p1.y2);
 					}
 					else
 					{
 						QuadraticBezier::bounding_box(
-							p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
-							p1.weight, p2.weight, p4.weight,
+							p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+							p1.weight, qp2.weight, p4.weight,
 							p1.x1, p1.y1, p1.x2, p1.y2);
 					}
 				}
 				else
 				{
-					const CurveControlPoint@ p2 = p1.cubic_control_point_2;
-					const CurveControlPoint@ p3 = p4.cubic_control_point_1;
-					
 					if(p1.weight == p2.weight && p2.weight == p3.weight)
 					{
 						CubicBezier::bounding_box(
