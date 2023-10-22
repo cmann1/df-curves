@@ -38,7 +38,10 @@ namespace Curve
 			CurveVertex@ v = vertices[i];
 			
 			if(only_invalidated && !v.invalidated)
+			{
+				total_length += v.length;
 				continue;
+			}
 			
 			array<CurveArc>@ arcs = @v.arcs;
 			uint arc_count = 0;
