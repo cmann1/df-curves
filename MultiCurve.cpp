@@ -1130,7 +1130,7 @@ class MultiCurve
 		int index;
 		CurveVertex@ p;
 		
-		if(segment >= vertex_count - 2)
+		if(segment >= vertex_count - 1)
 		{
 			vertices.resize(vertices.length + 1);
 			index = vertex_count++;
