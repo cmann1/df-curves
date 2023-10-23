@@ -106,7 +106,6 @@ class MultiCurve
 	/** Temp points used when calculating automatic end control points. */
 	private CurveVertex p0;
 	private CurveVertex p3;
-	private CurveArc _ct1, _ct2;
 	
 	private Curve::EvalFunc@ eval_func_def;
 	private Curve::EvalPointFunc@ eval_point_func_def;
@@ -152,8 +151,6 @@ class MultiCurve
 			{
 				@b_spline = BSpline();
 			}
-			
-			init_bezier_control_points();
 			
 			invalidated = true;
 			invalidated_b_spline_knots = true;
@@ -1101,8 +1098,10 @@ class MultiCurve
 		control_point_start.type = None;
 		control_point_end.type = None;
 		
-		invalidate(0, vertex_count);
+		invalidated = true;
 		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
+		invalidated_control_points = true;
 	}
 	
 	CurveVertex@ add_vertex(const float x, const float y)
@@ -1112,11 +1111,10 @@ class MultiCurve
 		v.x = x;
 		v.y = y;
 		
-		init_bezier_control_points(false, vertex_count - 1, 1);
-		
 		invalidated = true;
 		invalidated_b_spline_knots = true;
 		invalidated_b_spline_vertices = true;
+		invalidated_control_points = true;
 		
 		return v;
 	}
@@ -1708,16 +1706,6 @@ class MultiCurve
 		
 		control_point_end.type = Square;
 		return get_auto_control_end(control_point_end, CurveEndControl::AutomaticAngle);
-	}
-	
-	private void invalidate_b_spline(const bool also_invalidate_knots=false)
-	{
-		if(also_invalidate_knots)
-		{
-			invalidated_b_spline_knots = true;
-		}
-		
-		invalidated_b_spline_vertices = true;
 	}
 	
 	private void calc_segment_t(const int segment, const float t, float & out ts, int &out i)

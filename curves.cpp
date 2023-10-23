@@ -695,7 +695,7 @@ class script : MultiCurveDebugColourCallback
 			curve.vertices[0].quad_control_point.weight = 13.6;
 		}
 		
-		curve.init_bezier_control_points(true);
+		//curve.init_bezier_control_points(true);
 		//curve.vertices[2].quad_control_point.set(-100, 200);
 		
 		curve_changed = All;
