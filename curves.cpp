@@ -577,8 +577,8 @@ class script : MultiCurveDebugColourCallback
 				closest_dist = dist;
 				@result = p;
 				segment_index = i == -2 ? curve.vertex_count - 2 : clamp(i, 0, curve.vertex_count - 1);
-				vertex_index = i == -2 ? -1 : i == -1 ? curve.vertex_count : i;
-				control_point_index = i == -2 ? -1 : i == -1 ? 1 : 0;
+				vertex_index = i >= 0 ? i : -1;
+				control_point_index = i == -1 ? -1 : i == -2 ? curve.vertex_count : 0;
 			}
 		}
 		

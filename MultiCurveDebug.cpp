@@ -542,6 +542,27 @@ class MultiCurveDebug
 					x + cps, y + cps,
 					45, cp_clr);
 			}
+			else if(
+				curve.type == CatmullRom && !curve.closed && curve.end_controls == CurveEndControl::Manual &&
+				(hovered_control_point_index == -1 || hovered_control_point_index == curve.vertex_count))
+			{
+				CurveControlPoint@ cp = hovered_control_point_index == -1 ? curve.control_point_start : curve.control_point_end;
+				
+				if(hover_outline_thickness > 0 && hover_outline_clr != 0)
+				{
+					const float ovs = cps + hover_outline_thickness * zoom_factor;
+					
+					c.draw_rectangle(
+						cp.x - ovs, cp.y - ovs,
+						cp.x + ovs, cp.y + ovs,
+						45, colour::lerp(cubic_cp1_clr, hover_outline_clr, hover_outline_blend));
+				}
+				
+				c.draw_rectangle(
+					cp.x - cps, cp.y - cps,
+					cp.x + cps, cp.y + cps,
+					45, cubic_cp1_clr);
+			}
 		}
 		else if(hovered_vertex_index >= 0 && hovered_vertex_index < curve.vertex_count)
 		{
