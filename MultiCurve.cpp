@@ -1192,7 +1192,9 @@ class MultiCurve
 	
 	private int insert_vertex_catmull_rom(const int segment, const float t)
 	{
-		return -1;
+		float x, y;
+		eval_catmull_rom_point(segment, t, x, y);
+		return insert_vertex(segment, x, y);
 	}
 	
 	private int insert_vertex_quadratic_bezier(const int segment, const float t)
@@ -1377,7 +1379,6 @@ class MultiCurve
 	
 	private int insert_vertex_b_spline(const int segment, const float t)
 	{
-		const float ta = calc_b_spline_t(segment, t);
 		const int new_index = b_spline.insert_vertex_linear(b_spline_degree, b_spline_clamped, closed, segment, t);
 		vertex_count++;
 		

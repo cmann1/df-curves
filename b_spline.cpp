@@ -397,11 +397,6 @@ class BSpline
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
 		const float u = init_t(v_count, degree_c, closed, t);
 		
-		if(degree_c % 2 == 0)
-		{
-			get_adjusted_segment_index(closed, segment, t, segment, t);
-		}
-		
 		CurveVertex@ p1 = vertices[segment];
 		CurveVertex@ p2 = vertices[(segment + 1) % vertex_count];
 		
