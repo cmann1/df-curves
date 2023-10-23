@@ -99,7 +99,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = false;
-		curve.type = CatmullRom;
+		curve.type = QuadraticBezier;
 		
 		recreate_spline();
 		
@@ -379,19 +379,32 @@ class script : MultiCurveDebugColourCallback
 			return;
 		
 		// Change vertex type.
-		if(mouse.left_press && shift_down && check_hover_point())
+		if(mouse.left_press && shift_down && (check_hover_point() || closest_point.hover))
 		{
-			CurveControlType new_type = Smooth;
-			switch(hover_point.type)
+			CurveControlType new_type;
+			
+			new_type = check_hover_point()
+				? hover_point.type
+				: curve.type == QuadraticBezier ? curve.vert(closest_point.i).quad_control_point.type : curve.vert(closest_point.i).cubic_control_point_2.type;
+			
+			switch(new_type)
 			{
 				case Square: new_type = Smooth; break;
 				case Smooth: new_type = Square; break;
+				default: new_type = Smooth; break;
 			}
 			
-			curve.set_control_type(hover_point, new_type);
-			curve_changed = Validate;
+			if(check_hover_point())
+			{
+				curve.set_control_type(hover_point, new_type);
+			}
+			else
+			{
+				curve.set_segment_control_type(closest_point.i, new_type);
+			}
 			
-			display_text(Curve::get_control_type_name(hover_point.type), 30);
+			curve_changed = Validate;
+			display_text(Curve::get_control_type_name(new_type), 30);
 			return;
 		}
 		

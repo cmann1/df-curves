@@ -24,9 +24,9 @@
 class MultiCurve
 {
 	
-	// TODO: Shift click curve to change shape
 	// TODO: Remove vertices.
 	// TODO: Dragging curves.
+	// TODO: Mirror and smooth control points
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -1421,6 +1421,24 @@ class MultiCurve
 			
 			point.type = type;
 			invalidate((index % vertex_count + vertex_count) % vertex_count, true);
+		}
+	}
+	
+	/** Set the type/shape for control points of the given segment. Only applicable if the curve type is quadratic or cubic. */
+	void set_segment_control_type(const int segment, const CurveControlType type)
+	{
+		if(_type != QuadraticBezier && _type != CubicBezier)
+			return;
+		
+		CurveVertex@ v = vert(segment);
+		CurveControlPoint@ p1 = _type == QuadraticBezier ? @v.quad_control_point : @v.cubic_control_point_2;
+		CurveControlPoint@ p2 = _type == CubicBezier ? @vert(segment, 1).cubic_control_point_1 : null;
+		
+		set_control_type(p1, type);
+		
+		if(@p2 != null)
+		{
+			set_control_type(p2, type);
 		}
 	}
 	
