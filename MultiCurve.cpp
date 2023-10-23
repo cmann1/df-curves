@@ -24,11 +24,9 @@
 class MultiCurve
 {
 	
-	// TODO: ? Split into MultiCurve and MultiCurveEdit
-	// TODO: Dragging curves.
+	// TODO: Shift click curve to change shape
 	// TODO: Remove vertices.
-	// TODO: Splitting segments.
-	// TODO: Adding vertices.
+	// TODO: Dragging curves.
 	// TODO: ? Option to not automatically calculate arc lengths.
 	// TODO: Debugdraw
 	// 		- View bounds - don't draw things outside of this
@@ -112,9 +110,6 @@ class MultiCurve
 	
 	MultiCurve()
 	{
-		control_point_start.type = None;
-		control_point_end.type = None;
-		
 		@eval_func_def = Curve::EvalFunc(eval);
 		@eval_point_func_def = Curve::EvalPointFunc(eval_point);
 	}
@@ -219,12 +214,12 @@ class MultiCurve
 		}
 	}
 	
-	const CurveVertex@ first_vertex
+	CurveVertex@ first_vertex
 	{
 		get { return vertex_count > 0 ? vertices[0] : null; }
 	}
 	
-	const CurveVertex@ last_vertex
+	CurveVertex@ last_vertex
 	{
 		get { return vertex_count > 0 ? vertices[vertex_count - 1] : null; }
 	}
@@ -237,6 +232,11 @@ class MultiCurve
 	bool is_invalidated
 	{
 		get const { return invalidated; }
+	}
+	
+	const bool is_end_control(CurveControlPoint@ p)
+	{
+		return @p == @control_point_start || @p == @control_point_end;
 	}
 	
 	// --
@@ -1452,7 +1452,7 @@ class MultiCurve
 				: _end_controls != Manual
 					? this.p0.extrapolate(p2, p3,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
-					: check_control_point_start()
+					: this.p0.added(p2, check_control_point_start())
 			: p2;
 		@p4 = p3.type != Square
 			? closed || i < vertex_count - 2
@@ -1460,7 +1460,7 @@ class MultiCurve
 				: _end_controls != Manual
 					? this.p3.extrapolate(p3, p2,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null)
-					: check_control_point_end()
+					: this.p3.added(p3, check_control_point_end())
 			: p3;
 	}
 	
@@ -1696,7 +1696,8 @@ class MultiCurve
 			return control_point_start;
 		
 		control_point_start.type = Square;
-		return get_auto_control_start(control_point_start, CurveEndControl::AutomaticAngle);
+		return get_auto_control_start(control_point_start, CurveEndControl::AutomaticAngle)
+			.relative_to(vert(0));
 	}
 	
 	private CurveVertex@ check_control_point_end()
@@ -1705,7 +1706,8 @@ class MultiCurve
 			return control_point_end;
 		
 		control_point_end.type = Square;
-		return get_auto_control_end(control_point_end, CurveEndControl::AutomaticAngle);
+		return get_auto_control_end(control_point_end, CurveEndControl::AutomaticAngle)
+			.relative_to(vert(vertex_count - 1));
 	}
 	
 	private void calc_segment_t(const int segment, const float t, float & out ts, int &out i)

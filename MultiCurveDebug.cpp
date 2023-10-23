@@ -191,31 +191,32 @@ class MultiCurveDebug
 		{
 			if(curve.end_controls == CurveEndControl::Manual)
 			{
+				const float x1 = curve.first_vertex.x + curve.control_point_start.x;
+				const float y1 = curve.first_vertex.y + curve.control_point_start.y;
+				const float x2 = curve.last_vertex.x + curve.control_point_end.x;
+				const float y2 = curve.last_vertex.y + curve.control_point_end.y;
+				
 				if(control_point_line_width > 0)
 				{
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
-						curve.control_point_start.x, curve.control_point_start.y, cpw,
+						x1, y1, cpw,
 						multiply_alpha(outline_clr, 0.85));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
-						curve.control_point_end.x, curve.control_point_end.y, cpw,
+						x2, y2, cpw,
 						multiply_alpha(outline_clr, 0.85));
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						curve.control_point_start.x - control_point_size * zoom_factor,
-						curve.control_point_start.y - control_point_size * zoom_factor,
-						curve.control_point_start.x + control_point_size * zoom_factor,
-						curve.control_point_start.y + control_point_size * zoom_factor,
+						x1 - cps, y1 - cps,
+						x1 + cps, y1 + cps,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						curve.control_point_end.x - control_point_size * zoom_factor,
-						curve.control_point_end.y - control_point_size * zoom_factor,
-						curve.control_point_end.x + control_point_size * zoom_factor,
-						curve.control_point_end.y + control_point_size * zoom_factor,
+						x2 - cps, y2 - cps,
+						x2 + cps, y2 + cps,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 			}
@@ -228,23 +229,23 @@ class MultiCurveDebug
 				{
 					c.draw_line(
 						curve.first_vertex.x, curve.first_vertex.y,
-						p0.x, p0.y, control_point_line_width * zoom_factor,
+						p0.x, p0.y, cpw,
 						multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_line(
 						curve.last_vertex.x, curve.last_vertex.y,
-						p3.x, p3.y, control_point_line_width * zoom_factor,
+						p3.x, p3.y, cpw,
 						multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 				
 				if(control_point_size > 0)
 				{
 					c.draw_rectangle(
-						p0.x - control_point_size * zoom_factor, p0.y - control_point_size * zoom_factor,
-						p0.x + control_point_size * zoom_factor, p0.y + control_point_size * zoom_factor,
+						p0.x - cps, p0.y - cps,
+						p0.x + cps, p0.y + cps,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 					c.draw_rectangle(
-						p3.x - control_point_size * zoom_factor, p3.y - control_point_size * zoom_factor,
-						p3.x + control_point_size * zoom_factor, p3.y + control_point_size * zoom_factor,
+						p3.x - cps, p3.y - cps,
+						p3.x + cps, p3.y + cps,
 						45, multiply_alpha(cubic_cp1_clr, 0.5));
 				}
 			}
@@ -547,20 +548,21 @@ class MultiCurveDebug
 				(hovered_control_point_index == -1 || hovered_control_point_index == curve.vertex_count))
 			{
 				CurveControlPoint@ cp = hovered_control_point_index == -1 ? curve.control_point_start : curve.control_point_end;
+				CurveVertex@ v = hovered_control_point_index == -1 ? curve.first_vertex : curve.last_vertex;
 				
 				if(hover_outline_thickness > 0 && hover_outline_clr != 0)
 				{
 					const float ovs = cps + hover_outline_thickness * zoom_factor;
 					
 					c.draw_rectangle(
-						cp.x - ovs, cp.y - ovs,
-						cp.x + ovs, cp.y + ovs,
+						v.x + cp.x - ovs, v.y + cp.y - ovs,
+						v.x + cp.x + ovs, v.y + cp.y + ovs,
 						45, colour::lerp(cubic_cp1_clr, hover_outline_clr, hover_outline_blend));
 				}
 				
 				c.draw_rectangle(
-					cp.x - cps, cp.y - cps,
-					cp.x + cps, cp.y + cps,
+					v.x + cp.x - cps, v.y + cp.y - cps,
+					v.x + cp.x + cps, v.y + cp.y + cps,
 					45, cubic_cp1_clr);
 			}
 		}

@@ -98,8 +98,8 @@ class script : MultiCurveDebugColourCallback
 	{
 		update_curve_precision();
 		
-		curve.closed = true;
-		curve.type = CubicBezier;
+		curve.closed = false;
+		curve.type = CatmullRom;
 		
 		recreate_spline();
 		
@@ -379,7 +379,7 @@ class script : MultiCurveDebugColourCallback
 			return;
 		
 		// Change vertex type.
-		if(mouse.left_press && shift_down && @hover_point != null)
+		if(mouse.left_press && shift_down && check_hover_point())
 		{
 			CurveControlType new_type = Smooth;
 			switch(hover_point.type)
@@ -396,22 +396,19 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Reset weight.
-		if(mouse.right_double_click && alt_down)
+		if(mouse.right_double_click && alt_down && check_hover_point())
 		{
-			if(@hover_point != null)
+			if(curve.type != CatmullRom)
 			{
-				if(curve.type != CatmullRom)
-				{
-					hover_point.weight = 1;
-					curve.invalidate(hover_vertex_index, !hover_is_vertex);
-					curve_changed = Validate;
-				}
-				else if(hover_is_vertex)
-				{
-					hover_vertex.tension = 1;
-					curve.invalidate(hover_vertex_index, true);
-					curve_changed = Validate;
-				}
+				hover_point.weight = 1;
+				curve.invalidate(hover_vertex_index, !hover_is_vertex);
+				curve_changed = Validate;
+			}
+			else if(hover_is_vertex)
+			{
+				hover_vertex.tension = 1;
+				curve.invalidate(hover_vertex_index, true);
+				curve_changed = Validate;
 			}
 			return;
 		}
@@ -427,7 +424,7 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Start dragging weight.
-		if(mouse.right_press && alt_down && @hover_point != null)
+		if(mouse.right_press && alt_down && check_hover_point())
 		{
 			start_drag_hover();
 			drag_ox = mouse.x;
@@ -567,10 +564,23 @@ class script : MultiCurveDebugColourCallback
 		
 		for(int i = start_i; i < curve.vertex_count; i++)
 		{
-			CurveControlPoint@ p = i >= 0
-				? curve.vertices[i]
-				: i == -1 ? curve.control_point_start : curve.control_point_end;
-			const float dist = distance(p.x, p.y, mouse.x, mouse.y);
+			CurveControlPoint@ p;
+			
+			float x, y;
+			if(i >= 0)
+			{
+				@p = curve.vertices[i];
+				x = p.x;
+				y = p.y;
+			}
+			else
+			{
+				CurveVertex@ v = i == -1 ? curve.first_vertex : curve.last_vertex;
+				@p = i == -1 ? @curve.control_point_start : @curve.control_point_end;
+				x = v.x + p.x;
+				y = v.y + p.y;
+			}
+			const float dist = distance(x, y, mouse.x, mouse.y);
 			
 			if(dist <= max_dist && dist < closest_dist)
 			{
@@ -664,6 +674,11 @@ class script : MultiCurveDebugColourCallback
 		drag_control_point_index = 0;
 	}
 	
+	bool check_hover_point()
+	{
+		return @hover_point != null && !curve.is_end_control(hover_point);
+	}
+	
 	void recreate_spline()
 	{
 		curve.clear();
@@ -695,7 +710,6 @@ class script : MultiCurveDebugColourCallback
 			curve.vertices[0].quad_control_point.weight = 13.6;
 		}
 		
-		//curve.init_bezier_control_points(true);
 		//curve.vertices[2].quad_control_point.set(-100, 200);
 		
 		curve_changed = All;

@@ -75,6 +75,20 @@ class CurveVertex : CurveControlPoint
 		@cubic_control_point_2.vertex = this;
 	}
 	
+	CurveVertex@ added(const CurveVertex@ p1, const CurveVertex@ p2)
+	{
+		x = p1.x + p2.x;
+		y = p1.y + p2.y;
+		return this;
+	}
+	
+	CurveVertex@ relative_to(const CurveVertex@ p)
+	{
+		x -= p.x;
+		y -= p.y;
+		return this;
+	}
+	
 	CurveVertex@ extrapolate(
 		const CurveVertex@ p1, const CurveVertex@ p2, const CurveVertex@ p3=null,
 		const float angle_multiplier=1, const float length_multiplier=1)
