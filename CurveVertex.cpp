@@ -77,7 +77,7 @@ class CurveVertex : CurveControlPoint
 	
 	CurveVertex@ extrapolate(
 		const CurveVertex@ p1, const CurveVertex@ p2, const CurveVertex@ p3=null,
-		const float angle_multiplier=0.75, const float length_multiplier=1)
+		const float angle_multiplier=1, const float length_multiplier=1)
 	{
 		// Simple just extend the two points.
 		if(@p3 == null)
