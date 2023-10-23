@@ -3,10 +3,14 @@
 #include 'catmull_rom_to_cubic_bezier.cpp';
 #include 'cubic.cpp';
 #include 'cubic_rational.cpp';
+#include 'cubic_bounding_box.cpp';
+#include 'cubic_bounding_box_rational.cpp';
 #include 'cubic_split.cpp';
 #include 'cubic_split_rational.cpp';
 #include 'quadratic.cpp';
 #include 'quadratic_rational.cpp';
+#include 'quadratic_bounding_box.cpp';
+#include 'quadratic_bounding_box_rational.cpp';
 #include 'quadratic_split.cpp';
 #include 'quadratic_split_rational.cpp';
 
@@ -20,7 +24,7 @@
 class MultiCurve
 {
 	
-	// TODO: ? Split eval and bounding box methods.
+	// TODO: ? Split into MultiCurve and MultiCurveEdit
 	// TODO: Dragging curves.
 	// TODO: Remove vertices.
 	// TODO: Splitting segments.
