@@ -27,20 +27,6 @@ class MultiCurve
 	// TODO: Shift click curve to change shape
 	// TODO: Remove vertices.
 	// TODO: Dragging curves.
-	// TODO: ? Option to not automatically calculate arc lengths.
-	// TODO: Debugdraw
-	// 		- View bounds - don't draw things outside of this
-	// 			- Aslo check individual arc/adaptive segments? This wouldn't be 100% reliable since an arc segment can extend beyound the p1>p2 bounding box.
-	// 				- Could have some kind of padding (relative to arc length?)
-	// 			- Find t/view intersections and only draw between those t values?
-	// TODO: Both `invalidate` and `validate` seem kind of redundant?
-	// TODO: Option/method to calculate simple and complex bounding boxes (using newtons method for rational curves)
-	// TODO: When editing non-quadratic, the quadratic control points can potentially get very far away from the vertices
-	//       so maybe storing the absolutely is not a good idea?
-	//       OR when moving vertices, try interpolate and move the control point based on the two vertices.
-	// TODO: control_point_start/end should always be moved relative to the start/end vertices
-	//       when `end_controls` is not `Manual`.
-	// TODO: ? Add basic CurveEditor class
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
