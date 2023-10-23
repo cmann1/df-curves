@@ -1,19 +1,20 @@
-#include 'BSpline.cpp';
-#include 'CatmullRom.cpp';
-#include 'CubicBezier.cpp';
-#include 'CubicBezierRational.cpp';
-#include 'QuadraticBezier.cpp';
-#include 'QuadraticBezierRational.cpp';
-
-#include 'calculate_arc_lengths.cpp';
+#include 'b_spline.cpp';
+#include 'catmull_rom.cpp';
 #include 'catmull_rom_to_cubic_bezier.cpp';
-#include 'closest_point.cpp';
-#include 'CurveVertex.cpp';
-#include 'MultiCuveSubdivisionSettings.cpp';
+#include 'cubic.cpp';
+#include 'cubic_rational.cpp';
 #include 'cubic_split.cpp';
 #include 'cubic_split_rational.cpp';
+#include 'quadratic.cpp';
+#include 'quadratic_rational.cpp';
 #include 'quadratic_split.cpp';
 #include 'quadratic_split_rational.cpp';
+
+#include 'CurveVertex.cpp';
+#include 'calculate_arc_lengths.cpp';
+#include 'closest_point.cpp';
+
+#include 'MultiCuveSubdivisionSettings.cpp';
 
 /** A higher level wrapper designed for editing/manipulating different types of curves. */
 class MultiCurve
