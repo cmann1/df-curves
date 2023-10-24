@@ -98,7 +98,7 @@ class script : MultiCurveDebugColourCallback
 	{
 		update_curve_precision();
 		
-		curve.closed = false;
+		curve.closed = true;
 		curve.type = QuadraticBezier;
 		
 		recreate_spline();
@@ -630,7 +630,7 @@ class script : MultiCurveDebugColourCallback
 			
 			for(int j = cp_i1; j < cp_i2; j++)
 			{
-				if(!curve.closed && (i == 0 && j == 0 || i == curve.vertex_count - 1 && j == 1))
+				if(!curve.closed && (i == curve.vertex_count - 1 && j == -1))
 					continue;
 				
 				CurveControlPoint@ cp = j == -1 ? p.quad_control_point

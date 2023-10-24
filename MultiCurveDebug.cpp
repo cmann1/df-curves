@@ -160,7 +160,7 @@ class MultiCurveDebug
 						continue;
 				}
 				
-				if(cp1.type != Square && (curve.closed || i > 0))
+				if(cp1.type != Square)
 				{
 					c.draw_line(p.x, p.y, p.x + cp1.x, p.y + cp1.y, cpw, multiply_alpha(cubic_cp1_clr, 0.5));
 					
@@ -172,7 +172,7 @@ class MultiCurveDebug
 							45, cubic_cp1_clr);
 					}
 				}
-				if(cp2.type != Square && (curve.closed || i < curve.vertex_count - 1))
+				if(cp2.type != Square)
 				{
 					c.draw_line(p.x, p.y, p.x + cp2.x, p.y + cp2.y, cpw, multiply_alpha(cubic_cp2_clr, 0.5));
 					
