@@ -54,7 +54,6 @@ class script : MultiCurveDebugColourCallback
 	int drag_segment_index;
 	int drag_control_point_index;
 	float drag_ox, drag_oy;
-	float drag_cp_x, drag_cp_y;
 	ClosestPointTest closest_point;
 	bool drag_force_mirror;
 	
@@ -527,7 +526,7 @@ class script : MultiCurveDebugColourCallback
 				drag_vertex_index = new_index;
 				drag_control_point_index = 0;
 				
-				init_drag();
+				curve.start_drag_vertex(drag_vertex, mouse.x, mouse.y);
 				state = DragVertex;
 			}
 			return;
@@ -599,7 +598,8 @@ class script : MultiCurveDebugColourCallback
 	{
 		if(!mouse.right_down)
 		{
-			stop_drag();
+			@drag_point = null;
+			@drag_vertex = null;
 			state = Idle;
 			return;
 		}
@@ -746,27 +746,6 @@ class script : MultiCurveDebugColourCallback
 		drag_vertex_index = hover_vertex_index;
 		drag_control_point_index = hover_control_point_index;
 		drag_force_mirror = false;
-	}
-	
-	void init_drag()
-	{
-		drag_ox = drag_point.x - mouse.x;
-		drag_oy = drag_point.y - mouse.y;
-		
-		if(drag_is_vertex && curve.type == QuadraticBezier)
-		{
-			drag_cp_x = drag_vertex.x + drag_vertex.quad_control_point.x;
-			drag_cp_y = drag_vertex.y + drag_vertex.quad_control_point.y;
-		}
-	}
-	
-	void stop_drag()
-	{
-		@drag_point = null;
-		@drag_vertex = null;
-		drag_segment_index = -1;
-		drag_vertex_index = -1;
-		drag_control_point_index = 0;
 	}
 	
 	bool check_hover_point()
