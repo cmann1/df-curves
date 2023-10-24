@@ -109,6 +109,7 @@ class MultiCurve
 	private float drag_length_mirror;
 	private float drag_length_ratio;
 	private float drag_angle;
+	private CurveControlPoint@ drag_axis;
 	
 	MultiCurve()
 	{
@@ -1413,7 +1414,7 @@ class MultiCurve
 	/** Sets the type for the given vertex or control point.
 	  * If the given point is a vertex, the control points on either side may be set depending on the curve type.
 	  * Certain types are only applicable to vertices. */
-	void set_control_type(CurveControlPoint@ point, const CurveControlType type)
+	void set_control_type(CurveControlPoint@ point, const CurveControlType type, const bool set_mirror=true)
 	{
 		if(type == CurveControlType::None)
 			return;
@@ -1446,6 +1447,7 @@ class MultiCurve
 		{
 			int index = vertices.findByRef(point.vertex);
 			
+			
 			if(_type == CubicBezier)
 			{
 				if(@point == @point.vertex.cubic_control_point_1)
@@ -1453,7 +1455,7 @@ class MultiCurve
 					index--;
 				}
 				
-				if(type != Smooth)
+				if(type != Smooth && set_mirror)
 				{
 					CurveControlPoint@ p2 = @point == @point.vertex.cubic_control_point_1
 						? @point.vertex.cubic_control_point_2 : @point.vertex.cubic_control_point_1;
@@ -1462,6 +1464,15 @@ class MultiCurve
 					{
 						p2.type = Manual;
 					}
+				}
+			}
+			else if(_type == QuadraticBezier && type != Smooth && set_mirror)
+			{
+				CurveControlPoint@ p2 = @vert(index - 1).quad_control_point;
+				
+				if(p2.type == Smooth)
+				{
+					p2.type = Manual;
 				}
 			}
 			
@@ -1636,6 +1647,11 @@ class MultiCurve
 			mirror_delta(dx, dy);
 			drag_angle = angle_between(dx, dy, drag_point.x, drag_point.y);
 			drag_length_mirror = sqrt(dx * dx + dy * dy);
+			
+			if(_closed || drag_vertex_index < vertex_count - 1)
+			{
+				@drag_axis = @vert(drag_vertex_index, 1).quad_control_point;
+			}
 		}
 		else if(_type == CubicBezier)
 		{
@@ -1655,7 +1671,7 @@ class MultiCurve
 		}
 	}
 	
-	bool do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle)
+	bool do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle, const bool constrain_to_axis=false)
 	{
 		if(@drag_point == null)
 			return false;
@@ -1667,6 +1683,21 @@ class MultiCurve
 		drag_point.x = x + drag_offset_x;
 		drag_point.y = y + drag_offset_y;
 		drag_length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
+		
+		if(_type == QuadraticBezier && @drag_axis != null && constrain_to_axis)
+		{
+			const float length = magnitude(drag_axis.x, drag_axis.y);
+			if(length != 0)
+			{
+				const float nx = drag_axis.x / length;
+				const float ny = drag_axis.y / length;
+				const float ax = drag_point.x + drag_point.vertex.x - drag_axis.vertex.x;
+				const float ay = drag_point.y + drag_point.vertex.y - drag_axis.vertex.y;
+				const float dp = dot(ax, ay, nx, ny);
+				drag_point.x = drag_axis.vertex.x + dp * nx - drag_point.vertex.x;
+				drag_point.y = drag_axis.vertex.y + dp * ny - drag_point.vertex.y;
+			}
+		}
 		
 		const bool maintain_angle = mirror == MaintainAngle && (drag_point.type != Smooth || drag_point_mirror.type != Smooth);
 		
@@ -1776,6 +1807,7 @@ class MultiCurve
 		@drag_point = null;
 		@drag_point_mirror = null;
 		@drag_vertex = null;
+		@drag_axis = null;
 		drag_vertex_index = -1;
 		drag_vertex_mirror_index = -1;
 		

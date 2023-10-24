@@ -100,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = CubicBezier;
+		curve.type = QuadraticBezier;
 		
 		recreate_spline();
 		
@@ -444,14 +444,14 @@ class script : MultiCurveDebugColourCallback
 			
 			if(curve.type == QuadraticBezier)
 			{
-				curve.set_control_type(hover_vertex.quad_control_point, Square);
-				curve.set_control_type(@curve.vert(hover_vertex, -1).quad_control_point, Square);
+				curve.set_control_type(hover_vertex.quad_control_point, Square, false);
+				curve.set_control_type(@curve.vert(hover_vertex, -1).quad_control_point, Square, false);
 				@drag_point = @hover_vertex.quad_control_point;
 			}
 			else
 			{
-				curve.set_control_type(hover_vertex.cubic_control_point_1, Square);
-				curve.set_control_type(hover_vertex.cubic_control_point_2, Square);
+				curve.set_control_type(hover_vertex.cubic_control_point_1, Square, false);
+				curve.set_control_type(hover_vertex.cubic_control_point_2, Square, false);
 				@drag_point = @hover_vertex.cubic_control_point_2;
 			}
 			
@@ -571,16 +571,16 @@ class script : MultiCurveDebugColourCallback
 					curve.set_control_type(curve.vert(drag_vertex, -1).quad_control_point, Smooth);
 				}
 			}
-			else if(mouse.moved && alt_down && hover_point.type == Smooth)
+			else if(mouse.moved && !ctrl_down && alt_down && hover_point.type == Smooth)
 			{
 				curve.set_control_type(hover_point, Manual);
 			}
 			
-			const ControlPointMirrorType mirror = drag_force_mirror || shift_down && ctrl_down
+			const ControlPointMirrorType mirror = drag_force_mirror || !alt_down && shift_down && ctrl_down
 				? ControlPointMirrorType::Length
-				: ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle;
+				: !alt_down && ctrl_down ? MaintainAngle : !alt_down && shift_down ? LengthRatio : Angle;
 			
-			if(curve.do_drag_control_point(mouse.x, mouse.y, mirror))
+			if(curve.do_drag_control_point(mouse.x, mouse.y, mirror, ctrl_down && alt_down))
 			{
 				curve_changed = Validate;
 			}
