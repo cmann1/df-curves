@@ -56,6 +56,7 @@ class script : MultiCurveDebugColourCallback
 	float drag_ox, drag_oy;
 	float drag_cp_x, drag_cp_y;
 	ClosestPointTest closest_point;
+	bool drag_force_mirror;
 	
 	MultiCurve curve;
 	MultiCurveDebug debug_draw;
@@ -436,6 +437,20 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
+		// Drag cubic control points.
+		if(mouse.left_press && alt_down && curve.type == CubicBezier && hover_is_vertex && check_hover_point())
+		{
+			curve.set_control_type(hover_vertex.cubic_control_point_1, Square);
+			curve.set_control_type(hover_vertex.cubic_control_point_2, Square);
+			start_drag_hover();
+			@drag_point = hover_vertex.cubic_control_point_2;
+			drag_is_vertex = false;
+			drag_force_mirror = true;
+			curve.start_drag_control_point(drag_point, hover_vertex.x + drag_point.x, hover_vertex.y + drag_point.y);
+			state = DragVertex;
+			return;
+		}
+		
 		// Start dragging.
 		if(mouse.left_press && @hover_point != null)
 		{
@@ -446,6 +461,7 @@ class script : MultiCurveDebugColourCallback
 			}
 			else
 			{
+				start_drag_hover();
 				curve.start_drag_control_point(hover_point, mouse.x, mouse.y);
 			}
 			
@@ -510,9 +526,10 @@ class script : MultiCurveDebugColourCallback
 	{
 		if(!mouse.left_down || esc_down)
 		{
-			if(!hover_is_vertex)
+			if(!drag_is_vertex)
 			{
 				curve.stop_drag_control_point(!esc_down);
+				curve_changed = Validate;
 			}
 			else
 			{
@@ -523,16 +540,23 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
-		if(!hover_is_vertex)
+		if(!drag_is_vertex)
 		{
-			if(alt_down && hover_point.type == Smooth)
+			if(mouse.moved && drag_force_mirror)
+			{
+				curve.set_control_type(hover_vertex.cubic_control_point_1, Smooth);
+				curve.set_control_type(hover_vertex.cubic_control_point_2, Smooth);
+			}
+			else if(mouse.moved && alt_down && hover_point.type == Smooth)
 			{
 				curve.set_control_type(hover_point, Manual);
 			}
 			
 			curve.do_drag_control_point(
 				mouse.x, mouse.y,
-				shift_down && ctrl_down ? ControlPointMirrorType::Length : ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle);
+				drag_force_mirror || shift_down && ctrl_down
+					? ControlPointMirrorType::Length
+					: ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle);
 			curve_changed = Validate;
 		}
 		else if(mouse.moved)
@@ -701,6 +725,7 @@ class script : MultiCurveDebugColourCallback
 		drag_segment_index = hover_segment_index;
 		drag_vertex_index = hover_vertex_index;
 		drag_control_point_index = hover_control_point_index;
+		drag_force_mirror = false;
 	}
 	
 	void init_drag()

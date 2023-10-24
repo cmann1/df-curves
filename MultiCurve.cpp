@@ -25,7 +25,7 @@ class MultiCurve
 {
 	
 	// TODO: Mirror and smooth control points
-	// TODO: Dragging curves.
+	// TODO: Dragging/molding curves.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -56,7 +56,7 @@ class MultiCurve
 	/** If true the curve will pass touch the first and last vertices. */
 	[persist] private bool _b_spline_clamped = true;
 	
-	/** Controls the base number of the pre-calcualted subdivisions of this curve.
+	/** Controls the base number of the pre-calculated subdivisions of this curve.
 	  * These subdivisions are required for certain operations, e.g. approximating the curve length, or finding
 	  * a closest point on the curve.
 	  * The default values skew towards accuracy over performance.
@@ -75,10 +75,10 @@ class MultiCurve
 	/** One or more segments on this curve have been changed and need to be updated. */
 	private bool invalidated = true;
 	
-	/** The b-spline knot vector requires regneration after vertices are added/removed. */
+	/** The b-spline weighted vertices requires regeneration after vertices are added/removed. */
 	private bool invalidated_b_spline_vertices = true;
 	
-	/** The b-spline knot vector requires regneration after vertices are added/removed. */
+	/** The b-spline knot vector requires regeneration after vertices are added/removed. */
 	private bool invalidated_b_spline_knots = true;
 	
 	/** Control points may not be initialised after changing curve type. */
