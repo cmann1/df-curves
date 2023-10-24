@@ -34,6 +34,7 @@ class script : MultiCurveDebugColourCallback
 	bool ctrl_down;
 	bool shift_down;
 	bool alt_down;
+	bool esc_down;
 	bool is_polling_keyboard;
 	
 	Debug debug;
@@ -99,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = BSpline;
+		curve.type = CubicBezier;
 		
 		recreate_spline();
 		
@@ -145,6 +146,7 @@ class script : MultiCurveDebugColourCallback
 		ctrl_down = input.key_check_gvb(GVB::Control);
 		shift_down = input.key_check_gvb(GVB::Shift);
 		alt_down = input.key_check_gvb(GVB::Alt);
+		esc_down = input.key_check_gvb(GVB::Escape);
 		is_polling_keyboard = input.is_polling_keyboard();
 		
 		if(state == Idle)
@@ -397,9 +399,9 @@ class script : MultiCurveDebugColourCallback
 			
 			switch(new_type)
 			{
-				case Square: new_type = Smooth; break;
-				case Smooth: new_type = Square; break;
-				default: new_type = Smooth; break;
+				case CurveControlType::Square: new_type = CurveControlType::Manual; break;
+				case CurveControlType::Manual: new_type = CurveControlType::Square; break;
+				default: new_type = CurveControlType::Square; break;
 			}
 			
 			if(check_hover_point())
@@ -437,8 +439,15 @@ class script : MultiCurveDebugColourCallback
 		// Start dragging.
 		if(mouse.left_press && @hover_point != null)
 		{
-			start_drag_hover();
-			init_drag();
+			if(hover_is_vertex)
+			{
+				start_drag_hover();
+				init_drag();
+			}
+			else
+			{
+				curve.start_drag_control_point(hover_point, mouse.x, mouse.y);
+			}
 			
 			state = DragVertex;
 			return;
@@ -499,14 +508,34 @@ class script : MultiCurveDebugColourCallback
 	
 	void state_drag_vertex()
 	{
-		if(!mouse.left_down)
+		if(!mouse.left_down || esc_down)
 		{
-			stop_drag();
+			if(!hover_is_vertex)
+			{
+				curve.stop_drag_control_point(!esc_down);
+			}
+			else
+			{
+				stop_drag();
+			}
+			
 			state = Idle;
 			return;
 		}
 		
-		if(mouse.moved)
+		if(!hover_is_vertex)
+		{
+			if(alt_down && hover_point.type == Smooth)
+			{
+				curve.set_control_type(hover_point, Manual);
+			}
+			
+			curve.do_drag_control_point(
+				mouse.x, mouse.y,
+				shift_down && ctrl_down ? ControlPointMirrorType::Length : ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle);
+			curve_changed = Validate;
+		}
+		else if(mouse.moved)
 		{
 			drag_point.x = mouse.x + drag_ox;
 			drag_point.y = mouse.y + drag_oy;
@@ -729,6 +758,11 @@ class script : MultiCurveDebugColourCallback
 			//curve.add_vertex(bx + 100, by + 100);
 			//curve.vertices[0].quad_control_point.set(bx+200, by-600);
 			curve.vertices[0].quad_control_point.weight = 13.6;
+		}
+		
+		for(int i = 0; i < curve.vertex_count; i++)
+		{
+			curve.vertices[i].control_type = CurveControlType::Smooth;
 		}
 		
 		//curve.vertices[2].quad_control_point.set(-100, 200);

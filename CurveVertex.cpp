@@ -5,7 +5,7 @@ class CurveControlPoint : CurvePoint
 {
 	
 	[option,1:Square,Manual,Smooth,Mirror]
-	CurveControlType type = Smooth;
+	CurveControlType type = Manual;
 	
 	/** The weight/ratio for cubic, quadratic, and b-splines. */
 	[persist] float weight = 1;
@@ -131,6 +131,13 @@ class CurveVertex : CurveControlPoint
 		return offset < arc_count ? arcs[offset] : arcs[0];
 	}
 	
+	void set_control_type(const CurveControlType type)
+	{
+		quad_control_point.type = type;
+		cubic_control_point_1.type = type;
+		cubic_control_point_2.type = type;
+	}
+	
 }
 
 class CurveArc
@@ -171,5 +178,22 @@ enum CurveControlType
 	/** Angles for control point on either side of a vertex are mirrored.
 	  * Only applicable for cubic and quadratic bezier curves. */
 	Smooth,
+	
+}
+
+enum ControlPointMirrorType
+{
+	
+	/** Mirror the angle if the control points are set to Smooth. */
+	Angle,
+	
+	/** If either control point type is manual, this will maintain the relative angle between the two. */
+	MaintainAngle,
+	
+	/** Mirror the length. */
+	Length,
+	
+	/** Mirror the length, keeping the length ratio at the start of the drag. */
+	LengthRatio,
 	
 }

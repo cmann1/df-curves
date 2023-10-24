@@ -1407,34 +1407,45 @@ class MultiCurve
 		{
 			const int index = vertices.findByRef(v);
 			
-			if(_type == QuadraticBezier || _type == CubicBezier)
+			if(index != -1 && (_type == QuadraticBezier || _type == CubicBezier))
 			{
-				if(index != -1)
+				CurveControlPoint@ cp_l = _type == CubicBezier ? @v.cubic_control_point_1 : _closed || index > 0 ? @vert(index, -1).quad_control_point : null;
+				CurveControlPoint@ cp_r = _type == CubicBezier ? @v.cubic_control_point_2 : @v.quad_control_point;
+				
+				if(@cp_l != null)
 				{
-					CurveControlPoint@ cp_l = _type == CubicBezier ? @v.cubic_control_point_1 : _closed || index > 0 ? @vert(index, -1).quad_control_point : null;
-					CurveControlPoint@ cp_r = _type == CubicBezier ? @v.cubic_control_point_2 : @v.quad_control_point;
-					
-					if(@cp_l != null)
-					{
-						cp_l.type = type == Square ? Square : Smooth;
-					}
-					if(@cp_r != null)
-					{
-						cp_r.type = type == Square ? Square : Smooth;
-					}
+					cp_l.type = type;
+				}
+				if(@cp_r != null)
+				{
+					cp_r.type = type;
 				}
 			}
 			
 			v.type = type;
 			invalidate(index);
 		}
-		else if(type != CurveControlType::Manual)
+		else
 		{
 			int index = vertices.findByRef(point.vertex);
 			
-			if(_type == CubicBezier && @point == @point.vertex.cubic_control_point_1)
+			if(_type == CubicBezier)
 			{
-				index--;
+				if(@point == @point.vertex.cubic_control_point_1)
+				{
+					index--;
+				}
+				
+				if(type != Smooth)
+				{
+					CurveControlPoint@ p2 = @point == @point.vertex.cubic_control_point_1
+						? @point.vertex.cubic_control_point_2 : @point.vertex.cubic_control_point_1;
+					
+					if(point.type == Smooth)
+					{
+						point.type = Manual;
+					}
+				}
 			}
 			
 			point.type = type;
@@ -1458,6 +1469,166 @@ class MultiCurve
 		{
 			set_control_type(p2, type);
 		}
+	}
+	
+	private CurveControlPoint@ drag_point;
+	private CurveControlPoint@ drag_point_mirror;
+	private CurveVertex@ drag_vertex;
+	private int drag_vertex_index = -1;
+	private int drag_segment_index = -1;
+	private int drag_vertex_mirror_index = -1;
+	private float drag_start_x, drag_start_y;
+	private float drag_mirror_start_x, drag_mirror_start_y;
+	private float drag_x, drag_y;
+	private float drag_offset_x, drag_offset_y;
+	private float drag_length;
+	private float drag_length_mirror;
+	private float drag_length_ratio;
+	private float drag_angle;
+	
+	/** Only applicable if the curve type is quadratic or cubic.
+	  * Does nothing if another drag is in progress - make sure to call `stop_drag_control_point` when done. */
+	void start_drag_control_point(CurveControlPoint@ point, const float x, const float y)
+	{
+		if(_type != QuadraticBezier && _type != CubicBezier)
+			return;
+		if(@point == null || @point.vertex == null)
+			return;
+		if(@drag_point != null)
+			return;
+		if(_type == QuadraticBezier && @point != @point.vertex.quad_control_point)
+			return;
+		if(_type == CubicBezier && @point != @point.vertex.cubic_control_point_1 && @point != @point.vertex.cubic_control_point_2)
+			return;
+		
+		drag_vertex_index = vertices.findByRef(point.vertex);
+		if(drag_vertex_index == -1)
+			return;
+		
+		drag_segment_index = drag_vertex_index;
+		@drag_point = point;
+		@drag_vertex = point.vertex;
+		drag_x = x;
+		drag_y = y;
+		drag_start_x = drag_point.x;
+		drag_start_y = drag_point.y;
+		drag_offset_x = drag_point.x - x;
+		drag_offset_y = drag_point.y - y;
+		
+		drag_length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
+		
+		if(_type == CubicBezier)
+		{
+			@drag_point_mirror = @point == @point.vertex.cubic_control_point_1
+				? @point.vertex.cubic_control_point_2 : @point.vertex.cubic_control_point_1;
+			drag_segment_index = mod(@point == @point.vertex.cubic_control_point_1 ? drag_vertex_index - 1 : drag_vertex_index, vertex_count);
+			drag_vertex_mirror_index = mod(drag_segment_index + (@point == @point.vertex.cubic_control_point_1 ? 1 : -1), vertex_count);
+			drag_angle = angle_between(drag_point_mirror.x, drag_point_mirror.y, drag_point.x, drag_point.y);
+		}
+		else
+		{
+			@drag_point_mirror = null;
+		}
+		
+		if(@drag_point_mirror != null)
+		{
+			drag_mirror_start_x = drag_point_mirror.x;
+			drag_mirror_start_y = drag_point_mirror.y;
+			drag_length_mirror = sqrt(drag_point_mirror.x * drag_point_mirror.x + drag_point_mirror.y * drag_point_mirror.y);
+			drag_length_ratio = drag_length != 0 ? drag_length_mirror / drag_length : 0;
+		}
+	}
+	
+	/** Call `start_drag_control_point` first. */
+	void do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle)
+	{
+		if(@drag_point == null)
+			return;
+		if(x == drag_x && y == drag_y)
+			return;
+		
+		drag_x = x;
+		drag_y = y;
+		drag_point.x = x + drag_offset_x;
+		drag_point.y = y + drag_offset_y;
+		drag_length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
+		
+		const bool maintain_angle = mirror == MaintainAngle && (drag_point.type != Smooth || drag_point_mirror.type != Smooth);
+		
+		if(mirror != MaintainAngle && @drag_point_mirror != null)
+		{
+			drag_angle = angle_between(drag_point_mirror.x, drag_point_mirror.y, drag_point.x, drag_point.y);
+		}
+		
+		if(
+			_type == CubicBezier && @drag_point_mirror != null &&
+			(drag_point.type == Smooth && drag_point_mirror.type == Smooth || maintain_angle))
+		{
+			float length = drag_length_mirror;
+			switch(mirror)
+			{
+				case Angle:
+					length = drag_length_mirror;
+					break;
+				case Length:
+					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
+					drag_length_mirror = length;
+					break;
+				case LengthRatio:
+					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y) * drag_length_ratio;
+					drag_length_mirror = length;
+					break;
+			}
+			
+			const float angle = atan2(drag_point.y, drag_point.x) - (maintain_angle ? drag_angle : PI);
+			drag_point_mirror.x = cos(angle) * length;
+			drag_point_mirror.y = sin(angle) * length;
+			
+			if(mirror != LengthRatio)
+			{
+				drag_length_ratio = drag_length != 0 ? sqrt(drag_point_mirror.x * drag_point_mirror.x + drag_point_mirror.y * drag_point_mirror.y) / drag_length : 0;
+			}
+			
+			if(drag_vertex_mirror_index != drag_segment_index)
+			{
+				invalidate(drag_vertex_index);
+			}
+		}
+		
+		if(_closed || drag_segment_index < vertex_count - 1)
+		{
+			invalidate(drag_segment_index, true);
+		}
+	}
+	
+	void stop_drag_control_point(const bool accept=true)
+	{
+		if(@drag_point == null)
+			return;
+		
+		if(!accept)
+		{
+			drag_point.x = drag_start_x;
+			drag_point.y = drag_start_y;
+			
+			if(@drag_point_mirror != null)
+			{
+				drag_point_mirror.x = drag_mirror_start_x;
+				drag_point_mirror.y = drag_mirror_start_y;
+				
+				if(drag_vertex_mirror_index != drag_segment_index)
+				{
+					invalidate(drag_vertex_index);
+				}
+			}
+			
+			invalidate(drag_segment_index, true);
+		}
+		
+		@drag_point = null;
+		@drag_point_mirror = null;
+		@drag_vertex = null;
+		drag_vertex_index = -1;
 	}
 	
 	// --
