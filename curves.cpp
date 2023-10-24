@@ -401,7 +401,8 @@ class script : MultiCurveDebugColourCallback
 			switch(new_type)
 			{
 				case CurveControlType::Square: new_type = CurveControlType::Manual; break;
-				case CurveControlType::Manual: new_type = CurveControlType::Square; break;
+				case CurveControlType::Manual: new_type = CurveControlType::Smooth; break;
+				case CurveControlType::Smooth: new_type = CurveControlType::Square; break;
 				default: new_type = CurveControlType::Square; break;
 			}
 			
@@ -438,12 +439,23 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Drag cubic control points.
-		if(mouse.left_press && alt_down && curve.type == CubicBezier && hover_is_vertex && check_hover_point())
+		if(mouse.left_press && alt_down && (curve.type == QuadraticBezier || curve.type == CubicBezier) && hover_is_vertex && check_hover_point())
 		{
-			curve.set_control_type(hover_vertex.cubic_control_point_1, Square);
-			curve.set_control_type(hover_vertex.cubic_control_point_2, Square);
 			start_drag_hover();
-			@drag_point = hover_vertex.cubic_control_point_2;
+			
+			if(curve.type == QuadraticBezier)
+			{
+				curve.set_control_type(hover_vertex.quad_control_point, Square);
+				curve.set_control_type(@curve.vert(hover_vertex, -1).quad_control_point, Square);
+				@drag_point = @hover_vertex.quad_control_point;
+			}
+			else
+			{
+				curve.set_control_type(hover_vertex.cubic_control_point_1, Square);
+				curve.set_control_type(hover_vertex.cubic_control_point_2, Square);
+				@drag_point = @hover_vertex.cubic_control_point_2;
+			}
+			
 			drag_is_vertex = false;
 			drag_force_mirror = true;
 			curve.start_drag_control_point(drag_point, hover_vertex.x + drag_point.x, hover_vertex.y + drag_point.y);
@@ -457,7 +469,7 @@ class script : MultiCurveDebugColourCallback
 			if(hover_is_vertex)
 			{
 				start_drag_hover();
-				init_drag();
+				curve.start_drag_vertex(hover_vertex, mouse.x, mouse.y);
 			}
 			else
 			{
@@ -528,12 +540,17 @@ class script : MultiCurveDebugColourCallback
 		{
 			if(!drag_is_vertex)
 			{
-				curve.stop_drag_control_point(!esc_down);
-				curve_changed = Validate;
+				if(curve.stop_drag_control_point(!esc_down))
+				{
+					curve_changed = Validate;
+				}
 			}
 			else
 			{
-				stop_drag();
+				if(curve.stop_drag_vertex(!esc_down))
+				{
+					curve_changed = Validate;
+				}
 			}
 			
 			state = Idle;
@@ -544,34 +561,37 @@ class script : MultiCurveDebugColourCallback
 		{
 			if(mouse.moved && drag_force_mirror)
 			{
-				curve.set_control_type(hover_vertex.cubic_control_point_1, Smooth);
-				curve.set_control_type(hover_vertex.cubic_control_point_2, Smooth);
+				if(@drag_point == @drag_vertex.cubic_control_point_2)
+				{
+					curve.set_control_type(drag_vertex.cubic_control_point_1, Smooth);
+					curve.set_control_type(drag_vertex.cubic_control_point_2, Smooth);
+				}
+				else
+				{
+					curve.set_control_type(drag_vertex.quad_control_point, Smooth);
+					curve.set_control_type(curve.vert(drag_vertex, -1).quad_control_point, Smooth);
+				}
 			}
 			else if(mouse.moved && alt_down && hover_point.type == Smooth)
 			{
 				curve.set_control_type(hover_point, Manual);
 			}
 			
-			curve.do_drag_control_point(
-				mouse.x, mouse.y,
-				drag_force_mirror || shift_down && ctrl_down
-					? ControlPointMirrorType::Length
-					: ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle);
-			curve_changed = Validate;
-		}
-		else if(mouse.moved)
-		{
-			drag_point.x = mouse.x + drag_ox;
-			drag_point.y = mouse.y + drag_oy;
+			const ControlPointMirrorType mirror = drag_force_mirror || shift_down && ctrl_down
+				? ControlPointMirrorType::Length
+				: ctrl_down ? MaintainAngle : shift_down ? LengthRatio : Angle;
 			
-			if(drag_is_vertex && curve.type == QuadraticBezier && drag_vertex.quad_control_point.type != Square)
+			if(curve.do_drag_control_point(mouse.x, mouse.y, mirror))
 			{
-				drag_vertex.quad_control_point.x = drag_cp_x - drag_vertex.x;
-				drag_vertex.quad_control_point.y = drag_cp_y - drag_vertex.y;
+				curve_changed = Validate;
 			}
-			
-			curve.invalidate(drag_segment_index, !drag_is_vertex);
-			curve_changed = Validate;
+		}
+		else
+		{
+			if(curve.do_drag_vertex(mouse.x, mouse.y))
+			{
+				curve_changed = Validate;
+			}
 		}
 	}
 	
