@@ -22,7 +22,6 @@ namespace Curve
 			case CurveControlType::Square: return 'Square';
 			case CurveControlType::Manual: return 'Manual';
 			case CurveControlType::Smooth: return 'Smooth';
-			case CurveControlType::Mirror: return 'Mirror';
 			case CurveControlType::None:
 			default:
 				return 'None';

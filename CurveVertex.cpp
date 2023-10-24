@@ -168,12 +168,8 @@ enum CurveControlType
 	  * Only applicable for cubic and quadratic bezier curves. */
 	Manual,
 	
-	/** Angles for control point on either side of a vertex are mirrored but the lengths are independent.
+	/** Angles for control point on either side of a vertex are mirrored.
 	  * Only applicable for cubic and quadratic bezier curves. */
 	Smooth,
-	
-	/** Both the angles and length for control point on either side of a vertex are mirrored.
-	  * Only applicable for cubic and quadratic bezier curves. */
-	Mirror,
 	
 }

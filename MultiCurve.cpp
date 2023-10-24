@@ -1410,7 +1410,7 @@ class MultiCurve
 			v.type = type;
 			invalidate(index);
 		}
-		else if(type != CurveControlType::Manual && type != CurveControlType::Mirror)
+		else if(type != CurveControlType::Manual)
 		{
 			int index = vertices.findByRef(point.vertex);
 			
