@@ -24,9 +24,8 @@
 class MultiCurve
 {
 	
-	// TODO: Remove vertices.
-	// TODO: Dragging curves.
 	// TODO: Mirror and smooth control points
+	// TODO: Dragging curves.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -1103,6 +1102,25 @@ class MultiCurve
 		invalidated_control_points = true;
 		
 		return v;
+	}
+	
+	bool remove_vertex(CurveVertex@ vertex)
+	{
+		const int index = vertices.findByRef(vertex);
+		return index != -1 && remove_vertex(index);
+	}
+	
+	bool remove_vertex(const int index)
+	{
+		const int i = (index % vertex_count + vertex_count) % vertex_count;
+		vertices.removeAt(i);
+		vertex_count--;
+		
+		invalidate(i);
+		invalidated_b_spline_knots = true;
+		invalidated_b_spline_vertices = true;
+		
+		return true;
 	}
 	
 	// -- Insert vertex --

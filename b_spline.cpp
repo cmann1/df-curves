@@ -88,6 +88,38 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		
+		switch(v_count)
+		{
+			case 2:
+			{
+				CurveVertex@ p1 = @vertices[0];
+				CurveVertex@ p2 = @vertices[1];
+				const float dx = p2.x - p1.x;
+				const float dy = p2.y - p1.y;
+				const float length = sqrt(dx * dx + dy * dy);
+				x = p1.x + dx * t;
+				y = p1.y + dy * t;
+				normal_x = length != 0 ? dy / length : 0;
+				normal_y = length != 0 ? -dx / length : 0;
+				return;
+			}
+			case 1:
+			{
+				x = vertices[0].x;
+				y = vertices[0].y;
+				normal_x = 1;
+				normal_y = 0;
+				return;
+			}
+			case 0:
+			{
+				normal_x = 1;
+				normal_y = 0;
+				return;
+			}
+		}
+		
 		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Find span and corresponding non-zero basis functions.
@@ -99,10 +131,13 @@ class BSpline
 		y = 0;
 		float w = 0;
 		
-		// Compute point.
 		for(int i = 0; i <= degree_c; i++)
 		{
-			CurvePointW@ p = vertices_weighted[span - degree_c + i];
+			const int j = span - degree_c + i;
+			if(j < 0 || j >= v_count)
+				continue;
+			
+			CurvePointW@ p = vertices_weighted[j];
 			const float ni = basis_list[i];
 			x += p.x * ni;
 			y += p.y * ni;
@@ -110,8 +145,11 @@ class BSpline
 		}
 		
 		// Convert back to cartesian coordinates.
-		x /= w;
-		y /= w;
+		if(w != 0)
+		{
+			x /= w;
+			y /= w;
+		}
 		
 		// Calculate the normal vector.
 		curve_derivatives_rational(degree_c, closed, u, 1, span);
@@ -139,6 +177,33 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		
+		switch(v_count)
+		{
+			case 2:
+			{
+				CurveVertex@ p1 = @vertices[0];
+				CurveVertex@ p2 = @vertices[1];
+				const float dx = p2.x - p1.x;
+				const float dy = p2.y - p1.y;
+				x = p1.x + dx * t;
+				y = p1.y + dy * t;
+				return;
+			}
+			case 1:
+			{
+				x = vertices[0].x;
+				y = vertices[0].y;
+				return;
+			}
+			case 0:
+			{
+				x = 0;
+				y = 0;
+				return;
+			}
+		}
+		
 		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Find span and corresponding non-zero basis functions
@@ -149,6 +214,11 @@ class BSpline
 		x = 0;
 		y = 0;
 		float w = 0;
+		
+		if(v_count <= degree_c)
+		{
+			return;
+		}
 		
 		// Compute point.
 		for(int i = 0; i <= degree_c; i++)
@@ -172,6 +242,29 @@ class BSpline
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		
+		switch(v_count)
+		{
+			case 2:
+			{
+				CurveVertex@ p1 = @vertices[0];
+				CurveVertex@ p2 = @vertices[1];
+				const float dx = p2.x - p1.x;
+				const float dy = p2.y - p1.y;
+				const float length = sqrt(dx * dx + dy * dy);
+				normal_x = length != 0 ? dy / length : 0;
+				normal_y = length != 0 ? -dx / length : 0;
+				return;
+			}
+			case 1:
+			case 0:
+			{
+				normal_x = 1;
+				normal_y = 0;
+				return;
+			}
+		}
+		
 		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Calculate the normal vector.
@@ -630,7 +723,8 @@ class BSpline
 			
 			for(int r = 0; r < j; r++)
 			{
-				const float temp = basis_list[r] / (right[r + 1] + left[j - r]);
+				const float den = right[r + 1] + left[j - r];
+				const float temp = den != 0 ? basis_list[r] / den : 0;
 				basis_list[r] = saved + right[r + 1] * temp;
 				saved = left[j - r] * temp;
 			}

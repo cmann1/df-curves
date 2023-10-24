@@ -99,7 +99,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = QuadraticBezier;
+		curve.type = BSpline;
 		
 		recreate_spline();
 		
@@ -377,6 +377,14 @@ class script : MultiCurveDebugColourCallback
 		
 		if(!mouse_in_scene)
 			return;
+		
+		// Remove vertex.
+		if(mouse.left_press && ctrl_down && hover_is_vertex && check_hover_point())
+		{
+			curve.remove_vertex(hover_vertex_index);
+			curve_changed = Validate;
+			return;
+		}
 		
 		// Change vertex type.
 		if(mouse.left_press && shift_down && (check_hover_point() || closest_point.hover))
