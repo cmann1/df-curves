@@ -6,8 +6,7 @@ namespace CubicBezier
 	void eval(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		// Calculate the point.
 		const float u = 1 - t;
@@ -32,14 +31,11 @@ namespace CubicBezier
 			3*p3x*(2*t - 3*tt) +
 			3*p4x*tt);
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	
@@ -67,7 +63,7 @@ namespace CubicBezier
 	void eval_normal(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
-		const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+		const float t, float &out normal_x, float &out normal_y)
 	{
 		const float u = 1 - t;
 		const float tt = t*t;
@@ -85,14 +81,11 @@ namespace CubicBezier
 			3*p3x*(2*t - 3*tt) +
 			3*p4x*tt);
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	

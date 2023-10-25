@@ -79,12 +79,10 @@ class BSpline
 	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes.
 	  * @param degree How smooth the curve is.
 	  * @param clamped Whether or not the curve will touch the start and end vertices. Only applicable when open.
-	  * @param closed If true the start and end vertices will be smoothly connected. 
-	  * @param normalise If false the returned normal values will not be normalised. */
+	  * @param closed If true the start and end vertices will be smoothly connected. */
 	void eval(
 		const int degree, const bool clamped, const bool closed,
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
@@ -158,14 +156,11 @@ class BSpline
 		normal_x = du.y;
 		normal_y = -du.x;
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	
@@ -238,7 +233,7 @@ class BSpline
 	/** Returns the normal at the given `t` value. */
 	void eval_normal(
 		const int degree, const bool clamped, const bool closed,
-		const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+		const float t, float &out normal_x, float &out normal_y)
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
@@ -274,14 +269,11 @@ class BSpline
 		normal_x = du.y;
 		normal_y = -du.x;
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	

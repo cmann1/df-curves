@@ -68,7 +68,7 @@ namespace Curve
 				
 				float x2, y2;
 				float n2x, n2y;
-				eval(i, t2, x2, y2, n2x, n2y, true);
+				eval(i, t2, x2, y2, n2x, n2y);
 				
 				if(j > 0)
 				{
@@ -160,7 +160,7 @@ namespace Curve
 			if(out_arc_length == 0 || max_stretch_factor <= 0 || closeTo(tm, t2))
 				return arc_count;
 			
-			eval(segment_index, tm, mx, my, nmx, nmy, true);
+			eval(segment_index, tm, mx, my, nmx, nmy);
 			const float real_length = sqrt((mx - x1) * (mx - x1) + (my - y1) * (my - y1));
 			
 			if(abs(real_length - out_arc_length * 0.5) / (out_arc_length * 0.5) < max_stretch_factor)
@@ -168,7 +168,7 @@ namespace Curve
 		}
 		else
 		{
-			eval(segment_index, tm, mx, my, nmx, nmy, true);
+			eval(segment_index, tm, mx, my, nmx, nmy);
 		}
 		
 		// Subdivide the left.

@@ -1,14 +1,12 @@
 namespace CatmullRom
 {
 	
-	/** Calculate the position and normal at the given t value.
-	 * @param normalise If false the returned normal values will not be normalised. */
+	/** Calculate the position and normal at the given t value. */
 	void eval(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		const float tension,
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		const float st = tension * 2;
 		
@@ -38,14 +36,11 @@ namespace CatmullRom
 			(3 * t2 - 2 * t) * dv2x +
 			p2x * (6 * t2 - 6 * t) + p3x * (6 * t - 6 * t2));
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	
@@ -78,8 +73,7 @@ namespace CatmullRom
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		const float tension,
-		const float t, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const float t, float &out normal_x, float &out normal_y)
 	{
 		const float st = tension * 2;
 		
@@ -107,14 +101,11 @@ namespace CatmullRom
 			(3 * t2 - 2 * t) * dv2x +
 			p2x * (6 * t2 - 6 * t) + p3x * (6 * t - 6 * t2));
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
+			normal_x /= length;
+			normal_y /= length;
 		}
 	}
 	

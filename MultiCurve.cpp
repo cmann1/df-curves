@@ -473,11 +473,8 @@ class MultiCurve
 	 * @param segment The index of the segment between 0 and `vertex_count` for closed curves, and `vertex_count` for open.
 	 *                Passing a negative values will instead calculate the segment index automatically, and `t` will be considered
 	 *                an absolute value with 0 being the first vertex of the curve, and 1 being the last.
-	 * @param t The factor between 0 and 1 within `segment`, or the entire curve if `segment` is negative.
-	 * @param normalise If false the returned normal values will not be normalised. */
-	void eval(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+	 * @param t The factor between 0 and 1 within `segment`, or the entire curve if `segment` is negative. */
+	void eval(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 0)
 		{
@@ -500,19 +497,19 @@ class MultiCurve
 		switch(_type)
 		{
 			case CurveType::Linear:
-				eval_linear(segment, t, x, y, normal_x, normal_y, normalise);
+				eval_linear(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::QuadraticBezier:
-				eval_quadratic_bezier(segment, t, x, y, normal_x, normal_y, normalise);
+				eval_quadratic_bezier(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::CubicBezier:
-				eval_cubic_bezier(segment, t, x, y, normal_x, normal_y, normalise);
+				eval_cubic_bezier(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::CatmullRom:
-				eval_catmull_rom(segment, t, x, y, normal_x, normal_y, normalise);
+				eval_catmull_rom(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::BSpline:
-				eval_b_spline(segment, t, x, y, normal_x, normal_y, normalise);
+				eval_b_spline(segment, t, x, y, normal_x, normal_y);
 				break;
 			default:
 				x = 0;
@@ -565,7 +562,7 @@ class MultiCurve
 	}
 	
 	/** Calculate the normal a the given segment and t value. */
-	void eval_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count <= 1)
 		{
@@ -577,19 +574,19 @@ class MultiCurve
 		switch(_type)
 		{
 			case CurveType::Linear:
-				eval_linear_normal(segment, t, normal_x, normal_y, normalise);
+				eval_linear_normal(segment, t, normal_x, normal_y);
 				break;
 			case CurveType::QuadraticBezier:
-				eval_quadratic_bezier_normal(segment, t, normal_x, normal_y, normalise);
+				eval_quadratic_bezier_normal(segment, t, normal_x, normal_y);
 				break;
 			case CurveType::CubicBezier:
-				eval_cubic_bezier_normal(segment, t, normal_x, normal_y, normalise);
+				eval_cubic_bezier_normal(segment, t, normal_x, normal_y);
 				break;
 			case CurveType::CatmullRom:
-				eval_catmull_rom_normal(segment, t, normal_x, normal_y, normalise);
+				eval_catmull_rom_normal(segment, t, normal_x, normal_y);
 				break;
 			case CurveType::BSpline:
-				eval_b_spline_normal(segment, t, normal_x, normal_y, normalise);
+				eval_b_spline_normal(segment, t, normal_x, normal_y);
 				break;
 			default:
 				normal_x = 1;
@@ -599,8 +596,7 @@ class MultiCurve
 	}
 	
 	void eval_linear(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -618,23 +614,15 @@ class MultiCurve
 		y = p1.y + dy * ti;
 		
 		// Calculate the normal vector.
-		if(normalise)
+		const float length = sqrt(dx * dx + dy * dy);
+		if(length != 0)
 		{
-			const float length = sqrt(dx * dx + dy * dy);
-			if(length != 0)
-			{
-				normal_x = dy / length;
-				normal_y = -dx / length;
-			}
-			else
-			{
-				normal_x = normal_y = 0;
-			}
+			normal_x = dy / length;
+			normal_y = -dx / length;
 		}
 		else
 		{
-			normal_x = dy;
-			normal_y = -dx;
+			normal_x = normal_y = 0;
 		}
 	}
 	
@@ -656,7 +644,7 @@ class MultiCurve
 		y = p1.y + dy * ti;
 	}
 	
-	void eval_linear_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_linear_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -670,24 +658,20 @@ class MultiCurve
 		normal_y = -(p2.x - p1.x);
 		normal_x = p2.y - p1.y;
 		
-		if(normalise)
+		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
+		if(length != 0)
 		{
-			const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
-			if(length != 0)
-			{
-				normal_x /= length;
-				normal_y /= length;
-			}
-			else
-			{
-				normal_x = normal_y = 0;
-			}
+			normal_x /= length;
+			normal_y /= length;
+		}
+		else
+		{
+			normal_x = normal_y = 0;
 		}
 	}
 	
 	void eval_catmull_rom(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -700,7 +684,7 @@ class MultiCurve
 		CatmullRom::eval(
 			p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
 			tension * p2.tension,
-			ti, x, y, normal_x, normal_y, normalise);
+			ti, x, y, normal_x, normal_y);
 	}
 	
 	void eval_catmull_rom_point(const int segment, const float t, float &out x, float &out y)
@@ -719,7 +703,7 @@ class MultiCurve
 			ti, x, y);
 	}
 	
-	void eval_catmull_rom_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_catmull_rom_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -732,12 +716,10 @@ class MultiCurve
 		CatmullRom::eval_normal(
 			p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
 			tension * p2.tension,
-			ti, normal_x, normal_y, normalise);
+			ti, normal_x, normal_y);
 	}
 	
-	void eval_quadratic_bezier(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+	void eval_quadratic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -760,7 +742,7 @@ class MultiCurve
 		{
 			QuadraticBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
-				ti, x, y, normal_x, normal_y, normalise);
+				ti, x, y, normal_x, normal_y);
 		}
 		// Rational.
 		else
@@ -768,7 +750,7 @@ class MultiCurve
 			QuadraticBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
-				ti, x, y, normal_x, normal_y, normalise);
+				ti, x, y, normal_x, normal_y);
 		}
 	}
 	
@@ -807,7 +789,7 @@ class MultiCurve
 		}
 	}
 	
-	void eval_quadratic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_quadratic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -830,7 +812,7 @@ class MultiCurve
 		{
 			QuadraticBezier::eval_normal(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
-				ti, normal_x, normal_y, normalise);
+				ti, normal_x, normal_y);
 		}
 		// Rational.
 		else
@@ -838,13 +820,11 @@ class MultiCurve
 			QuadraticBezier::eval_normal(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
-				ti, normal_x, normal_y, normalise);
+				ti, normal_x, normal_y);
 		}
 	}
 	
-	void eval_cubic_bezier(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+	void eval_cubic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -873,7 +853,7 @@ class MultiCurve
 			{
 				QuadraticBezier::eval(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
-					ti, x, y, normal_x, normal_y, normalise);
+					ti, x, y, normal_x, normal_y);
 			}
 			// Rational.
 			else
@@ -881,7 +861,7 @@ class MultiCurve
 				QuadraticBezier::eval(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					p1.weight, qp2.weight, p4.weight,
-					ti, x, y, normal_x, normal_y, normalise);
+					ti, x, y, normal_x, normal_y);
 			}
 			return;
 		}
@@ -891,7 +871,7 @@ class MultiCurve
 		{
 			CubicBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
-				ti, x, y, normal_x, normal_y, normalise);
+				ti, x, y, normal_x, normal_y);
 		}
 		// Rational.
 		else
@@ -899,7 +879,7 @@ class MultiCurve
 			CubicBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
-				ti, x, y, normal_x, normal_y, normalise);
+				ti, x, y, normal_x, normal_y);
 		}
 	}
 	
@@ -962,7 +942,7 @@ class MultiCurve
 		}
 	}
 	
-	void eval_cubic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_cubic_bezier_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -991,7 +971,7 @@ class MultiCurve
 			{
 				QuadraticBezier::eval_normal(
 					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
-					ti, normal_x, normal_y, normalise);
+					ti, normal_x, normal_y);
 			}
 			// Rational.
 			else
@@ -999,7 +979,7 @@ class MultiCurve
 				QuadraticBezier::eval_normal(
 					p1.x, p1.y, p0.x + p2.x, p0.y + p2.y, p4.x, p4.y,
 					p1.weight, p2.weight, p4.weight,
-					ti, normal_x, normal_y, normalise);
+					ti, normal_x, normal_y);
 			}
 			return;
 		}
@@ -1009,7 +989,7 @@ class MultiCurve
 		{
 			CubicBezier::eval_normal(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
-				ti, normal_x, normal_y, normalise);
+				ti, normal_x, normal_y);
 		}
 		// Rational.
 		else
@@ -1017,13 +997,12 @@ class MultiCurve
 			CubicBezier::eval_normal(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
-				ti, normal_x, normal_y, normalise);
+				ti, normal_x, normal_y);
 		}
 	}
 	
 	void eval_b_spline(
-		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y,
-		const bool normalise=true)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(b_spline_degree <= 1)
 		{
@@ -1034,8 +1013,7 @@ class MultiCurve
 		const float ta = calc_b_spline_t(segment, t);
 		b_spline.eval(
 			b_spline_degree, b_spline_clamped, closed, 
-			ta, x, y, normal_x, normal_y,
-			normalise);
+			ta, x, y, normal_x, normal_y);
 	}
 	
 	void eval_b_spline_point(const int segment, const float t, float &out x, float &out y)
@@ -1054,7 +1032,7 @@ class MultiCurve
 			ta, x, y);
 	}
 	
-	void eval_b_spline_normal(const int segment, const float t, float &out normal_x, float &out normal_y, const bool normalise=true)
+	void eval_b_spline_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
 	{
 		if(b_spline_degree <= 1)
 		{
