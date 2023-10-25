@@ -82,7 +82,7 @@ class BSpline
 	  * @param closed If true the start and end vertices will be smoothly connected. */
 	void eval(
 		const int degree, const bool clamped, const bool closed,
-		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
+		const float t, float &out x, float &out y, float &out w, float &out normal_x, float &out normal_y)
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
@@ -127,7 +127,7 @@ class BSpline
 		// Initialize result to 0s
 		x = 0;
 		y = 0;
-		float w = 0;
+		w = 0;
 		
 		for(int i = 0; i <= degree_c; i++)
 		{
@@ -168,7 +168,7 @@ class BSpline
 	  * Make sure `set_vertices` and `generate_knots` have been called at least once, or after anything about the curve changes. */
 	void eval_point(
 		const int degree, const bool clamped, const bool closed,
-		const float t, float &out x, float &out y)
+		const float t, float &out x, float &out y, float &out w)
 	{
 		int v_count, degree_c;
 		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
@@ -208,7 +208,7 @@ class BSpline
 		// Initialize result to 0s
 		x = 0;
 		y = 0;
-		float w = 0;
+		w = 0;
 		
 		if(v_count <= degree_c)
 		{

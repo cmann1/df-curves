@@ -146,7 +146,7 @@ class CurveArc
 	/** The t value of this point relative to its segment. */
 	float t;
 	/** The position of this arc. */
-	float x, y;
+	float x, y, w;
 	float dx, dy;
 	/** The normalised delta/direction of this arc segment. */
 	float nx, ny;
