@@ -152,7 +152,7 @@ class script : MultiCurveDebugColourCallback
 		if(state == Idle)
 		{
 			closest_point.found = curve.closest_point(
-				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
+				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y, closest_point.w,
 				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
 			
 			if(closest_point.found)
@@ -182,6 +182,7 @@ class script : MultiCurveDebugColourCallback
 			case Idle: state_idle(); break;
 			case DragVertex: state_drag_vertex(); break;
 			case DragWeight: state_drag_weight(); break;
+			case DragCurve: state_drag_curve(); break;
 		}
 		
 		if(check_pressed(VK::V))
@@ -531,6 +532,21 @@ class script : MultiCurveDebugColourCallback
 			}
 			return;
 		}
+		
+		// Drag curve.
+		if(mouse.left_press && @hover_point == null && closest_point.hover)
+		{
+			dct = closest_point.t;
+			dcr = closest_point.w;
+			const float u = 1 - dct;
+			dcu = (u*u) / (dct*dct + u*u);
+			@dc_p1 = curve.vert(closest_point.i);
+			@dc_p2 = curve.vert(closest_point.i, 1);
+			
+			drag_ox = closest_point.x - mouse.x;
+			drag_oy = closest_point.y - mouse.y;
+			state = DragCurve;
+		}
 	}
 	
 	void state_drag_vertex()
@@ -642,6 +658,67 @@ class script : MultiCurveDebugColourCallback
 		display_txt_timer = 1;
 		display_txt_x = mouse.x;
 		display_txt_y = mouse.y - 5 * zoom_factor;
+	}
+	
+	float dct;
+	float dcu;
+	float dcr;
+	CurveVertex@ dc_p1, dc_p2;
+	void state_drag_curve()
+	{
+		if(!mouse.left_down || esc_down)
+		{
+			state = Idle;
+			return;
+		}
+		
+		//if(mouse.moved)
+		{
+			// Non-rational.
+			//const float bx = mouse.x + drag_ox;
+			//const float by = mouse.y + drag_oy;
+			//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
+			//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+			//const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
+			//const float ax = bx + (bx - cx)/r;
+			//const float ay = by + (by - cy)/r;
+			
+			// Rational.
+			const float br = dcr;
+			const float bx = (mouse.x + drag_ox) * br;
+			const float by = (mouse.y + drag_oy) * br;
+			const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
+			const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
+			const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
+			const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
+			const float ar = br + (br - cr)/r;
+			const float ax = (bx + (bx - cx)/r)/ar;
+			const float ay = (by + (by - cy)/r)/ar;
+			
+			float x1 = 0;
+			float y1 = 0;
+			for(int i = 0; i <= 50; i++)
+			{
+				const float t = float(i) / 50;
+				float x2, y2, _;
+				QuadraticBezier::eval_point(
+					dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
+					dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
+					t, x2, y2, _);
+				
+				if(i > 0)
+				{
+					g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
+				}
+				
+				x1 = x2;
+				y1 = y2;
+			}
+			
+			g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, ax, ay, 1*zoom_factor, 0x99ffffff);
+			g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, ax, ay, 1*zoom_factor, 0x99ffffff);
+			g.draw_line_world(22, 23, cx/cr, cy/cr, ax, ay, 1*zoom_factor, 0x99ffffff);
+		}
 	}
 	
 	bool get_vertex_at_mouse(CurveControlPoint@ &out result, int &out segment_index, int &out vertex_index, int &out control_point_index, const float size=5)
@@ -864,6 +941,7 @@ enum EditState
 	Idle,
 	DragVertex,
 	DragWeight,
+	DragCurve,
 	
 }
 
@@ -876,6 +954,7 @@ class ClosestPointTest
 	int i;
 	float t;
 	float x, y;
+	float w;
 	float dx, dy;
 	float nx, ny;
 	float dist;
