@@ -355,17 +355,15 @@ class MultiCurveDebug
 		float &out x2, float &out y2, float &out n2x, float &out n2y,
 		float ix2=0, float iy2=0, float in2x=0, float in2y=0)
 	{
-		float _;
-		
 		if(in2x == 0 && in2y == 0)
 		{
 			if(eval_normal)
 			{
-				curve.eval(segment_index, t2, x2, y2, _, n2x, n2y);
+				curve.eval(segment_index, t2, x2, y2, n2x, n2y);
 			}
 			else
 			{
-				curve.eval_point(segment_index, t2, x2, y2, _);
+				curve.eval_point(segment_index, t2, x2, y2);
 			}
 		}
 		else
@@ -728,8 +726,8 @@ class MultiCurveDebug
 		
 		for(int i = 0; i <= v_count; i++)
 		{
-			float x, y, _, nx, ny;
-			curve.eval(i, 0.5, x, y, _, nx, ny);
+			float x, y, nx, ny;
+			curve.eval(i, 0.5, x, y, nx, ny);
 			
 			tf.text(i + '');
 			

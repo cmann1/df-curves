@@ -25,8 +25,6 @@ class MultiCurve
 {
 	
 	// TODO: Dragging/molding curves.
-	// TODO: Test if pow is faster than mult
-	// TODO: Test how much slower creating a CurveResult object would be.
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -476,13 +474,12 @@ class MultiCurve
 	 *                Passing a negative values will instead calculate the segment index automatically, and `t` will be considered
 	 *                an absolute value with 0 being the first vertex of the curve, and 1 being the last.
 	 * @param t The factor between 0 and 1 within `segment`, or the entire curve if `segment` is negative. */
-	void eval(const int segment, const float t, float &out x, float &out y, float &out w, float &out normal_x, float &out normal_y)
+	void eval(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(vertex_count == 0)
 		{
 			x = 0;
 			y = 0;
-			w = 1;
 			normal_x = 1;
 			normal_y = 0;
 			return;
@@ -492,7 +489,6 @@ class MultiCurve
 			const CurveVertex@ p0 = @vertices[0];
 			x = p0.x;
 			y = p0.y;
-			w = p0.weight;
 			normal_x = 1;
 			normal_y = 0;
 			return;
@@ -501,24 +497,23 @@ class MultiCurve
 		switch(_type)
 		{
 			case CurveType::Linear:
-				eval_linear(segment, t, x, y, w, normal_x, normal_y);
+				eval_linear(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::QuadraticBezier:
-				eval_quadratic_bezier(segment, t, x, y, w, normal_x, normal_y);
+				eval_quadratic_bezier(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::CubicBezier:
-				eval_cubic_bezier(segment, t, x, y, w, normal_x, normal_y);
+				eval_cubic_bezier(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::CatmullRom:
-				eval_catmull_rom(segment, t, x, y, w, normal_x, normal_y);
+				eval_catmull_rom(segment, t, x, y, normal_x, normal_y);
 				break;
 			case CurveType::BSpline:
-				eval_b_spline(segment, t, x, y, w, normal_x, normal_y);
+				eval_b_spline(segment, t, x, y, normal_x, normal_y);
 				break;
 			default:
 				x = 0;
 				y = 0;
-				w = 1;
 				normal_x = 1;
 				normal_y = 0;
 				break;
@@ -526,13 +521,12 @@ class MultiCurve
 	}
 	
 	/** Calculate the position a the given segment and t value. */
-	void eval_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_point(const int segment, const float t, float &out x, float &out y)
 	{
 		if(vertex_count == 0)
 		{
 			x = 0;
 			y = 0;
-			w = 1;
 			return;
 		}
 		if(vertex_count == 1)
@@ -540,26 +534,25 @@ class MultiCurve
 			const CurveVertex@ p0 = @vertices[0];
 			x = p0.x;
 			y = p0.y;
-			w = p0.weight;
 			return;
 		}
 		
 		switch(_type)
 		{
 			case CurveType::Linear:
-				eval_linear_point(segment, t, x, y, w);
+				eval_linear_point(segment, t, x, y);
 				break;
 			case CurveType::QuadraticBezier:
-				eval_quadratic_bezier_point(segment, t, x, y, w);
+				eval_quadratic_bezier_point(segment, t, x, y);
 				break;
 			case CurveType::CubicBezier:
-				eval_cubic_bezier_point(segment, t, x, y, w);
+				eval_cubic_bezier_point(segment, t, x, y);
 				break;
 			case CurveType::CatmullRom:
-				eval_catmull_rom_point(segment, t, x, y, w);
+				eval_catmull_rom_point(segment, t, x, y);
 				break;
 			case CurveType::BSpline:
-				eval_b_spline_point(segment, t, x, y, w);
+				eval_b_spline_point(segment, t, x, y);
 				break;
 			default:
 				x = 0;
@@ -603,8 +596,7 @@ class MultiCurve
 	}
 	
 	void eval_linear(
-		const int segment, const float t, float &out x, float &out y, float &out w,
-		float &out normal_x, float &out normal_y)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -620,7 +612,6 @@ class MultiCurve
 		
 		x = p1.x + dx * ti;
 		y = p1.y + dy * ti;
-		w = p1.weight + (p2.weight - p1.weight) * ti;
 		
 		// Calculate the normal vector.
 		const float length = sqrt(dx * dx + dy * dy);
@@ -635,7 +626,7 @@ class MultiCurve
 		}
 	}
 	
-	void eval_linear_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_linear_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
@@ -646,10 +637,11 @@ class MultiCurve
 		const CurveVertex@ p2 = vert(i, 1);
 		
 		// Calculate the point.
+		const float dx = p2.x - p1.x;
+		const float dy = p2.y - p1.y;
 		
-		x = p1.x + (p2.x - p1.x) * ti;
-		y = p1.y + (p2.y - p1.y) * ti;
-		w = p1.weight + (p2.weight - p1.weight) * ti;
+		x = p1.x + dx * ti;
+		y = p1.y + dy * ti;
 	}
 	
 	void eval_linear_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
@@ -679,8 +671,7 @@ class MultiCurve
 	}
 	
 	void eval_catmull_rom(
-		const int segment, const float t, float &out x, float &out y, float &out w,
-		float &out normal_x, float &out normal_y)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -694,11 +685,9 @@ class MultiCurve
 			p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
 			tension * p2.tension,
 			ti, x, y, normal_x, normal_y);
-		
-		w = p2.tension + (p3.tension - p2.tension) * ti;
 	}
 	
-	void eval_catmull_rom_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_catmull_rom_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
@@ -712,8 +701,6 @@ class MultiCurve
 			p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
 			tension * p2.tension,
 			ti, x, y);
-		
-		w = p2.tension + (p3.tension - p2.tension) * ti;
 	}
 	
 	void eval_catmull_rom_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
@@ -732,9 +719,7 @@ class MultiCurve
 			ti, normal_x, normal_y);
 	}
 	
-	void eval_quadratic_bezier(
-		const int segment, const float t, float &out x, float &out y, float &out w,
-		float &out normal_x, float &out normal_y)
+	void eval_quadratic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -748,7 +733,7 @@ class MultiCurve
 		// Linear fallback.
 		if(p2.type == Square)
 		{
-			eval_linear(segment, t, x, y, w, normal_x, normal_y);
+			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
 		
@@ -758,7 +743,6 @@ class MultiCurve
 			QuadraticBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				ti, x, y, normal_x, normal_y);
-			w = p1.weight;
 		}
 		// Rational.
 		else
@@ -766,11 +750,11 @@ class MultiCurve
 			QuadraticBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
-				ti, x, y, w, normal_x, normal_y);
+				ti, x, y, normal_x, normal_y);
 		}
 	}
 	
-	void eval_quadratic_bezier_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_quadratic_bezier_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
@@ -784,7 +768,7 @@ class MultiCurve
 		// Linear fallback.
 		if(p2.type == Square)
 		{
-			eval_linear_point(segment, t, x, y, w);
+			eval_linear_point(segment, t, x, y);
 			return;
 		}
 		
@@ -794,7 +778,6 @@ class MultiCurve
 			QuadraticBezier::eval_point(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				ti, x, y);
-			w = p1.weight;
 		}
 		// Rational.
 		else
@@ -802,7 +785,7 @@ class MultiCurve
 			QuadraticBezier::eval_point(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
 				p1.weight, p2.weight, p3.weight,
-				ti, x, y, w);
+				ti, x, y);
 		}
 	}
 	
@@ -841,9 +824,7 @@ class MultiCurve
 		}
 	}
 	
-	void eval_cubic_bezier(
-		const int segment, const float t, float &out x, float &out y, float &out w,
-		float &out normal_x, float &out normal_y)
+	void eval_cubic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		int i;
 		float ti;
@@ -857,7 +838,7 @@ class MultiCurve
 		// Linear fallback.
 		if(p2.type == Square && p3.type == Square)
 		{
-			eval_linear(segment, t, x, y, w, normal_x, normal_y);
+			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
 		
@@ -873,7 +854,6 @@ class MultiCurve
 				QuadraticBezier::eval(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					ti, x, y, normal_x, normal_y);
-				w = p1.weight;
 			}
 			// Rational.
 			else
@@ -881,7 +861,7 @@ class MultiCurve
 				QuadraticBezier::eval(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					p1.weight, qp2.weight, p4.weight,
-					ti, x, y, w, normal_x, normal_y);
+					ti, x, y, normal_x, normal_y);
 			}
 			return;
 		}
@@ -892,7 +872,6 @@ class MultiCurve
 			CubicBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				ti, x, y, normal_x, normal_y);
-			w = p1.weight;
 		}
 		// Rational.
 		else
@@ -900,11 +879,11 @@ class MultiCurve
 			CubicBezier::eval(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
-				ti, x, y, w, normal_x, normal_y);
+				ti, x, y, normal_x, normal_y);
 		}
 	}
 	
-	void eval_cubic_bezier_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_cubic_bezier_point(const int segment, const float t, float &out x, float &out y)
 	{
 		int i;
 		float ti;
@@ -918,7 +897,7 @@ class MultiCurve
 		// Linear fallback.
 		if(p2.type == Square && p3.type == Square)
 		{
-			eval_linear_point(segment, t, x, y, w);
+			eval_linear_point(segment, t, x, y);
 			return;
 		}
 		
@@ -934,16 +913,14 @@ class MultiCurve
 				QuadraticBezier::eval_point(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					ti, x, y);
-				w = p1.weight;
 			}
 			// Rational.
 			else
 			{
-				float r;
 				QuadraticBezier::eval_point(
 					p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
 					p1.weight, qp2.weight, p4.weight,
-					ti, x, y, w);
+					ti, x, y);
 			}
 			return;
 		}
@@ -954,7 +931,6 @@ class MultiCurve
 			CubicBezier::eval_point(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				ti, x, y);
-			w = p1.weight;
 		}
 		// Rational.
 		else
@@ -962,7 +938,7 @@ class MultiCurve
 			CubicBezier::eval_point(
 				p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
 				p1.weight, p2.weight, p3.weight, p4.weight,
-				ti, x, y, w);
+				ti, x, y);
 		}
 	}
 	
@@ -1026,26 +1002,25 @@ class MultiCurve
 	}
 	
 	void eval_b_spline(
-		const int segment, const float t, float &out x, float &out y, float &out w,
-		float &out normal_x, float &out normal_y)
+		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		if(b_spline_degree <= 1)
 		{
-			eval_linear(segment, t, x, y, w, normal_x, normal_y);
+			eval_linear(segment, t, x, y, normal_x, normal_y);
 			return;
 		}
 		
 		const float ta = calc_b_spline_t(segment, t);
 		b_spline.eval(
 			b_spline_degree, b_spline_clamped, closed, 
-			ta, x, y, w, normal_x, normal_y);
+			ta, x, y, normal_x, normal_y);
 	}
 	
-	void eval_b_spline_point(const int segment, const float t, float &out x, float &out y, float &out w)
+	void eval_b_spline_point(const int segment, const float t, float &out x, float &out y)
 	{
 		if(b_spline_degree <= 1)
 		{
-			eval_linear_point(segment, t, x, y, w);
+			eval_linear_point(segment, t, x, y);
 			return;
 		}
 		
@@ -1054,7 +1029,7 @@ class MultiCurve
 			: t;
 		b_spline.eval_point(
 			b_spline_degree, b_spline_clamped, closed, 
-			ta, x, y, w);
+			ta, x, y);
 	}
 	
 	void eval_b_spline_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
@@ -1077,7 +1052,7 @@ class MultiCurve
 	
 	/** See `Curve::closest_point`. */
 	bool closest_point(
-		const float x, const float y, int &out segment_index, float &out t, float &out px, float &out py, float &out pw,
+		const float x, const float y, int &out segment_index, float &out t, float &out px, float &out py,
 		const float max_distance=0, float threshold=1,
 		const bool arc_length_interpolation=true,
 		const bool adjust_initial_binary_factor=true,
@@ -1086,7 +1061,7 @@ class MultiCurve
 		return Curve::closest_point(
 			vertices, vertex_count, closed,
 			eval_point_func_def,
-			x, y, segment_index, t, px, py, pw,
+			x, y, segment_index, t, px, py,
 			max_distance, threshold,
 			arc_length_interpolation,
 			adjust_initial_binary_factor,
@@ -1148,7 +1123,7 @@ class MultiCurve
 	//{
 	
 	/** Inserts a vertex in the given segment index, at the given position. */
-	int insert_vertex(const int segment, const float x, const float y, const float weight=1)
+	int insert_vertex(const int segment, const float x, const float y)
 	{
 		int index;
 		CurveVertex@ p;
@@ -1170,7 +1145,6 @@ class MultiCurve
 		
 		p.x = x;
 		p.y = y;
-		p.weight = weight;
 		
 		if(_type == CurveType::BSpline)
 		{
@@ -1209,16 +1183,16 @@ class MultiCurve
 	
 	private int insert_vertex_linear(const int segment, const float t)
 	{
-		float x, y, w;
-		eval_linear_point(segment, t, x, y, w);
-		return insert_vertex(segment, x, y, w);
+		float x, y;
+		eval_linear_point(segment, t, x, y);
+		return insert_vertex(segment, x, y);
 	}
 	
 	private int insert_vertex_catmull_rom(const int segment, const float t)
 	{
-		float x, y, w;
-		eval_catmull_rom_point(segment, t, x, y, w);
-		return insert_vertex(segment, x, y, w);
+		float x, y;
+		eval_catmull_rom_point(segment, t, x, y);
+		return insert_vertex(segment, x, y);
 	}
 	
 	private int insert_vertex_quadratic_bezier(const int segment, const float t)

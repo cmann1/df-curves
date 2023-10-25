@@ -66,9 +66,9 @@ namespace Curve
 			{
 				const float t2 = float(j) / division_count;
 				
-				float x2, y2, w2;
+				float x2, y2;
 				float n2x, n2y;
-				eval(i, t2, x2, y2, w2, n2x, n2y);
+				eval(i, t2, x2, y2, n2x, n2y);
 				
 				if(j > 0)
 				{
@@ -95,7 +95,6 @@ namespace Curve
 				arc.t = t2;
 				arc.x = x2;
 				arc.y = y2;
-				arc.w = w2;
 				arc.length_sqr = arc_length_sqr;
 				arc.length = arc_length;
 				arc.total_length = total_length;
@@ -154,14 +153,14 @@ namespace Curve
 		
 		// Calculate the mid point between t1 and t2.
 		const float tm = (t1 + t2) * 0.5;
-		float mx, my, mw, nmx, nmy;
+		float mx, my, nmx, nmy;
 		
 		if(!subdivide)
 		{
 			if(out_arc_length == 0 || max_stretch_factor <= 0 || closeTo(tm, t2))
 				return arc_count;
 			
-			eval(segment_index, tm, mx, my, mw, nmx, nmy);
+			eval(segment_index, tm, mx, my, nmx, nmy);
 			const float real_length = sqrt((mx - x1) * (mx - x1) + (my - y1) * (my - y1));
 			
 			if(abs(real_length - out_arc_length * 0.5) / (out_arc_length * 0.5) < max_stretch_factor)
@@ -169,7 +168,7 @@ namespace Curve
 		}
 		else
 		{
-			eval(segment_index, tm, mx, my, mw, nmx, nmy);
+			eval(segment_index, tm, mx, my, nmx, nmy);
 		}
 		
 		// Subdivide the left.
@@ -196,7 +195,6 @@ namespace Curve
 		arc.t = tm;
 		arc.x = mx;
 		arc.y = my;
-		arc.w = mw;
 		arc.length_sqr = out_arc_length_sqr;
 		arc.length = out_arc_length;
 		arc.total_length = out_total_length;

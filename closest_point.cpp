@@ -17,7 +17,7 @@ namespace Curve
 	bool closest_point(
 		array<CurveVertex>@ vertices, const int vertex_count, const bool closed,
 		EvalPointFunc@ eval_point,
-		const float x, const float y, int &out segment_index, float &out out_t, float &out out_x, float &out out_y, float &out out_w,
+		const float x, const float y, int &out segment_index, float &out out_t, float &out out_x, float &out out_y,
 		const float max_distance=0, float threshold=1,
 		const bool arc_length_interpolation=true,
 		const bool adjust_initial_binary_factor=true,
@@ -65,7 +65,6 @@ namespace Curve
 				float c_x = c.x;
 				float c_y = c.y;
 				float c_t = c.t;
-				float c_w = c.w;
 				
 				// Project the point onto the current arc segment to find a more accurate initial guess.
 				if(arc_length_interpolation && j > 0 && (c.dx != 0 || c.dy != 0))
@@ -79,8 +78,8 @@ namespace Curve
 						const float linear_y = c0.y + c.dy * arc_local_t;
 						float arc_t = c0.t + (c.t - c0.t) * arc_local_t;
 						
-						float arc_x, arc_y, arc_w;
-						eval_point(i, arc_t, arc_x, arc_y, arc_w);
+						float arc_x, arc_y;
+						eval_point(i, arc_t, arc_x, arc_y);
 						
 						// Take the interpolated curve point (which could be farther away) and project it back onto the
 						// perpendicular line from the closest linear point to get something that's hopefully closer to the curve and desired point.
@@ -124,7 +123,6 @@ namespace Curve
 				out_t = c_t;
 				out_x = c_x;
 				out_y = c_y;
-				out_w = c_w;
 				segment_index = i;
 				closest_arc_index = j;
 				closest_arc_length = c_length;
@@ -153,7 +151,7 @@ namespace Curve
 			: segment_index;
 		
 		float t1, t2;
-		float p1x, p1y, p1w, p2x, p2y, p2w;
+		float p1x, p1y, p2x, p2y;
 		
 		if(closest_arc_index > 0)
 		{
@@ -168,14 +166,12 @@ namespace Curve
 			t1 = si1 + c1.t;
 			p1x = c1.x;
 			p1y = c1.y;
-			p1w = c1.w;
 		}
 		else
 		{
 			t1 = out_t;
 			p1x = out_x;
 			p1y = out_y;
-			p1w = out_w;
 		}
 		
 		if(is_interpolated)
@@ -184,7 +180,6 @@ namespace Curve
 			t2 = si2 + c2.t;
 			p2x = c2.x;
 			p2y = c2.y;
-			p2w = c2.w;
 		}
 		else if(closest_arc_index < v.arc_count - 1)
 		{
@@ -192,7 +187,6 @@ namespace Curve
 			t2 = si2 + c2.t;
 			p2x = c2.x;
 			p2y = c2.y;
-			p2w = c2.w;
 		}
 		else if(closed || segment_index < end - 1)
 		{
@@ -200,7 +194,6 @@ namespace Curve
 			t2 = si2 + c2.t;
 			p2x = c2.x;
 			p2y = c2.y;
-			p2w = c2.w;
 		}
 		else
 		{
@@ -228,19 +221,19 @@ namespace Curve
 		
 		do
 		{
-			float p1mx, p1my, p1mw;
-			float p2mx, p2my, p2mw;
+			float p1mx, p1my;
+			float p2mx, p2my;
 			
 			// Left side.
 			const float t1m = out_t + (t1 - out_t) * binary_search_factor;
 			const int i1 = (int(t1m) % vertex_count + vertex_count) % vertex_count;
-			eval_point(i1, fraction(t1m), p1mx, p1my, p1mw);
+			eval_point(i1, fraction(t1m), p1mx, p1my);
 			const float dist1m = (p1mx - x) * (p1mx - x) + (p1my - y) * (p1my - y);
 			
 			// Right side.
 			const float t2m = out_t + (t2 - out_t) * binary_search_factor;
 			const int i2 = (int(t2m) % vertex_count + vertex_count) % vertex_count;
-			eval_point(i2, fraction(t2m), p2mx, p2my, p2mw);
+			eval_point(i2, fraction(t2m), p2mx, p2my);
 			const float dist2m = (p2mx - x) * (p2mx - x) + (p2my - y) * (p2my - y);
 			
 			// Mid point is closest.
@@ -249,11 +242,9 @@ namespace Curve
 				t1 = t1m;
 				p1x = p1mx;
 				p1y = p1my;
-				p1w = p1mw;
 				t2 = t2m;
 				p2x = p2mx;
 				p2y = p2my;
-				p2w = p2mw;
 			}
 			// Left point is closest.
 			else if(dist1m < dist2m)
@@ -261,11 +252,9 @@ namespace Curve
 				t2 = out_t;
 				p2x = out_x;
 				p2y = out_y;
-				p2w = out_w;
 				out_t = t1m;
 				out_x = p1mx;
 				out_y = p1my;
-				out_w = p1mw;
 				dist = dist1m;
 			}
 			// Right point is closest.
@@ -277,7 +266,6 @@ namespace Curve
 				out_t = t2m;
 				out_x = p2mx;
 				out_y = p2my;
-				out_w = p2mw;
 				dist = dist2m;
 			}
 			
@@ -303,7 +291,7 @@ namespace Curve
 				out_t = t1 + (t2 - t1) * it;
 				segment_index = (int(out_t) % vertex_count + vertex_count) % vertex_count;
 				out_t = fraction(out_t);
-				eval_point(segment_index, out_t, out_x, out_y, out_w);
+				eval_point(segment_index, out_t, out_x, out_y);
 			}
 		}
 		else

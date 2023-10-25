@@ -7,7 +7,7 @@ namespace CubicBezier
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		const float r1, const float r2, const float r3, const float r4,
-		const float t, float &out x, float &out y, float &out w, float &out normal_x, float &out normal_y)
+		const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
 		// Calculate the point.
 		const float u = 1 - t;
@@ -20,11 +20,11 @@ namespace CubicBezier
 		const float f2 = 3*uu*t*r2;
 		const float f3 = 3*u*tt*r3;
 		const float f4 = tt3 * r4;
-		w = f1 + f2 + f3 + f4;
+		const float basis = f1 + f2 + f3 + f4;
 			
 		// Calculate point.
-		x = (f1*p1x + f2*p2x + f3*p3x + f4*p4x) / w;
-		y = (f1*p1y + f2*p2y + f3*p3y + f4*p4y) / w;
+		x = (f1*p1x + f2*p2x + f3*p3x + f4*p4x) / basis;
+		y = (f1*p1y + f2*p2y + f3*p3y + f4*p4y) / basis;
 			
 		// Calculate Normal.
 		const float ut2 = 2*u*t;
@@ -40,8 +40,8 @@ namespace CubicBezier
 					+ ut2*(p3y*r3 - p2y*r2)
 					- tt*(p3y*r3 - p4y*r4)
 				)
-			) / w
-			- (basis2*(p1y*f1 + p2y*f2 + p3y*f3 + p4y*f4)) / (w*w);
+			) / basis
+			- (basis2*(p1y*f1 + p2y*f2 + p3y*f3 + p4y*f4)) / (basis*basis);
 		normal_y = -(
 			(
 				3*(
@@ -49,8 +49,8 @@ namespace CubicBezier
 					+ ut2*(p3x*r3 - p2x*r2)
 					- tt*(p3x*r3 - p4x*r4)
 				)
-			) / w
-			- (basis2*(p1x*f1 + p2x*f2 + p3x*f3 + p4x*f4)) / (w*w));
+			) / basis
+			- (basis2*(p1x*f1 + p2x*f2 + p3x*f3 + p4x*f4)) / (basis*basis));
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
 		if(length != 0)
@@ -66,7 +66,7 @@ namespace CubicBezier
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		const float r1, const float r2, const float r3, const float r4,
-		const float t, float &out x, float &out y, float &out w)
+		const float t, float &out x, float &out y)
 	{
 		// Calculate the point.
 		const float u = 1 - t;
@@ -79,11 +79,11 @@ namespace CubicBezier
 		const float f2 = 3*uu*t*r2;
 		const float f3 = 3*u*tt*r3;
 		const float f4 = tt3 * r4;
-		w = f1 + f2 + f3 + f4;
+		const float basis = f1 + f2 + f3 + f4;
 			
 		// Calculate point.
-		x = (f1*p1x + f2*p2x + f3*p3x + f4*p4x) / w;
-		y = (f1*p1y + f2*p2y + f3*p3y + f4*p4y) / w;
+		x = (f1*p1x + f2*p2x + f3*p3x + f4*p4x) / basis;
+		y = (f1*p1y + f2*p2y + f3*p3y + f4*p4y) / basis;
 	}
 	
 	/** Calculate the normal at the given t value for a rational quadratic bezier curve defined by

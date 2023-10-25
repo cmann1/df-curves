@@ -152,7 +152,7 @@ class script : MultiCurveDebugColourCallback
 		if(state == Idle)
 		{
 			closest_point.found = curve.closest_point(
-				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y, closest_point.w,
+				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
 				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
 			
 			if(closest_point.found)
@@ -537,7 +537,7 @@ class script : MultiCurveDebugColourCallback
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
 			dct = closest_point.t;
-			dcr = closest_point.w;
+			dcr = 1;
 			const float u = 1 - dct;
 			dcu = (u*u) / (dct*dct + u*u);
 			@dc_p1 = curve.vert(closest_point.i);
@@ -674,50 +674,78 @@ class script : MultiCurveDebugColourCallback
 		
 		//if(mouse.moved)
 		{
-			// Non-rational.
-			//const float bx = mouse.x + drag_ox;
-			//const float by = mouse.y + drag_oy;
-			//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
-			//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-			//const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
-			//const float ax = bx + (bx - cx)/r;
-			//const float ay = by + (by - cy)/r;
-			
-			// Rational.
-			const float br = dcr;
-			const float bx = (mouse.x + drag_ox) * br;
-			const float by = (mouse.y + drag_oy) * br;
-			const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
-			const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
-			const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-			const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
-			const float ar = br + (br - cr)/r;
-			const float ax = (bx + (bx - cx)/r)/ar;
-			const float ay = (by + (by - cy)/r)/ar;
-			
-			float x1 = 0;
-			float y1 = 0;
-			for(int i = 0; i <= 50; i++)
+			if(curve.type == QuadraticBezier)
 			{
-				const float t = float(i) / 50;
-				float x2, y2, _;
-				QuadraticBezier::eval_point(
-					dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
-					dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
-					t, x2, y2, _);
+				// Non-rational.
+				//const float bx = mouse.x + drag_ox;
+				//const float by = mouse.y + drag_oy;
+				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
+				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+				//const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
+				//const float ax = bx + (bx - cx)/r;
+				//const float ay = by + (by - cy)/r;
 				
-				if(i > 0)
+				// Rational.
+				const float br = dcr;
+				const float bx = (mouse.x + drag_ox) * br;
+				const float by = (mouse.y + drag_oy) * br;
+				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
+				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
+				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
+				const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
+				const float ar = br + (br - cr)/r;
+				const float ax = (bx + (bx - cx)/r)/ar;
+				const float ay = (by + (by - cy)/r)/ar;
+				
+				float x1 = 0;
+				float y1 = 0;
+				for(int i = 0; i <= 50; i++)
 				{
-					g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
+					const float t = float(i) / 50;
+					float x2, y2;
+					QuadraticBezier::eval_point(
+						dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
+						dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
+						t, x2, y2);
+					
+					if(i > 0)
+					{
+						g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
+					}
+					
+					x1 = x2;
+					y1 = y2;
 				}
 				
-				x1 = x2;
-				y1 = y2;
+				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, ax, ay, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, ax, ay, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, cx/cr, cy/cr, ax, ay, 1*zoom_factor, 0x99ffffff);
 			}
-			
-			g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, ax, ay, 1*zoom_factor, 0x99ffffff);
-			g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, ax, ay, 1*zoom_factor, 0x99ffffff);
-			g.draw_line_world(22, 23, cx/cr, cy/cr, ax, ay, 1*zoom_factor, 0x99ffffff);
+			else if(curve.type == CubicBezier)
+			{
+				// Non-rational.
+				
+				
+				//float x1 = 0;
+				//float y1 = 0;
+				//for(int i = 0; i <= 50; i++)
+				//{
+				//	const float t = float(i) / 50;
+				//	float x2, y2, _;
+				//	CubicBezier::eval_point(
+				//		dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
+				//		dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
+				//		t, x2, y2, _);
+				//	
+				//	if(i > 0)
+				//	{
+				//		g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
+				//	}
+				//	
+				//	x1 = x2;
+				//	y1 = y2;
+				//}
+			}
 		}
 	}
 	
@@ -954,7 +982,6 @@ class ClosestPointTest
 	int i;
 	float t;
 	float x, y;
-	float w;
 	float dx, dy;
 	float nx, ny;
 	float dist;
