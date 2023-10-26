@@ -1712,10 +1712,6 @@ class MultiCurve
 	private float drag_x, drag_y;
 	private float drag_offset_x, drag_offset_y;
 	private float drag_mirror_x, drag_mirror_y;
-	private float drag_length;
-	private float drag_length_mirror;
-	private float drag_length_ratio;
-	private float drag_angle;
 	private CurveControlPoint@ drag_axis;
 	
 	array<CurveControlPointDrag> drag_control_points(2);
@@ -1727,15 +1723,7 @@ class MultiCurve
 	  * @param y The y position the drag was initiated from (usually the mouse). */
 	void start_drag_control_point(CurveControlPoint@ point, const float x, const float y)
 	{
-		if(_type != QuadraticBezier && _type != CubicBezier)
-			return;
-		if(@point == null || @point.vertex == null)
-			return;
 		if(drag_control_points_count != 0)
-			return;
-		if(_type == QuadraticBezier && @point != @point.vertex.quad_control_point)
-			return;
-		if(_type == CubicBezier && @point != @point.vertex.cubic_control_point_1 && @point != @point.vertex.cubic_control_point_2)
 			return;
 		
 		if(!drag_control_points[0].start_drag(this, point, x, y))

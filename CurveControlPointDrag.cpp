@@ -25,6 +25,15 @@ class CurveControlPointDrag
 		MultiCurve@ curve,
 		CurveControlPoint@ point, const float x, const float y, const int dir=-1)
 	{
+		if(@point == null || @point.vertex == null)
+			return false;
+		if(curve.type != QuadraticBezier && curve.type != CubicBezier)
+			return false;
+		if(curve.type == QuadraticBezier && @point != @point.vertex.quad_control_point)
+			return false;
+		if(curve.type == CubicBezier && @point != @point.vertex.cubic_control_point_1 && @point != @point.vertex.cubic_control_point_2)
+			return false;
+		
 		vertex_index = curve.vertices.findByRef(point.vertex);
 		if(vertex_index == -1)
 			return false;
@@ -230,7 +239,7 @@ class CurveControlPointDrag
 		return true;
 	}
 	
-	void mirror_delta(float &out dx, float &out dy, CurveControlPoint@ point=null)
+	private void mirror_delta(float &out dx, float &out dy, CurveControlPoint@ point=null)
 	{
 		@point = @point == null ? this.point : point;
 		
