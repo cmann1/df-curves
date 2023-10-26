@@ -108,7 +108,7 @@ class MultiCurveDebug
 			
 			if(curve.type == CurveType::QuadraticBezier)
 			{
-				CurveVertex@ p2 = curve.vert(i, 1);
+				CurveVertex@ p2 = curve.vert(i + 1);
 				
 				if(!curve.closed && i == curve.vertex_count - 1)
 					continue;

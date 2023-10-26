@@ -156,7 +156,7 @@ class MultiCurve
 			
 			if(_closed)
 			{
-				CurveVertex@ v = vert(0, -1);
+				CurveVertex@ v = vert(-1);
 				if(@v != null)
 				{
 					v.invalidated = true;
@@ -410,8 +410,8 @@ class MultiCurve
 			if(!force && !is_nan(cp1.x) && !is_nan(cp2.x))
 				continue;
 			
-			const CurveVertex@ p0 = vert(i, -1);
-			const CurveVertex@ p2 = vertex_count > 2 ? vert(i, 1) : vertices[i];
+			const CurveVertex@ p0 = vert(i - 1);
+			const CurveVertex@ p2 = vertex_count > 2 ? vert(i + 1) : vertices[i];
 			const float tx = p0.x - p2.x;
 			const float ty = p0.y - p2.y;
 			
@@ -442,8 +442,8 @@ class MultiCurve
 			if(!force && !is_nan(cp.x))
 				continue;
 			
-			const CurveVertex@ p0 = vert(i, -1);
-			const CurveVertex@ p2 = vertex_count > 2 ? vert(i, 1) : vertices[i];
+			const CurveVertex@ p0 = vert(i - 1);
+			const CurveVertex@ p2 = vertex_count > 2 ? vert(i + 1) : vertices[i];
 			const float tx = p2.x - p0.x;
 			const float ty = p2.y - p0.y;
 			
@@ -625,7 +625,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p2 = vert(i, 1);
+		const CurveVertex@ p2 = vert(i + 1);
 		
 		// Calculate the point.
 		const float dx = p2.x - p1.x;
@@ -655,7 +655,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p2 = vert(i, 1);
+		const CurveVertex@ p2 = vert(i + 1);
 		
 		// Calculate the point.
 		x = p1.x + (p2.x - p1.x) * ti;
@@ -670,7 +670,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p2 = vert(i, 1);
+		const CurveVertex@ p2 = vert(i + 1);
 		
 		// Calculate the normal vector.
 		normal_y = -(p2.x - p1.x);
@@ -696,7 +696,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p2 = vert(i, 1);
+		const CurveVertex@ p2 = vert(i + 1);
 		
 		return p1.weight + (p2.weight - p1.weight) * ti;
 	}
@@ -772,7 +772,7 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveControlPoint@ p2 = p1.quad_control_point;
-		const CurveVertex@ p3 = vert(i, 1);
+		const CurveVertex@ p3 = vert(i + 1);
 		
 		// Linear fallback.
 		if(p2.type == Square)
@@ -806,7 +806,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p3 = vert(i, 1);
+		const CurveVertex@ p3 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Linear fallback.
@@ -842,7 +842,7 @@ class MultiCurve
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
 		const CurveControlPoint@ p2 = p1.quad_control_point;
-		const CurveVertex@ p3 = vert(i, 1);
+		const CurveVertex@ p3 = vert(i + 1);
 		
 		// Linear fallback.
 		if(p2.type == Square)
@@ -876,7 +876,7 @@ class MultiCurve
 		
 		// Get vertices.
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p3 = vert(i, 1);
+		const CurveVertex@ p3 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Linear fallback.
@@ -901,7 +901,7 @@ class MultiCurve
 		calc_segment_t(segment, t, ti, i);
 		
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p4 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
@@ -960,7 +960,7 @@ class MultiCurve
 		calc_segment_t(segment, t, ti, i);
 		
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p4 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
@@ -1019,7 +1019,7 @@ class MultiCurve
 		calc_segment_t(segment, t, ti, i);
 		
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p4 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
@@ -1078,7 +1078,7 @@ class MultiCurve
 		calc_segment_t(segment, t, ti, i);
 		
 		const CurveVertex@ p1 = @vertices[i];
-		const CurveVertex@ p4 = vert(i, 1);
+		const CurveVertex@ p4 = vert(i + 1);
 		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
@@ -1322,7 +1322,7 @@ class MultiCurve
 	private int insert_vertex_quadratic_bezier(const int segment, const float t)
 	{
 		CurveVertex@ p1 = vertices[segment];
-		CurveVertex@ p3 = vert(segment, 1);
+		CurveVertex@ p3 = vert(segment + 1);
 		CurveControlPoint@ p2 = p1.quad_control_point;
 		
 		// Linear fallback.
@@ -1380,7 +1380,7 @@ class MultiCurve
 	private int insert_vertex_cubic_bezier(const int segment, const float t)
 	{
 		CurveVertex@ p1 = vertices[segment];
-		CurveVertex@ p4 = vert(segment, 1);
+		CurveVertex@ p4 = vert(segment + 1);
 		CurveControlPoint@ p2 = p1.cubic_control_point_2;
 		CurveControlPoint@ p3 = p4.cubic_control_point_1;
 		
@@ -1529,7 +1529,7 @@ class MultiCurve
 			
 			if(index != -1 && (_type == QuadraticBezier || _type == CubicBezier))
 			{
-				CurveControlPoint@ cp_l = _type == CubicBezier ? @v.cubic_control_point_1 : _closed || index > 0 ? @vert(index, -1).quad_control_point : null;
+				CurveControlPoint@ cp_l = _type == CubicBezier ? @v.cubic_control_point_1 : _closed || index > 0 ? @vert(index - 1).quad_control_point : null;
 				CurveControlPoint@ cp_r = _type == CubicBezier ? @v.cubic_control_point_2 : @v.quad_control_point;
 				
 				if(@cp_l != null)
@@ -1570,13 +1570,13 @@ class MultiCurve
 			}
 			else if(_type == QuadraticBezier && type != Smooth && set_mirror)
 			{
-				CurveControlPoint@ p2 = @vert(index, -1).quad_control_point;
+				CurveControlPoint@ p2 = @vert(index - 1).quad_control_point;
 				if(p2.type == Smooth)
 				{
 					p2.type = Manual;
 				}
 				
-				@p2 = @vert(index, 1).quad_control_point;
+				@p2 = @vert(index + 1).quad_control_point;
 				if(p2.type == Smooth)
 				{
 					p2.type = Manual;
@@ -1596,7 +1596,7 @@ class MultiCurve
 		
 		CurveVertex@ v = vert(segment);
 		CurveControlPoint@ p1 = _type == QuadraticBezier ? @v.quad_control_point : @v.cubic_control_point_2;
-		CurveControlPoint@ p2 = _type == CubicBezier ? @vert(segment, 1).cubic_control_point_1 : null;
+		CurveControlPoint@ p2 = _type == CubicBezier ? @vert(segment + 1).cubic_control_point_1 : null;
 		
 		set_control_type(p1, type);
 		
@@ -1790,11 +1790,11 @@ class MultiCurve
 	void get_segment_catmull_rom(const int i, CurveControlPoint@ &out p1, CurveVertex@ &out p2, CurveVertex@ &out p3, CurveControlPoint@ &out p4)
 	{
 		@p2 = @vertices[i];
-		@p3 = vert(i, 1);
+		@p3 = vert(i + 1);
 		
 		@p1 = p2.type != Square
 			? closed || i > 0
-				? vert(i, -1)
+				? vert(i - 1)
 				: _end_controls != Manual
 					? this.p0.extrapolate(p2, p3,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[2] : null)
@@ -1802,7 +1802,7 @@ class MultiCurve
 			: p2;
 		@p4 = p3.type != Square
 			? closed || i < vertex_count - 2
-				? vert(i, 2)
+				? vert(i + 2)
 				: _end_controls != Manual
 					? this.p3.extrapolate(p3, p2,
 						_end_controls == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null)
@@ -1834,11 +1834,11 @@ class MultiCurve
 			type == CurveEndControl::AutomaticAngle && vertex_count >= 3 ? @vertices[vertex_count - 3] : null);
 	}
 	
-	/** Returns the vertex at `i + offset` wrapping around when < 0 or > vertex_count. */
-	CurveVertex@ vert(const int i, const int offset=0)
+	/** Returns the vertex at `i` wrapping around when < 0 or > vertex_count. */
+	CurveVertex@ vert(const int i)
 	{
 		return vertex_count > 0
-			? @vertices[((i + offset) % vertex_count + vertex_count) % vertex_count]
+			? @vertices[(i % vertex_count + vertex_count) % vertex_count]
 			: null;
 	}
 	
@@ -1878,7 +1878,7 @@ class MultiCurve
 			
 			if(p1.invalidated)
 			{
-				CurveVertex@ p2 = vert(i, 1);
+				CurveVertex@ p2 = vert(i + 1);
 				
 				p1.x1 = p1.x < p2.x ? p1.x : p2.x;
 				p1.y1 = p1.y < p2.y ? p1.y : p2.y;
@@ -1934,7 +1934,7 @@ class MultiCurve
 			
 			if(p1.invalidated)
 			{
-				const CurveVertex@ p3 = vert(i, 1);
+				const CurveVertex@ p3 = vert(i + 1);
 				const CurveControlPoint@ p2 = p1.quad_control_point;
 				
 				// Linear fallback.
@@ -1980,7 +1980,7 @@ class MultiCurve
 			
 			if(p1.invalidated)
 			{
-				const CurveVertex@ p4 = vert(i, 1);
+				const CurveVertex@ p4 = vert(i + 1);
 				const CurveControlPoint@ p2 = p1.cubic_control_point_2;
 				const CurveControlPoint@ p3 = p4.cubic_control_point_1;
 				

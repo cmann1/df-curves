@@ -100,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = CubicBezier;
+		curve.type = QuadraticBezier;
 		
 		recreate_spline();
 		
@@ -641,7 +641,7 @@ class script : MultiCurveDebugColourCallback
 		dct = closest_point.t;
 		dcr = curve.eval_ratio(closest_point.i, closest_point.t);
 		@dc_p1 = curve.vert(closest_point.i);
-		@dc_p2 = curve.vert(closest_point.i, 1);
+		@dc_p2 = curve.vert(closest_point.i + 1);
 		
 		@dc_cp1 = dc_p1.cubic_control_point_2;
 		@dc_cp2 = dc_p2.cubic_control_point_1;
@@ -947,7 +947,7 @@ class script : MultiCurveDebugColourCallback
 		for(int i = 0; i < curve.vertex_count; i++)
 		{
 			CurveVertex@ p = curve.vertices[i];
-			CurveVertex@ p2 = curve.vert(i, 1);
+			CurveVertex@ p2 = curve.vert(i + 1);
 			
 			for(int j = cp_i1; j < cp_i2; j++)
 			{
