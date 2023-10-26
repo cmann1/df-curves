@@ -100,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = QuadraticBezier;
+		curve.type = CubicBezier;
 		
 		recreate_spline();
 		
@@ -151,26 +151,7 @@ class script : MultiCurveDebugColourCallback
 		
 		if(state == Idle)
 		{
-			closest_point.found = curve.closest_point(
-				mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
-				max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
-			
-			if(closest_point.found)
-			{
-				closest_point.from_x = mouse.x;
-				closest_point.from_y = mouse.y;
-				closest_point.dx = closest_point.from_x - closest_point.x;
-				closest_point.dy = closest_point.from_y - closest_point.y;
-				closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
-				closest_point.nx = closest_point.dist != 0 ? closest_point.dx / closest_point.dist : 0;
-				closest_point.ny = closest_point.dist != 0 ? closest_point.dy / closest_point.dist : 0;
-				
-				closest_point.hover = closest_point.dist <= debug_draw.line_width * 1.5 * zoom_factor;
-			}
-			else
-			{
-				closest_point.hover = false;
-			}
+			find_closest_point();
 		}
 		else
 		{
@@ -536,12 +517,7 @@ class script : MultiCurveDebugColourCallback
 		// Drag curve.
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
-			dct = closest_point.t;
-			dcr = curve.eval_ratio(closest_point.i, closest_point.t);
-			const float u = 1 - dct;
-			dcu = (u*u) / (dct*dct + u*u);
-			@dc_p1 = curve.vert(closest_point.i);
-			@dc_p2 = curve.vert(closest_point.i, 1);
+			setup_drag_curve();
 			
 			drag_ox = closest_point.x - mouse.x;
 			drag_oy = closest_point.y - mouse.y;
@@ -660,10 +636,22 @@ class script : MultiCurveDebugColourCallback
 		display_txt_y = mouse.y - 5 * zoom_factor;
 	}
 	
+	void setup_drag_curve()
+	{
+		dct = closest_point.t;
+		dcr = curve.eval_ratio(closest_point.i, closest_point.t);
+		@dc_p1 = curve.vert(closest_point.i);
+		@dc_p2 = curve.vert(closest_point.i, 1);
+		
+		@dc_cp1 = dc_p1.cubic_control_point_2;
+		@dc_cp2 = dc_p2.cubic_control_point_1;
+	}
+	
 	float dct;
 	float dcu;
 	float dcr;
 	CurveVertex@ dc_p1, dc_p2;
+	CurveControlPoint@ dc_cp1, dc_cp2;
 	void state_drag_curve()
 	{
 		if(!mouse.left_down || esc_down)
@@ -676,12 +664,17 @@ class script : MultiCurveDebugColourCallback
 		{
 			if(curve.type == QuadraticBezier)
 			{
+				const float u = 1 - dct;
+				dcu = (u*u) / (dct*dct + u*u);
+				
+				const float den = dct*dct + (1 - dct)*(1 - dct);
+				const float r = abs((den - 1) / den);
+				
 				// Non-rational.
 				//const float bx = mouse.x + drag_ox;
 				//const float by = mouse.y + drag_oy;
 				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
 				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-				//const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
 				//const float ax = bx + (bx - cx)/r;
 				//const float ay = by + (by - cy)/r;
 				
@@ -692,7 +685,6 @@ class script : MultiCurveDebugColourCallback
 				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
 				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
 				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-				const float r = abs((dct*dct + (1 - dct)*(1 - dct) - 1) / (dct*dct + (1 - dct)*(1 - dct)));
 				const float ar = br + (br - cr)/r;
 				const float ax = (bx + (bx - cx)/r)/ar;
 				const float ay = (by + (by - cy)/r)/ar;
@@ -723,8 +715,40 @@ class script : MultiCurveDebugColourCallback
 			}
 			else if(curve.type == CubicBezier)
 			{
-				// Non-rational.
+				find_closest_point();
+				setup_drag_curve();
 				
+				const float c1x = dc_p1.x + dc_cp1.x;
+				const float c1y = dc_p1.y + dc_cp1.y;
+				const float c2x = dc_p2.x + dc_cp2.x;
+				const float c2y = dc_p2.y + dc_cp2.y;
+				
+				const float u = 1 - dct;
+				dcu = (u*u*u) / (dct*dct*dct + u*u*u);
+				
+				const float den = dct*dct*dct + (1 - dct)*(1 - dct)*(1 - dct);
+				const float r = abs((den - 1) / den);
+				
+				// Non-rational.
+				//const float bx = mouse.x + drag_ox;
+				//const float by = mouse.y + drag_oy;
+				const float bx = closest_point.x;
+				const float by = closest_point.y;
+				const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
+				const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+				const float ax = bx + (bx - cx)/r;
+				const float ay = by + (by - cy)/r;
+				//const float ax = c1x + (c2x - c1x)*dct;
+				//const float ay = c1y + (c2y - c1y)*dct;
+				
+				const float v1x = dc_p1.x*(1 - dct) + c1x*dct;
+				const float v1y = dc_p1.y*(1 - dct) + c1y*dct;
+				const float v2x = c2x*(1 - dct) + dc_p2.x*dct;
+				const float v2y = c2y*(1 - dct) + dc_p2.y*dct;
+				const float e1x = (1 - dct)*v1x + ax*dct;
+				const float e1y = (1 - dct)*v1y + ay*dct;
+				const float e2x = (1 - dct)*ax + v2x*dct;
+				const float e2y = (1 - dct)*ay + v2y*dct;
 				
 				//float x1 = 0;
 				//float y1 = 0;
@@ -745,7 +769,41 @@ class script : MultiCurveDebugColourCallback
 				//	x1 = x2;
 				//	y1 = y2;
 				//}
+				
+				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x, v1y, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, v1x, v1y, ax, ay, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, v2x, v2y, ax, ay, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x, v2y, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, e1x, e1y, e2x, e2y, 1*zoom_factor, 0x99ff2222);
+				g.draw_line_world(22, 23, cx, cy, ax, ay, 1*zoom_factor, 0x99ffffff);
+				float bbx = (1-dct) * e1x + dct * e2x;
+				float bby = (1-dct) * e1y + dct * e2y;
+				draw_dot(g, 22, 23, bbx, bby, 2*zoom_factor, 0xff00ff00, 45);
 			}
+		}
+	}
+	
+	void find_closest_point()
+	{
+		closest_point.found = curve.closest_point(
+			mouse.x, mouse.y, closest_point.i, closest_point.t, closest_point.x, closest_point.y,
+			max_mouse_distance * zoom_factor, 1, arc_length_interpolation, adjust_initial_binary_factor, true);
+		
+		if(closest_point.found)
+		{
+			closest_point.from_x = mouse.x;
+			closest_point.from_y = mouse.y;
+			closest_point.dx = closest_point.from_x - closest_point.x;
+			closest_point.dy = closest_point.from_y - closest_point.y;
+			closest_point.dist = sqrt(closest_point.dx * closest_point.dx + closest_point.dy * closest_point.dy);
+			closest_point.nx = closest_point.dist != 0 ? closest_point.dx / closest_point.dist : 0;
+			closest_point.ny = closest_point.dist != 0 ? closest_point.dy / closest_point.dist : 0;
+			
+			closest_point.hover = closest_point.dist <= debug_draw.line_width * 1.5 * zoom_factor;
+		}
+		else
+		{
+			closest_point.hover = false;
 		}
 	}
 	
