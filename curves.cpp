@@ -517,10 +517,10 @@ class script : MultiCurveDebugColourCallback
 		// Drag curve.
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
-			setup_drag_curve();
-			
 			drag_ox = closest_point.x - mouse.x;
 			drag_oy = closest_point.y - mouse.y;
+			setup_drag_curve();
+			
 			state = DragCurve;
 		}
 	}
@@ -645,6 +645,49 @@ class script : MultiCurveDebugColourCallback
 		
 		@dc_cp1 = dc_p1.cubic_control_point_2;
 		@dc_cp2 = dc_p2.cubic_control_point_1;
+		
+		const float c1x = (dc_p1.x + dc_cp1.x)*dc_cp1.weight;
+		const float c1y = (dc_p1.y + dc_cp1.y)*dc_cp1.weight;
+		const float c2x = (dc_p2.x + dc_cp2.x)*dc_cp2.weight;
+		const float c2y = (dc_p2.y + dc_cp2.y)*dc_cp2.weight;
+		
+		const float u = 1 - dct;
+		dcu = (u*u*u) / (dct*dct*dct + u*u*u);
+		
+		const float den = dct*dct*dct + (1 - dct)*(1 - dct)*(1 - dct);
+		const float r = abs((den - 1) / den);
+		
+		// Non-rational.
+		//const float bx = mouse.x + drag_ox;
+		//const float by = mouse.y + drag_oy;
+		//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
+		//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+		//const float ax = bx + (bx - cx)/r;
+		//const float ay = by + (by - cy)/r;
+		
+		// Rational.
+		const float br = dcr;
+		const float bx = (mouse.x + drag_ox) * br;
+		const float by = (mouse.y + drag_oy) * br;
+		const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
+		const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
+		const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
+		const float ar = br + (br - cr)/r;
+		const float ax = bx + (bx - cx)/r;
+		const float ay = by + (by - cy)/r;
+		
+		const float v1r = dc_p1.weight*(1 - dct) + dc_cp1.weight*dct;
+		const float v1x = dc_p1.x*dc_p1.weight*(1 - dct) + c1x*dct;
+		const float v1y = dc_p1.y*dc_p1.weight*(1 - dct) + c1y*dct;
+		const float v2r = dc_cp2.weight*(1 - dct) + dc_p2.weight*dct;
+		const float v2x = c2x*(1 - dct) + dc_p2.x*dct;
+		const float v2y = c2y*(1 - dct) + dc_p2.y*dct;
+		dce1r = (1 - dct)*v1r + ar*dct - br;
+		dce1x = (1 - dct)*v1x + ax*dct - bx;
+		dce1y = (1 - dct)*v1y + ay*dct - by;
+		dce2r = (1 - dct)*ar + v2r*dct - br;
+		dce2x = (1 - dct)*ax + v2x*dct - bx;
+		dce2y = (1 - dct)*ay + v2y*dct - by;
 	}
 	
 	float dct;
@@ -652,6 +695,8 @@ class script : MultiCurveDebugColourCallback
 	float dcr;
 	CurveVertex@ dc_p1, dc_p2;
 	CurveControlPoint@ dc_cp1, dc_cp2;
+	float dce1x, dce1y, dce2x, dce2y;
+	float dce1r, dce2r;
 	void state_drag_curve()
 	{
 		if(!mouse.left_down || esc_down)
@@ -715,13 +760,10 @@ class script : MultiCurveDebugColourCallback
 			}
 			else if(curve.type == CubicBezier)
 			{
-				find_closest_point();
-				setup_drag_curve();
-				
-				const float c1x = dc_p1.x + dc_cp1.x;
-				const float c1y = dc_p1.y + dc_cp1.y;
-				const float c2x = dc_p2.x + dc_cp2.x;
-				const float c2y = dc_p2.y + dc_cp2.y;
+				//const float c1x = dc_p1.x + dc_cp1.x;
+				//const float c1y = dc_p1.y + dc_cp1.y;
+				//const float c2x = dc_p2.x + dc_cp2.x;
+				//const float c2y = dc_p2.y + dc_cp2.y;
 				
 				const float u = 1 - dct;
 				dcu = (u*u*u) / (dct*dct*dct + u*u*u);
@@ -732,52 +774,87 @@ class script : MultiCurveDebugColourCallback
 				// Non-rational.
 				//const float bx = mouse.x + drag_ox;
 				//const float by = mouse.y + drag_oy;
-				const float bx = closest_point.x;
-				const float by = closest_point.y;
-				const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
-				const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
+				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
+				//const float ax = bx + (bx - cx)/r;
+				//const float ay = by + (by - cy)/r;
+				//
+				//const float e1x = bx + dce1x;
+				//const float e1y = by + dce1y;
+				//const float e2x = bx + dce2x;
+				//const float e2y = by + dce2y;
+				//
+				//const float v1x = (e1x - dct*ax)/u;
+				//const float v1y = (e1y - dct*ay)/u;
+				//const float v2x = (e2x - u*ax)/dct;
+				//const float v2y = (e2y - u*ay)/dct;
+				//
+				//const float c1x = (v1x - u*dc_p1.x)/dct;
+				//const float c1y = (v1y - u*dc_p1.y)/dct;
+				//const float c2x = (v2x - dct*dc_p2.x)/u;
+				//const float c2y = (v2y - dct*dc_p2.y)/u;
+				
+				// Rational.
+				const float br = dcr;
+				const float bx = (mouse.x + drag_ox) * br;
+				const float by = (mouse.y + drag_oy) * br;
+				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
+				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
+				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
+				const float ar = br + (br - cr)/r;
 				const float ax = bx + (bx - cx)/r;
 				const float ay = by + (by - cy)/r;
-				//const float ax = c1x + (c2x - c1x)*dct;
-				//const float ay = c1y + (c2y - c1y)*dct;
 				
-				const float v1x = dc_p1.x*(1 - dct) + c1x*dct;
-				const float v1y = dc_p1.y*(1 - dct) + c1y*dct;
-				const float v2x = c2x*(1 - dct) + dc_p2.x*dct;
-				const float v2y = c2y*(1 - dct) + dc_p2.y*dct;
-				const float e1x = (1 - dct)*v1x + ax*dct;
-				const float e1y = (1 - dct)*v1y + ay*dct;
-				const float e2x = (1 - dct)*ax + v2x*dct;
-				const float e2y = (1 - dct)*ay + v2y*dct;
+				const float e1r = br + dce1r;
+				const float e1x = bx + dce1x;
+				const float e1y = by + dce1y;
+				const float e2r = br + dce2r;
+				const float e2x = bx + dce2x;
+				const float e2y = by + dce2y;
 				
-				//float x1 = 0;
-				//float y1 = 0;
-				//for(int i = 0; i <= 50; i++)
-				//{
-				//	const float t = float(i) / 50;
-				//	float x2, y2, _;
-				//	CubicBezier::eval_point(
-				//		dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
-				//		dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
-				//		t, x2, y2, _);
-				//	
-				//	if(i > 0)
-				//	{
-				//		g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
-				//	}
-				//	
-				//	x1 = x2;
-				//	y1 = y2;
-				//}
+				const float v1r = (e1r - dct*ar)/u;
+				const float v1x = (e1x - dct*ax)/u;
+				const float v1y = (e1y - dct*ay)/u;
+				const float v2r = (e2r - u*ar)/dct;
+				const float v2x = (e2x - u*ax)/dct;
+				const float v2y = (e2y - u*ay)/dct;
 				
-				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x, v1y, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, v1x, v1y, ax, ay, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, v2x, v2y, ax, ay, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x, v2y, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, e1x, e1y, e2x, e2y, 1*zoom_factor, 0x99ff2222);
-				g.draw_line_world(22, 23, cx, cy, ax, ay, 1*zoom_factor, 0x99ffffff);
-				float bbx = (1-dct) * e1x + dct * e2x;
-				float bby = (1-dct) * e1y + dct * e2y;
+				const float c1r = (v1r - u*dc_p1.weight)/dct;
+				const float c1x = ((v1x - u*dc_p1.x*dc_p1.weight)/dct)/c1r;
+				const float c1y = ((v1y - u*dc_p1.y*dc_p1.weight)/dct)/c1r;
+				const float c2r = (v2r - dct*dc_p2.weight)/u;
+				const float c2x = ((v2x - dct*dc_p2.x*dc_p2.weight)/u)/c2r;
+				const float c2y = ((v2y - dct*dc_p2.y*dc_p2.weight)/u)/c2r;
+				
+				float x1 = 0;
+				float y1 = 0;
+				for(int i = 0; i <= 50; i++)
+				{
+					const float t = float(i) / 50;
+					float x2, y2;
+					CubicBezier::eval_point(
+						dc_p1.x, dc_p1.y, c1x, c1y, c2x, c2y, dc_p2.x, dc_p2.y,
+						dc_p1.weight, dc_cp1.weight, dc_cp2.weight, dc_p2.weight,
+						t, x2, y2);
+					
+					if(i > 0)
+					{
+						g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
+					}
+					
+					x1 = x2;
+					y1 = y2;
+				}
+				
+				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x/v1r, v1y/v1r, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, v1x/v1r, v1y/v1r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, v2x/v2r, v2y/v2r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x/v2r, v2y/v2r, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, e1x/e1r, e1y/e1r, e2x/e2r, e2y/e2r, 1*zoom_factor, 0x99ff2222);
+				g.draw_line_world(22, 23, cx/cr, cy/cr, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				float bbr = (1-dct) * e1r + dct * e2r;
+				float bbx = ((1-dct) * e1x + dct * e2x)/bbr;
+				float bby = ((1-dct) * e1y + dct * e2y)/bbr;
 				draw_dot(g, 22, 23, bbx, bby, 2*zoom_factor, 0xff00ff00, 45);
 			}
 		}
