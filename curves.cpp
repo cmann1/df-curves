@@ -666,7 +666,6 @@ class script : MultiCurveDebugColourCallback
 			// Non-rational.
 			if(dc_p1.weight == dc_cp1.weight && dc_cp1.weight == dc_cp2.weight && dc_cp2.weight == dc_p2.weight)
 			{
-				puts('X');
 				CubicBezier::calc_abc_tangent(
 					dc_p1.x, dc_p1.y,
 					dc_p1.x + dc_cp1.x, dc_p1.y + dc_cp1.y,
@@ -754,62 +753,27 @@ class script : MultiCurveDebugColourCallback
 			}
 			else if(curve.type == CubicBezier)
 			{
-				const float u = 1 - dct;
+				float c1x, c1y, c1r;
+				float c2x, c2y, c2r;
 				
 				// Non-rational.
-				//const float bx = mouse.x + drag_ox;
-				//const float by = mouse.y + drag_oy;
-				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
-				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-				//const float ax = bx + (bx - cx)/dcrat;
-				//const float ay = by + (by - cy)/dcrat;
-				//
-				//const float e1x = bx + dce1x;
-				//const float e1y = by + dce1y;
-				//const float e2x = bx + dce2x;
-				//const float e2y = by + dce2y;
-				//
-				//const float v1x = (e1x - dct*ax)/u;
-				//const float v1y = (e1y - dct*ay)/u;
-				//const float v2x = (e2x - u*ax)/dct;
-				//const float v2y = (e2y - u*ay)/dct;
-				//
-				//const float c1x = (v1x - u*dc_p1.x)/dct;
-				//const float c1y = (v1y - u*dc_p1.y)/dct;
-				//const float c2x = (v2x - dct*dc_p2.x)/u;
-				//const float c2y = (v2y - dct*dc_p2.y)/u;
-				
+				if(dc_p1.weight == dc_cp1.weight && dc_cp1.weight == dc_cp2.weight && dc_cp2.weight == dc_p2.weight)
+				{
+					CubicBezier::calc_from_abc_tangent(
+						dc_p1.x, dc_p1.y, dc_p2.x, dc_p2.y,
+						dce1x, dce1y, dce2x, dce2y,
+						dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
+						c1x, c1y, c2x, c2y);
+				}
 				// Rational.
-				const float br = dcr;
-				const float bx = (mouse.x + drag_ox) * br;
-				const float by = (mouse.y + drag_oy) * br;
-				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
-				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
-				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-				const float ar = br + (br - cr)/dcrat;
-				const float ax = bx + (bx - cx)/dcrat;
-				const float ay = by + (by - cy)/dcrat;
-				
-				const float e1r = br + dce1r;
-				const float e1x = bx + dce1x;
-				const float e1y = by + dce1y;
-				const float e2r = br + dce2r;
-				const float e2x = bx + dce2x;
-				const float e2y = by + dce2y;
-				
-				const float v1r = (e1r - dct*ar)/u;
-				const float v1x = (e1x - dct*ax)/u;
-				const float v1y = (e1y - dct*ay)/u;
-				const float v2r = (e2r - u*ar)/dct;
-				const float v2x = (e2x - u*ax)/dct;
-				const float v2y = (e2y - u*ay)/dct;
-				
-				const float c1r = (v1r - u*dc_p1.weight)/dct;
-				const float c1x = ((v1x - u*dc_p1.x*dc_p1.weight)/dct)/c1r;
-				const float c1y = ((v1y - u*dc_p1.y*dc_p1.weight)/dct)/c1r;
-				const float c2r = (v2r - dct*dc_p2.weight)/u;
-				const float c2x = ((v2x - dct*dc_p2.x*dc_p2.weight)/u)/c2r;
-				const float c2y = ((v2y - dct*dc_p2.y*dc_p2.weight)/u)/c2r;
+				else
+				{
+					CubicBezier::calc_from_abc_tangent(
+						dc_p1.x, dc_p1.y, dc_p1.weight, dc_p2.x, dc_p2.y, dc_p2.weight,
+						dce1x, dce1y, dce1r, dce2x, dce2y, dce2r,
+						dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
+						c1x, c1y, c1r, c2x, c2y, c2r);
+				}
 				
 				float x1 = 0;
 				float y1 = 0;
