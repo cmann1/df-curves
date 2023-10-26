@@ -119,8 +119,10 @@ class CurveControlPointDrag
 		
 		if(mirror != MaintainAngle && @mirror_point != null)
 		{
-			mirror_delta(dx, dy, mirror_point);
-			angle = angle_between(dx, dy, point.x, point.y);
+			float dx2, dy2;
+			mirror_delta(dx, dy);
+			mirror_delta(dx2, dy2, mirror_point);
+			angle = angle_between(dx2, dy2, dx, dy);
 		}
 		
 		const bool mirror_quad = curve.type == QuadraticBezier && @mirror_point != null && (mirror_point.type == Smooth || maintain_angle);
