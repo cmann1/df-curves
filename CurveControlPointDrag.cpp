@@ -345,7 +345,7 @@ class CurveControlPointDrag
 			}
 		}
 		
-		curve.invalidate(segment_index, true);
+		curve.invalidate(vertex_index, !drag_vertex);
 	}
 	
 	private void clear_drag()
