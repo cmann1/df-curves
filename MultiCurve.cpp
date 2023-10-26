@@ -1606,6 +1606,12 @@ class MultiCurve
 		}
 	}
 	
+	// TODO: MOVE
+	// -- Editing/dragging stuff
+	
+	array<CurveControlPointDrag> drag_control_points(2);
+	int drag_control_points_count;
+	
 	/** Make sure to call `stop_drag_vertex` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
@@ -1643,24 +1649,6 @@ class MultiCurve
 		
 		return true;
 	}
-	
-	// -- Editing/dragging stuff
-	
-	private CurveControlPoint@ drag_point;
-	private CurveControlPoint@ drag_point_mirror;
-	private CurveVertex@ drag_vertex;
-	private int drag_vertex_index = -1;
-	private int drag_segment_index = -1;
-	private int drag_vertex_mirror_index = -1;
-	private float drag_start_x, drag_start_y;
-	private float drag_mirror_start_x, drag_mirror_start_y;
-	private float drag_x, drag_y;
-	private float drag_offset_x, drag_offset_y;
-	private float drag_mirror_x, drag_mirror_y;
-	private CurveControlPoint@ drag_axis;
-	
-	array<CurveControlPointDrag> drag_control_points(2);
-	int drag_control_points_count;
 	
 	/** Only applicable to quadratic or cubic curves.
 	  * Does nothing if another drag is in progress - make sure to call `stop_drag_control_point` when done.
