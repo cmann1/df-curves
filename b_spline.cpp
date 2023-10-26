@@ -3,6 +3,9 @@
 class BSpline
 {
 	
+	/** The ratio/weight calculated during the last call to `eval_**`. */
+	float last_w;
+	
 	private array<float> knots(32);
 	private int knots_length;
 	
@@ -118,16 +121,19 @@ class BSpline
 			}
 		}
 		
+		// Initialize result to 0s.
+		x = 0;
+		y = 0;
+		float w = 0;
+		
+		if(v_count <= degree_c)
+			return;
+		
 		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Find span and corresponding non-zero basis functions.
 		const int span = find_span(degree_c, u);
 		calc_basis(degree_c, span, u);
-		
-		// Initialize result to 0s
-		x = 0;
-		y = 0;
-		float w = 0;
 		
 		for(int i = 0; i <= degree_c; i++)
 		{
@@ -148,6 +154,8 @@ class BSpline
 			x /= w;
 			y /= w;
 		}
+		
+		last_w = w;
 		
 		// Calculate the normal vector.
 		curve_derivatives_rational(degree_c, closed, u, 1, span);
@@ -199,21 +207,19 @@ class BSpline
 			}
 		}
 		
-		const float u = init_t(v_count, degree_c, closed, t);
-		
-		// Find span and corresponding non-zero basis functions
-		const int span = find_span(degree_c, u);
-		calc_basis(degree_c, span, u);
-		
 		// Initialize result to 0s
 		x = 0;
 		y = 0;
 		float w = 0;
 		
 		if(v_count <= degree_c)
-		{
 			return;
-		}
+		
+		const float u = init_t(v_count, degree_c, closed, t);
+		
+		// Find span and corresponding non-zero basis functions
+		const int span = find_span(degree_c, u);
+		calc_basis(degree_c, span, u);
 		
 		// Compute point.
 		for(int i = 0; i <= degree_c; i++)
@@ -228,6 +234,7 @@ class BSpline
 		// Convert back to cartesian coordinates.
 		x /= w;
 		y /= w;
+		last_w = w;
 	}
 	
 	/** Returns the normal at the given `t` value. */
@@ -260,6 +267,13 @@ class BSpline
 			}
 		}
 		
+		if(v_count <= degree_c)
+		{
+			normal_x = 1;
+			normal_y = 0;
+			return;
+		}
+		
 		const float u = init_t(v_count, degree_c, closed, t);
 		
 		// Calculate the normal vector.
@@ -268,6 +282,7 @@ class BSpline
 		CurvePointW@ du = @curve_ders[1];
 		normal_x = du.y;
 		normal_y = -du.x;
+		last_w = du.w;
 		
 		const float length = sqrt(normal_x * normal_x + normal_y * normal_y);
 		if(length != 0)
@@ -275,6 +290,55 @@ class BSpline
 			normal_x /= length;
 			normal_y /= length;
 		}
+	}
+	
+	/** Returns the ratio/weight at the given t value. */
+	float eval_ratio(
+		const int degree, const bool clamped, const bool closed,
+		const float t)
+	{
+		int v_count, degree_c;
+		init_params(vertex_count, degree, clamped, closed, v_count, degree_c);
+		
+		switch(v_count)
+		{
+			case 2:
+			{
+				CurveVertex@ p1 = @vertices[0];
+				CurveVertex@ p2 = @vertices[1];
+				const float dx = p2.x - p1.x;
+				const float dy = p2.y - p1.y;
+				return p1.weight + (p2.weight - p1.weight) * t;
+			}
+			case 1:
+			{
+				return vertices[0].weight;
+			}
+			case 0:
+			{
+				return 1;
+			}
+		}
+		
+		if(v_count <= degree_c)
+			return 1;
+		
+		const float u = init_t(v_count, degree_c, closed, t);
+		
+		// Find span and corresponding non-zero basis functions
+		const int span = find_span(degree_c, u);
+		calc_basis(degree_c, span, u);
+		
+		float w = 0;
+		
+		// Compute point.
+		for(int i = 0; i <= degree_c; i++)
+		{
+			CurvePointW@ p = vertices_weighted[span - degree_c + i];
+			w += p.w * basis_list[i];
+		}
+		
+		return w;
 	}
 	
 	// -- Bounding boxes --

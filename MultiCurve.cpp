@@ -242,6 +242,12 @@ class MultiCurve
 		return @p == @control_point_start || @p == @control_point_end;
 	}
 	
+	/** Returns the ratio/weighted calculated during the last `eval_**` call. */
+	float b_spline_last_ratio
+	{
+		get const { return @b_spline != null ? b_spline.last_w : 1; }
+	}
+	
 	// --
 	
 	/** Call after modifying this curve in any way, so that cached values such as lengths, bounding boxes, etc. can be recalculated.
@@ -476,22 +482,25 @@ class MultiCurve
 	 * @param t The factor between 0 and 1 within `segment`, or the entire curve if `segment` is negative. */
 	void eval(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
-		if(vertex_count == 0)
+		switch(vertex_count)
 		{
-			x = 0;
-			y = 0;
-			normal_x = 1;
-			normal_y = 0;
-			return;
-		}
-		if(vertex_count == 1)
-		{
-			const CurveVertex@ p0 = @vertices[0];
-			x = p0.x;
-			y = p0.y;
-			normal_x = 1;
-			normal_y = 0;
-			return;
+			case 0:
+			{
+				x = 0;
+				y = 0;
+				normal_x = 1;
+				normal_y = 0;
+				return;
+			}
+			case 1:
+			{
+				const CurveVertex@ p0 = @vertices[0];
+				x = p0.x;
+				y = p0.y;
+				normal_x = 1;
+				normal_y = 0;
+				return;
+			}
 		}
 		
 		switch(_type)
@@ -595,6 +604,35 @@ class MultiCurve
 		}
 	}
 	
+	
+	/** Returns the ratio/weight at the given t value. */
+	float eval_ratio(const int segment, const float t)
+	{
+		switch(vertex_count)
+		{
+			case 0:
+				return 1;
+			case 1:
+				return vertices[0].weight;
+		}
+		
+		switch(_type)
+		{
+			case CurveType::Linear:
+				return eval_linear_ratio(segment, t);
+			case CurveType::QuadraticBezier:
+				return eval_quadratic_bezier_ratio(segment, t);
+			case CurveType::CubicBezier:
+				return eval_cubic_bezier_ratio(segment, t);
+			case CurveType::CatmullRom:
+				return eval_catmull_rom_ratio(segment, t);
+			case CurveType::BSpline:
+				return eval_b_spline_ratio(segment, t);
+		}
+		
+		return 1;
+	}
+	
 	void eval_linear(
 		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
@@ -637,11 +675,8 @@ class MultiCurve
 		const CurveVertex@ p2 = vert(i, 1);
 		
 		// Calculate the point.
-		const float dx = p2.x - p1.x;
-		const float dy = p2.y - p1.y;
-		
-		x = p1.x + dx * ti;
-		y = p1.y + dy * ti;
+		x = p1.x + (p2.x - p1.x) * ti;
+		y = p1.y + (p2.y - p1.y) * ti;
 	}
 	
 	void eval_linear_normal(const int segment, const float t, float &out normal_x, float &out normal_y)
@@ -668,6 +703,19 @@ class MultiCurve
 		{
 			normal_x = normal_y = 0;
 		}
+	}
+	
+	float eval_linear_ratio(const int segment, const float t)
+	{
+		int i;
+		float ti;
+		calc_segment_t(segment, t, ti, i);
+		
+		// Get vertices.
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p2 = vert(i, 1);
+		
+		return p1.weight + (p2.weight - p1.weight) * ti;
 	}
 	
 	void eval_catmull_rom(
@@ -717,6 +765,19 @@ class MultiCurve
 			p1.x, p1.y, p2.x, p2.y, p3.x, p3.y, p4.x, p4.y,
 			tension * p2.tension,
 			ti, normal_x, normal_y);
+	}
+	
+	float eval_catmull_rom_ratio(const int segment, const float t)
+	{
+		int i;
+		float ti;
+		calc_segment_t(segment, t, ti, i);
+		
+		CurveVertex@ p2, p3;
+		CurveControlPoint@ p1, p4;
+		get_segment_catmull_rom(i, p1, p2, p3, p4);
+		
+		return p2.weight + (p3.weight - p2.weight) * ti;
 	}
 	
 	void eval_quadratic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
@@ -822,6 +883,32 @@ class MultiCurve
 				p1.weight, p2.weight, p3.weight,
 				ti, normal_x, normal_y);
 		}
+	}
+	
+	float eval_quadratic_bezier_ratio(const int segment, const float t)
+	{
+		int i;
+		float ti;
+		calc_segment_t(segment, t, ti, i);
+		
+		// Get vertices.
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p3 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.quad_control_point;
+		
+		// Linear fallback.
+		if(p2.type == Square)
+			return eval_linear_ratio(segment, t);
+		
+		// Non-rational.
+		if(p1.weight == p2.weight && p2.weight == p3.weight)
+			return p1.weight;
+		
+		// Rational.
+		return QuadraticBezier::eval_ratio(
+			p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p3.x, p3.y,
+			p1.weight, p2.weight, p3.weight,
+			ti);
 	}
 	
 	void eval_cubic_bezier(const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
@@ -1001,6 +1088,49 @@ class MultiCurve
 		}
 	}
 	
+	float eval_cubic_bezier_ratio(const int segment, const float t)
+	{
+		int i;
+		float ti;
+		calc_segment_t(segment, t, ti, i);
+		
+		const CurveVertex@ p1 = @vertices[i];
+		const CurveVertex@ p4 = vert(i, 1);
+		const CurveControlPoint@ p2 = p1.cubic_control_point_2;
+		const CurveControlPoint@ p3 = p4.cubic_control_point_1;
+		
+		// Linear fallback.
+		if(p2.type == Square && p3.type == Square)
+			return eval_linear_ratio(segment, t);
+		
+		// Quadratic fallback.
+		if(p2.type == Square || p3.type == Square)
+		{
+			const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
+			
+			// Non-rational.
+			if(p1.weight == qp2.weight && qp2.weight == p4.weight)
+				return p1.weight;
+			
+			// Rational.
+			return QuadraticBezier::eval_ratio(
+				p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+				p1.weight, qp2.weight, p4.weight,
+				ti);
+		}
+		
+		// Non-rational.
+		if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
+			return p1.weight;
+		
+		// Rational.
+		return CubicBezier::eval_ratio(
+			p1.x, p1.y, p1.x + p2.x, p1.y + p2.y, p4.x + p3.x, p4.y + p3.y, p4.x, p4.y,
+			p1.weight, p2.weight, p3.weight, p4.weight,
+			ti);
+	}
+	
 	void eval_b_spline(
 		const int segment, const float t, float &out x, float &out y, float &out normal_x, float &out normal_y)
 	{
@@ -1046,6 +1176,17 @@ class MultiCurve
 		b_spline.eval_normal(
 			b_spline_degree, b_spline_clamped, closed, 
 			ta, normal_x, normal_y);
+	}
+	
+	float eval_b_spline_ratio(const int segment, const float t)
+	{
+		if(b_spline_degree <= 1)
+			return eval_linear_ratio(segment, t);
+		
+		const float ta = calc_b_spline_t(segment, t);
+		return b_spline.eval_ratio(
+			b_spline_degree, b_spline_clamped, closed, 
+			ta);
 	}
 	
 	// --

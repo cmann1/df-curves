@@ -68,7 +68,6 @@ namespace CubicBezier
 		const float r1, const float r2, const float r3, const float r4,
 		const float t, float &out x, float &out y)
 	{
-		// Calculate the point.
 		const float u = 1 - t;
 		const float tt = t*t;
 		const float tt3 = tt*t;
@@ -138,6 +137,22 @@ namespace CubicBezier
 			normal_x /= length;
 			normal_y /= length;
 		}
+	}
+	
+	/** Returns the ratio/weight at the given t value. */
+	float eval_ratio(
+		const float p1x, const float p1y, const float p2x, const float p2y,
+		const float p3x, const float p3y, const float p4x, const float p4y,
+		const float r1, const float r2, const float r3, const float r4,
+		const float t)
+	{
+		const float u = 1 - t;
+		const float tt = t*t;
+		const float tt3 = tt*t;
+		const float uu = u*u;
+		const float uuu = uu*u;
+		
+		return uuu*r1 + 3*uu*t*r2 + 3*u*tt*r3 + tt3 * r4;
 	}
 	
 }

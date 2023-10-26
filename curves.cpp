@@ -537,7 +537,7 @@ class script : MultiCurveDebugColourCallback
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
 			dct = closest_point.t;
-			dcr = 1;
+			dcr = curve.eval_ratio(closest_point.i, closest_point.t);
 			const float u = 1 - dct;
 			dcu = (u*u) / (dct*dct + u*u);
 			@dc_p1 = curve.vert(closest_point.i);
