@@ -14,6 +14,7 @@ class CurveControlPointDrag
 	int segment_index;
 	
 	CurveControlPoint@ mirror_point;
+	float mirror_dx, mirror_dy;
 	float mirror_start_x, mirror_start_y;
 	int mirror_vertex_index;
 	float mirror_length;
@@ -25,6 +26,8 @@ class CurveControlPointDrag
 		MultiCurve@ curve,
 		CurveControlPoint@ point, const float x, const float y, const int dir=-1)
 	{
+		if(@this.vertex != null || @this.point != null)
+			return false;
 		if(@point == null || @point.vertex == null)
 			return false;
 		if(curve.type != QuadraticBezier && curve.type != CubicBezier)
@@ -212,31 +215,119 @@ class CurveControlPointDrag
 		
 		if(!accept)
 		{
-			point.x = start_x;
-			point.y = start_y;
-			
-			if(@mirror_point != null)
-			{
-				mirror_point.x = mirror_start_x;
-				mirror_point.y = mirror_start_y;
-				
-				if(mirror_vertex_index != segment_index)
-				{
-					curve.invalidate(mirror_vertex_index);
-				}
-			}
-			
-			curve.invalidate(segment_index, true);
+			cancel_drag(curve, point);
 		}
 		
+		clear_drag();
+		
+		return true;
+	}
+	
+	bool start_drag_vertex(
+		MultiCurve@ curve,
+		CurveVertex@ vertex, const float x, const float y)
+	{
+		if(@this.vertex != null || @this.point != null)
+			return false;
+		if(@vertex == null)
+			return false;
+		
+		vertex_index = curve.vertices.findByRef(vertex);
+		if(vertex_index == -1)
+			return false;
+		
+		segment_index = vertex_index;
+		@this.vertex = vertex;
+		this.x = x;
+		this.y = y;
+		start_x = vertex.x;
+		start_y = vertex.y;
+		offset_x = vertex.x - x;
+		offset_y = vertex.y - y;
+		
+		if(curve.type == QuadraticBezier && (curve.closed || vertex_index > 0 && vertex_index < curve.vertex_count - 1))
+		{
+			mirror_vertex_index = mod(segment_index - 1, curve.vertex_count);
+			@mirror_point = @curve.vertices[mirror_vertex_index].quad_control_point;
+			mirror_start_x = mirror_point.x;
+			mirror_start_y = mirror_point.y;
+			mirror_dx = mirror_point.x + mirror_point.vertex.x - vertex.x;
+			mirror_dy = mirror_point.y + mirror_point.vertex.y - vertex.y;
+		}
+		
+		return true;
+	}
+	
+	bool do_drag_vertex(MultiCurve@ curve, const float x, const float y)
+	{
+		if(@vertex == null)
+			return false;
+		if(x == this.x && y == this.y)
+			return false;
+		
+		this.x = x;
+		this.y = y;
+		vertex.x = x + offset_x;
+		vertex.y = y + offset_y;
+		
+		if(curve.type == QuadraticBezier && @mirror_point != null && mirror_point.type == Smooth)
+		{
+			mirror_point.x = vertex.x + mirror_dx - mirror_point.vertex.x;
+			mirror_point.y = vertex.y + mirror_dy - mirror_point.vertex.y;
+			
+			if(mirror_vertex_index != segment_index)
+			{
+				curve.invalidate(mirror_vertex_index);
+			}
+		}
+		
+		curve.invalidate(vertex_index);
+		
+		return true;
+	}
+	
+	bool stop_drag_vertex(MultiCurve@ curve, const bool accept=true)
+	{
+		if(@vertex == null)
+			return false;
+		
+		if(!accept)
+		{
+			cancel_drag(curve, vertex);
+		}
+		
+		clear_drag();
+		
+		return true;
+	}
+	
+	private void cancel_drag(MultiCurve@ curve, CurveControlPoint@ p)
+	{
+		p.x = start_x;
+		p.y = start_y;
+		
+		if(@mirror_point != null)
+		{
+			mirror_point.x = mirror_start_x;
+			mirror_point.y = mirror_start_y;
+			
+			if(mirror_vertex_index != segment_index)
+			{
+				curve.invalidate(mirror_vertex_index);
+			}
+		}
+		
+		curve.invalidate(segment_index, true);
+	}
+	
+	private void clear_drag()
+	{
 		@point = null;
 		@vertex = null;
 		@mirror_point = null;
 		@axis = null;
 		vertex_index = -1;
 		mirror_vertex_index = -1;
-		
-		return true;
 	}
 	
 	private void mirror_delta(float &out dx, float &out dy, CurveControlPoint@ point=null)

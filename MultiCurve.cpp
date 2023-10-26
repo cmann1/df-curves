@@ -1611,90 +1611,35 @@ class MultiCurve
 	  * @param y The y position the drag was initiated from (usually the mouse). */
 	void start_drag_vertex(CurveVertex@ vertex, const float x, const float y)
 	{
-		if(@drag_point != null || @drag_vertex != null)
-			return;
-		if(@vertex == null)
+		if(drag_control_points_count != 0)
 			return;
 		
-		drag_vertex_index = vertices.findByRef(vertex);
-		if(drag_vertex_index == -1)
+		if(!drag_control_points[0].start_drag_vertex(this, vertex, x, y))
 			return;
 		
-		drag_segment_index = drag_vertex_index;
-		@drag_vertex = vertex;
-		drag_x = x;
-		drag_y = y;
-		drag_start_x = vertex.x;
-		drag_start_y = vertex.y;
-		drag_offset_x = vertex.x - x;
-		drag_offset_y = vertex.y - y;
-		
-		if(_type == QuadraticBezier && (_closed || drag_vertex_index > 0 && drag_vertex_index < vertex_count - 1))
-		{
-			drag_vertex_mirror_index = mod(drag_segment_index - 1, vertex_count);
-			@drag_point_mirror = @vertices[drag_vertex_mirror_index].quad_control_point;
-			drag_mirror_start_x = drag_point_mirror.x;
-			drag_mirror_start_y = drag_point_mirror.y;
-			drag_mirror_x = drag_point_mirror.x + drag_point_mirror.vertex.x - vertex.x;
-			drag_mirror_y = drag_point_mirror.y + drag_point_mirror.vertex.y - vertex.y;
-		}
+		drag_control_points_count = 1;
 	}
 	
 	bool do_drag_vertex(const float x, const float y)
 	{
-		if(@drag_vertex == null)
-			return false;
-		if(x == drag_x && y == drag_y)
+		if(drag_control_points_count == 0)
 			return false;
 		
-		drag_x = x;
-		drag_y = y;
-		drag_vertex.x = x + drag_offset_x;
-		drag_vertex.y = y + drag_offset_y;
+		if(!drag_control_points[0].do_drag_vertex(this, x, y))
+			return false;
 		
-		if(_type == QuadraticBezier && @drag_point_mirror != null && drag_point_mirror.type == Smooth)
-		{
-			drag_point_mirror.x = drag_vertex.x + drag_mirror_x - drag_point_mirror.vertex.x;
-			drag_point_mirror.y = drag_vertex.y + drag_mirror_y - drag_point_mirror.vertex.y;
-			
-			if(drag_vertex_mirror_index != drag_segment_index)
-			{
-				invalidate(drag_vertex_mirror_index);
-			}
-		}
-		
-		invalidate(drag_vertex_index);
 		return true;
 	}
 	
 	bool stop_drag_vertex(const bool accept=true)
 	{
-		if(@drag_vertex == null)
+		if(drag_control_points_count == 0)
 			return false;
 		
-		if(!accept)
-		{
-			drag_vertex.x = drag_start_x;
-			drag_vertex.y = drag_start_y;
-			
-			if(@drag_point_mirror != null)
-			{
-				drag_point_mirror.x = drag_mirror_start_x;
-				drag_point_mirror.y = drag_mirror_start_y;
-				
-				if(drag_vertex_mirror_index != drag_segment_index)
-				{
-					invalidate(drag_vertex_mirror_index);
-				}
-			}
-			
-			invalidate(drag_segment_index, true);
-		}
+		drag_control_points_count = 0;
 		
-		@drag_point_mirror = null;
-		@drag_vertex = null;
-		drag_vertex_index = -1;
-		drag_vertex_mirror_index = -1;
+		if(!drag_control_points[0].stop_drag_vertex(this, accept))
+			return false;
 		
 		return true;
 	}
