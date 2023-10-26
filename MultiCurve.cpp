@@ -1755,12 +1755,12 @@ class MultiCurve
 		if(drag_control_points_count == 0)
 			return false;
 		
-		if(!drag_control_points[0].do_drag(this, x, y, mirror, drag_control_points_count == 1 && constrain_to_axis))
+		if(!drag_control_points[0].do_drag(this, x, y, mirror, constrain_to_axis))
 			return false;
 		
-		if(drag_control_points_count == 2)
+		if(!constrain_to_axis && drag_control_points_count == 2)
 		{
-			drag_control_points[1].do_drag(this, x, y, mirror, drag_control_points_count == 1 && constrain_to_axis);
+			drag_control_points[1].do_drag(this, x, y, mirror, drag_control_points_count == 1 && constrain_to_axis, false);
 		}
 		
 		return true;
@@ -1771,12 +1771,12 @@ class MultiCurve
 		if(drag_control_points_count == 0)
 			return false;
 		
-		drag_control_points_count = 0;
-		
 		if(drag_control_points_count == 2)
 		{
 			drag_control_points[1].stop_drag(this, accept);
 		}
+		
+		drag_control_points_count = 0;
 		
 		if(!drag_control_points[0].stop_drag(this, accept))
 			return false;

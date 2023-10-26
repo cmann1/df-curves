@@ -84,7 +84,7 @@ class CurveControlPointDrag
 	
 	bool do_drag(
 		MultiCurve@ curve, const float x, const float y,
-		const ControlPointMirrorType mirror, const bool constrain_to_axis)
+		const ControlPointMirrorType mirror, const bool constrain_to_axis, const bool update_point=true)
 	{
 		if(@point == null)
 			return false;
@@ -93,14 +93,18 @@ class CurveControlPointDrag
 		
 		this.x = x;
 		this.y = y;
-		point.x = x + offset_x;
-		point.y = y + offset_y;
+		
+		if(update_point)
+		{
+			point.x = x + offset_x;
+			point.y = y + offset_y;
+		}
 		
 		float dx, dy;
 		mirror_delta(dx, dy);
 		length = magnitude(dx, dy);
 		
-		if(curve.type == QuadraticBezier && @axis != null && constrain_to_axis)
+		if(curve.type == QuadraticBezier && @axis != null && constrain_to_axis && update_point)
 		{
 			const float length = magnitude(axis.x, axis.y);
 			if(length != 0)
