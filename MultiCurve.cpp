@@ -18,6 +18,7 @@
 #include 'calculate_arc_lengths.cpp';
 #include 'closest_point.cpp';
 
+#include 'CurveControlPointDrag.cpp';
 #include 'MultiCuveSubdivisionSettings.cpp';
 
 /** A higher level wrapper designed for editing/manipulating different types of curves. */
@@ -92,25 +93,6 @@ class MultiCurve
 	
 	private Curve::EvalFunc@ eval_func_def;
 	private Curve::EvalPointFunc@ eval_point_func_def;
-	
-	// -- Editing/dragging stuff
-	
-	private CurveControlPoint@ drag_point;
-	private CurveControlPoint@ drag_point_mirror;
-	private CurveVertex@ drag_vertex;
-	private int drag_vertex_index = -1;
-	private int drag_segment_index = -1;
-	private int drag_vertex_mirror_index = -1;
-	private float drag_start_x, drag_start_y;
-	private float drag_mirror_start_x, drag_mirror_start_y;
-	private float drag_x, drag_y;
-	private float drag_offset_x, drag_offset_y;
-	private float drag_mirror_x, drag_mirror_y;
-	private float drag_length;
-	private float drag_length_mirror;
-	private float drag_length_ratio;
-	private float drag_angle;
-	private CurveControlPoint@ drag_axis;
 	
 	MultiCurve()
 	{
@@ -1712,21 +1694,29 @@ class MultiCurve
 		return true;
 	}
 	
-	private void mirror_delta(float &out dx, float &out dy)
-	{
-		if(@drag_point_mirror.vertex == @drag_vertex)
-		{
-			dx = drag_point_mirror.x;
-			dy = drag_point_mirror.y;
-		}
-		else
-		{
-			dx = drag_point_mirror.x + drag_point_mirror.vertex.x - drag_vertex.x;
-			dy = drag_point_mirror.y + drag_point_mirror.vertex.y - drag_vertex.y;
-		}
-	}
+	// -- Editing/dragging stuff
 	
-	/** Only applicable if the curve type is quadratic or cubic.
+	private CurveControlPoint@ drag_point;
+	private CurveControlPoint@ drag_point_mirror;
+	private CurveVertex@ drag_vertex;
+	private int drag_vertex_index = -1;
+	private int drag_segment_index = -1;
+	private int drag_vertex_mirror_index = -1;
+	private float drag_start_x, drag_start_y;
+	private float drag_mirror_start_x, drag_mirror_start_y;
+	private float drag_x, drag_y;
+	private float drag_offset_x, drag_offset_y;
+	private float drag_mirror_x, drag_mirror_y;
+	private float drag_length;
+	private float drag_length_mirror;
+	private float drag_length_ratio;
+	private float drag_angle;
+	private CurveControlPoint@ drag_axis;
+	
+	array<CurveControlPointDrag> drag_control_points(2);
+	int drag_control_points_count;
+	
+	/** Only applicable to quadratic or cubic curves.
 	  * Does nothing if another drag is in progress - make sure to call `stop_drag_control_point` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
@@ -1736,200 +1726,42 @@ class MultiCurve
 			return;
 		if(@point == null || @point.vertex == null)
 			return;
-		if(@drag_point != null || @drag_vertex != null)
+		if(drag_control_points_count != 0)
 			return;
 		if(_type == QuadraticBezier && @point != @point.vertex.quad_control_point)
 			return;
 		if(_type == CubicBezier && @point != @point.vertex.cubic_control_point_1 && @point != @point.vertex.cubic_control_point_2)
 			return;
 		
-		drag_vertex_index = vertices.findByRef(point.vertex);
-		if(drag_vertex_index == -1)
+		CurveControlPointDrag@ drag = @drag_control_points[0];
+		if(!drag.start_drag(this, point, x, y))
 			return;
 		
-		drag_segment_index = drag_vertex_index;
-		@drag_point = point;
-		@drag_vertex = point.vertex;
-		drag_x = x;
-		drag_y = y;
-		drag_start_x = drag_point.x;
-		drag_start_y = drag_point.y;
-		drag_offset_x = drag_point.x - x;
-		drag_offset_y = drag_point.y - y;
-		
-		drag_length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
-		
-		if(_type == QuadraticBezier)
-		{
-			drag_vertex_mirror_index = mod(drag_segment_index - 1, vertex_count);
-			@drag_point_mirror = @vertices[drag_vertex_mirror_index].quad_control_point;
-			float dx, dy;
-			mirror_delta(dx, dy);
-			drag_angle = angle_between(dx, dy, drag_point.x, drag_point.y);
-			drag_length_mirror = sqrt(dx * dx + dy * dy);
-			
-			if(_closed || drag_vertex_index < vertex_count - 1)
-			{
-				@drag_axis = @vert(drag_vertex_index, 1).quad_control_point;
-			}
-		}
-		else if(_type == CubicBezier)
-		{
-			@drag_point_mirror = @point == @point.vertex.cubic_control_point_1
-				? @point.vertex.cubic_control_point_2 : @point.vertex.cubic_control_point_1;
-			drag_segment_index = mod(@point == @point.vertex.cubic_control_point_1 ? drag_vertex_index - 1 : drag_vertex_index, vertex_count);
-			drag_vertex_mirror_index = mod(drag_segment_index + (@point == @point.vertex.cubic_control_point_1 ? 1 : -1), vertex_count);
-			drag_angle = angle_between(drag_point_mirror.x, drag_point_mirror.y, drag_point.x, drag_point.y);
-			drag_length_mirror = sqrt(drag_point_mirror.x * drag_point_mirror.x + drag_point_mirror.y * drag_point_mirror.y);
-		}
-		
-		if(@drag_point_mirror != null)
-		{
-			drag_mirror_start_x = drag_point_mirror.x;
-			drag_mirror_start_y = drag_point_mirror.y;
-			drag_length_ratio = drag_length != 0 ? drag_length_mirror / drag_length : 0;
-		}
+		drag_control_points_count = 1;
 	}
 	
 	bool do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle, const bool constrain_to_axis=false)
 	{
-		if(@drag_point == null)
-			return false;
-		if(x == drag_x && y == drag_y)
+		if(drag_control_points_count == 0)
 			return false;
 		
-		drag_x = x;
-		drag_y = y;
-		drag_point.x = x + drag_offset_x;
-		drag_point.y = y + drag_offset_y;
-		drag_length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
-		
-		if(_type == QuadraticBezier && @drag_axis != null && constrain_to_axis)
-		{
-			const float length = magnitude(drag_axis.x, drag_axis.y);
-			if(length != 0)
-			{
-				const float nx = drag_axis.x / length;
-				const float ny = drag_axis.y / length;
-				const float ax = drag_point.x + drag_point.vertex.x - drag_axis.vertex.x;
-				const float ay = drag_point.y + drag_point.vertex.y - drag_axis.vertex.y;
-				const float dp = dot(ax, ay, nx, ny);
-				drag_point.x = drag_axis.vertex.x + dp * nx - drag_point.vertex.x;
-				drag_point.y = drag_axis.vertex.y + dp * ny - drag_point.vertex.y;
-			}
-		}
-		
-		const bool maintain_angle = mirror == MaintainAngle && (drag_point.type != Smooth || drag_point_mirror.type != Smooth);
-		
-		if(mirror != MaintainAngle && @drag_point_mirror != null)
-		{
-			float dx, dy;
-			mirror_delta(dx, dy);
-			drag_angle = angle_between(dx, dy, drag_point.x, drag_point.y);
-		}
-		
-		if(_type == QuadraticBezier && @drag_point_mirror != null && (drag_point_mirror.type == Smooth || maintain_angle))
-		{
-			float length = drag_length_mirror;
-			switch(mirror)
-			{
-				case Angle:
-					length = drag_length_mirror;
-					break;
-				case Length:
-					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
-					drag_length_mirror = length;
-					break;
-				case LengthRatio:
-					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y) * drag_length_ratio;
-					drag_length_mirror = length;
-					break;
-			}
-			
-			const float angle = atan2(drag_point.y, drag_point.x) - (maintain_angle ? drag_angle : PI);
-			drag_point_mirror.x = drag_vertex.x + cos(angle) * length - drag_point_mirror.vertex.x;
-			drag_point_mirror.y = drag_vertex.y + sin(angle) * length - drag_point_mirror.vertex.y;
-			
-			if(mirror != LengthRatio)
-			{
-				float dx, dy;
-				mirror_delta(dx, dy);
-				drag_length_ratio = drag_length != 0 ? sqrt(dx * dx + dy * dy) / drag_length : 0;
-			}
-		}
-		else if(
-			_type == CubicBezier && @drag_point_mirror != null &&
-			(drag_point.type == Smooth && drag_point_mirror.type == Smooth || maintain_angle))
-		{
-			float length = drag_length_mirror;
-			switch(mirror)
-			{
-				case Angle:
-					length = drag_length_mirror;
-					break;
-				case Length:
-					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y);
-					drag_length_mirror = length;
-					break;
-				case LengthRatio:
-					length = sqrt(drag_point.x * drag_point.x + drag_point.y * drag_point.y) * drag_length_ratio;
-					drag_length_mirror = length;
-					break;
-			}
-			
-			const float angle = atan2(drag_point.y, drag_point.x) - (maintain_angle ? drag_angle : PI);
-			drag_point_mirror.x = cos(angle) * length;
-			drag_point_mirror.y = sin(angle) * length;
-			
-			if(mirror != LengthRatio)
-			{
-				drag_length_ratio = drag_length != 0 ? sqrt(drag_point_mirror.x * drag_point_mirror.x + drag_point_mirror.y * drag_point_mirror.y) / drag_length : 0;
-			}
-		}
-		
-		if(drag_vertex_mirror_index != -1 && drag_vertex_mirror_index != drag_segment_index)
-		{
-			invalidate(drag_vertex_mirror_index);
-		}
-		
-		if(_closed || drag_segment_index < vertex_count - 1)
-		{
-			invalidate(drag_segment_index, true);
-		}
+		CurveControlPointDrag@ drag = @drag_control_points[0];
+		if(!drag.do_drag(this, x, y, mirror, constrain_to_axis))
+			return false;
 		
 		return true;
 	}
 	
 	bool stop_drag_control_point(const bool accept=true)
 	{
-		if(@drag_point == null)
+		if(drag_control_points_count == 0)
 			return false;
 		
-		if(!accept)
-		{
-			drag_point.x = drag_start_x;
-			drag_point.y = drag_start_y;
-			
-			if(@drag_point_mirror != null)
-			{
-				drag_point_mirror.x = drag_mirror_start_x;
-				drag_point_mirror.y = drag_mirror_start_y;
-				
-				if(drag_vertex_mirror_index != drag_segment_index)
-				{
-					invalidate(drag_vertex_mirror_index);
-				}
-			}
-			
-			invalidate(drag_segment_index, true);
-		}
+		drag_control_points_count = 0;
 		
-		@drag_point = null;
-		@drag_point_mirror = null;
-		@drag_vertex = null;
-		@drag_axis = null;
-		drag_vertex_index = -1;
-		drag_vertex_mirror_index = -1;
+		CurveControlPointDrag@ drag = @drag_control_points[0];
+		if(!drag.stop_drag(this, accept))
+			return false;
 		
 		return true;
 	}
