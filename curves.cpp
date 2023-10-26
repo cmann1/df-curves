@@ -646,35 +646,39 @@ class script : MultiCurveDebugColourCallback
 		@dc_cp1 = dc_p1.cubic_control_point_2;
 		@dc_cp2 = dc_p2.cubic_control_point_1;
 		
-		const float c1x = (dc_p1.x + dc_cp1.x)*dc_cp1.weight;
-		const float c1y = (dc_p1.y + dc_cp1.y)*dc_cp1.weight;
-		const float c2x = (dc_p2.x + dc_cp2.x)*dc_cp2.weight;
-		const float c2y = (dc_p2.y + dc_cp2.y)*dc_cp2.weight;
-		
 		const float u = 1 - dct;
-		dcu = (u*u*u) / (dct*dct*dct + u*u*u);
 		
-		const float den = dct*dct*dct + (1 - dct)*(1 - dct)*(1 - dct);
-		const float r = abs((den - 1) / den);
+		const float den = curve.type == QuadraticBezier
+			? dct*dct + u*u
+			: dct*dct*dct + u*u*u;
+		dcu = curve.type == QuadraticBezier
+			? (u*u)/den
+			: (u*u*u)/den;
+		dcrat = abs((den - 1) / den);
 		
 		// Non-rational.
 		//const float bx = mouse.x + drag_ox;
 		//const float by = mouse.y + drag_oy;
 		//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
 		//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-		//const float ax = bx + (bx - cx)/r;
-		//const float ay = by + (by - cy)/r;
+		//const float ax = bx + (bx - cx)/dcrat;
+		//const float ay = by + (by - cy)/dcrat;
 		
 		// Rational.
+		const float c1x = (dc_p1.x + dc_cp1.x)*dc_cp1.weight;
+		const float c1y = (dc_p1.y + dc_cp1.y)*dc_cp1.weight;
+		const float c2x = (dc_p2.x + dc_cp2.x)*dc_cp2.weight;
+		const float c2y = (dc_p2.y + dc_cp2.y)*dc_cp2.weight;
+		
 		const float br = dcr;
 		const float bx = (mouse.x + drag_ox) * br;
 		const float by = (mouse.y + drag_oy) * br;
 		const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
 		const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
 		const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-		const float ar = br + (br - cr)/r;
-		const float ax = bx + (bx - cx)/r;
-		const float ay = by + (by - cy)/r;
+		const float ar = br + (br - cr)/dcrat;
+		const float ax = bx + (bx - cx)/dcrat;
+		const float ay = by + (by - cy)/dcrat;
 		
 		const float v1r = dc_p1.weight*(1 - dct) + dc_cp1.weight*dct;
 		const float v1x = dc_p1.x*dc_p1.weight*(1 - dct) + c1x*dct;
@@ -693,6 +697,7 @@ class script : MultiCurveDebugColourCallback
 	float dct;
 	float dcu;
 	float dcr;
+	float dcrat;
 	CurveVertex@ dc_p1, dc_p2;
 	CurveControlPoint@ dc_cp1, dc_cp2;
 	float dce1x, dce1y, dce2x, dce2y;
@@ -710,18 +715,14 @@ class script : MultiCurveDebugColourCallback
 			if(curve.type == QuadraticBezier)
 			{
 				const float u = 1 - dct;
-				dcu = (u*u) / (dct*dct + u*u);
-				
-				const float den = dct*dct + (1 - dct)*(1 - dct);
-				const float r = abs((den - 1) / den);
 				
 				// Non-rational.
 				//const float bx = mouse.x + drag_ox;
 				//const float by = mouse.y + drag_oy;
 				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
 				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-				//const float ax = bx + (bx - cx)/r;
-				//const float ay = by + (by - cy)/r;
+				//const float ax = bx + (bx - cx)/dcrat;
+				//const float ay = by + (by - cy)/dcrat;
 				
 				// Rational.
 				const float br = dcr;
@@ -730,9 +731,9 @@ class script : MultiCurveDebugColourCallback
 				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
 				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
 				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-				const float ar = br + (br - cr)/r;
-				const float ax = (bx + (bx - cx)/r)/ar;
-				const float ay = (by + (by - cy)/r)/ar;
+				const float ar = br + (br - cr)/dcrat;
+				const float ax = (bx + (bx - cx)/dcrat)/ar;
+				const float ay = (by + (by - cy)/dcrat)/ar;
 				
 				float x1 = 0;
 				float y1 = 0;
@@ -760,24 +761,15 @@ class script : MultiCurveDebugColourCallback
 			}
 			else if(curve.type == CubicBezier)
 			{
-				//const float c1x = dc_p1.x + dc_cp1.x;
-				//const float c1y = dc_p1.y + dc_cp1.y;
-				//const float c2x = dc_p2.x + dc_cp2.x;
-				//const float c2y = dc_p2.y + dc_cp2.y;
-				
 				const float u = 1 - dct;
-				dcu = (u*u*u) / (dct*dct*dct + u*u*u);
-				
-				const float den = dct*dct*dct + (1 - dct)*(1 - dct)*(1 - dct);
-				const float r = abs((den - 1) / den);
 				
 				// Non-rational.
 				//const float bx = mouse.x + drag_ox;
 				//const float by = mouse.y + drag_oy;
 				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
 				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-				//const float ax = bx + (bx - cx)/r;
-				//const float ay = by + (by - cy)/r;
+				//const float ax = bx + (bx - cx)/dcrat;
+				//const float ay = by + (by - cy)/dcrat;
 				//
 				//const float e1x = bx + dce1x;
 				//const float e1y = by + dce1y;
@@ -801,9 +793,9 @@ class script : MultiCurveDebugColourCallback
 				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
 				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
 				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-				const float ar = br + (br - cr)/r;
-				const float ax = bx + (bx - cx)/r;
-				const float ay = by + (by - cy)/r;
+				const float ar = br + (br - cr)/dcrat;
+				const float ax = bx + (bx - cx)/dcrat;
+				const float ay = by + (by - cy)/dcrat;
 				
 				const float e1r = br + dce1r;
 				const float e1x = bx + dce1x;
