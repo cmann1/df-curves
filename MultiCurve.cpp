@@ -19,6 +19,7 @@
 #include 'closest_point.cpp';
 
 #include 'CurveControlPointDrag.cpp';
+#include 'CurveDrag.cpp';
 #include 'MultiCuveSubdivisionSettings.cpp';
 
 /** A higher level wrapper designed for editing/manipulating different types of curves. */
@@ -1609,21 +1610,23 @@ class MultiCurve
 	// TODO: MOVE
 	// -- Editing/dragging stuff
 	
+	CurveDrag drag_curve;
 	array<CurveControlPointDrag> drag_control_points(2);
 	int drag_control_points_count;
 	
 	/** Make sure to call `stop_drag_vertex` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
-	void start_drag_vertex(CurveVertex@ vertex, const float x, const float y)
+	bool start_drag_vertex(CurveVertex@ vertex, const float x, const float y)
 	{
-		if(drag_control_points_count != 0)
-			return;
+		if(drag_curve.busy || drag_control_points_count != 0)
+			return false;
 		
 		if(!drag_control_points[0].start_drag_vertex(this, vertex, x, y))
-			return;
+			return false;
 		
 		drag_control_points_count = 1;
+		return true;
 	}
 	
 	bool do_drag_vertex(const float x, const float y)
@@ -1654,13 +1657,13 @@ class MultiCurve
 	  * Does nothing if another drag is in progress - make sure to call `stop_drag_control_point` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
-	void start_drag_control_point(CurveControlPoint@ point, const float x, const float y)
+	bool start_drag_control_point(CurveControlPoint@ point, const float x, const float y)
 	{
-		if(drag_control_points_count != 0)
-			return;
+		if(drag_curve.busy || drag_control_points_count != 0)
+			return false;
 		
 		if(!drag_control_points[0].start_drag(this, point, x, y))
-			return;
+			return false;
 		
 		drag_control_points_count = 1;
 		
@@ -1669,6 +1672,8 @@ class MultiCurve
 			drag_control_points[1].start_drag(this, point, x, y, 1);
 			drag_control_points_count++;
 		}
+		
+		return true;
 	}
 	
 	bool do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle, const bool constrain_to_axis=false)
@@ -1702,6 +1707,32 @@ class MultiCurve
 		if(!drag_control_points[0].stop_drag(this, accept))
 			return false;
 		
+		return true;
+	}
+	
+	/** Only applicable to quadratic or cubic curves.
+	  * Make sure to call `stop_drag_curve` when done.
+	  * @param x The x position the drag was initiated from (usually the mouse).
+	  * @param y The y position the drag was initiated from (usually the mouse). */
+	bool start_drag_curve(const int segment, const float t, const float x, const float y)
+	{
+		if(drag_curve.busy || drag_control_points_count != 0)
+			return false;
+		if(t <= 0 || t >= 1)
+			return false;
+		if(segment < 0 || segment > vertex_count - (_closed ? 1 : 2))
+			return false;
+		
+		return drag_curve.start(this, segment, t);
+	}
+	
+	bool do_drag_curve(const float x, const float y)
+	{
+		return true;
+	}
+	
+	bool stop_drag_curve(const bool accept=true)
+	{
 		return true;
 	}
 	

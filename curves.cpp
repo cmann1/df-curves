@@ -100,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = QuadraticBezier;
+		curve.type = CubicBezier;
 		
 		recreate_spline();
 		
@@ -656,50 +656,37 @@ class script : MultiCurveDebugColourCallback
 		
 		const float u = 1 - dct;
 		
-		const float den = curve.type == QuadraticBezier
-			? dct*dct + u*u
-			: dct*dct*dct + u*u*u;
-		dcu = curve.type == QuadraticBezier
-			? (u*u)/den
-			: (u*u*u)/den;
-		dcrat = abs((den - 1) / den);
+		if(curve.type == QuadraticBezier)
+			QuadraticBezier::calc_abc_ratio(dct, dcu, dcrat);
+		else
+			CubicBezier::calc_abc_ratio(dct, dcu, dcrat);
 		
-		// Non-rational.
-		//const float bx = mouse.x + drag_ox;
-		//const float by = mouse.y + drag_oy;
-		//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
-		//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-		//const float ax = bx + (bx - cx)/dcrat;
-		//const float ay = by + (by - cy)/dcrat;
-		
-		// Rational.
-		const float c1x = (dc_p1.x + dc_cp1.x)*dc_cp1.weight;
-		const float c1y = (dc_p1.y + dc_cp1.y)*dc_cp1.weight;
-		const float c2x = (dc_p2.x + dc_cp2.x)*dc_cp2.weight;
-		const float c2y = (dc_p2.y + dc_cp2.y)*dc_cp2.weight;
-		
-		const float br = dcr;
-		const float bx = (mouse.x + drag_ox) * br;
-		const float by = (mouse.y + drag_oy) * br;
-		const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
-		const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
-		const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-		const float ar = br + (br - cr)/dcrat;
-		const float ax = bx + (bx - cx)/dcrat;
-		const float ay = by + (by - cy)/dcrat;
-		
-		const float v1r = dc_p1.weight*(1 - dct) + dc_cp1.weight*dct;
-		const float v1x = dc_p1.x*dc_p1.weight*(1 - dct) + c1x*dct;
-		const float v1y = dc_p1.y*dc_p1.weight*(1 - dct) + c1y*dct;
-		const float v2r = dc_cp2.weight*(1 - dct) + dc_p2.weight*dct;
-		const float v2x = c2x*(1 - dct) + dc_p2.x*dct;
-		const float v2y = c2y*(1 - dct) + dc_p2.y*dct;
-		dce1r = (1 - dct)*v1r + ar*dct - br;
-		dce1x = (1 - dct)*v1x + ax*dct - bx;
-		dce1y = (1 - dct)*v1y + ay*dct - by;
-		dce2r = (1 - dct)*ar + v2r*dct - br;
-		dce2x = (1 - dct)*ax + v2x*dct - bx;
-		dce2y = (1 - dct)*ay + v2y*dct - by;
+		if(curve.type == CubicBezier)
+		{
+			// Non-rational.
+			if(dc_p1.weight == dc_cp1.weight && dc_cp1.weight == dc_cp2.weight && dc_cp2.weight == dc_p2.weight)
+			{
+				puts('X');
+				CubicBezier::calc_abc_tangent(
+					dc_p1.x, dc_p1.y,
+					dc_p1.x + dc_cp1.x, dc_p1.y + dc_cp1.y,
+					dc_p2.x + dc_cp2.x, dc_p2.y + dc_cp2.y,
+					dc_p2.x, dc_p2.y,
+					dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
+					dce1x, dce1y, dce2x, dce2y);
+			}
+			// Rational.
+			else
+			{
+				CubicBezier::calc_abc_tangent(
+					dc_p1.x, dc_p1.y, dc_p1.weight,
+					dc_p1.x + dc_cp1.x, dc_p1.y + dc_cp1.y, dc_cp1.weight,
+					dc_p2.x + dc_cp2.x, dc_p2.y + dc_cp2.y, dc_cp2.weight,
+					dc_p2.x, dc_p2.y, dc_p2.weight,
+					dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
+					dce1x, dce1y, dce1r, dce2x, dce2y, dce2r);
+			}
+		}
 	}
 	
 	float dct;
@@ -722,26 +709,24 @@ class script : MultiCurveDebugColourCallback
 		{
 			if(curve.type == QuadraticBezier)
 			{
-				const float u = 1 - dct;
+				float ax, ay, ar, cx, cy, cr;
 				
 				// Non-rational.
-				//const float bx = mouse.x + drag_ox;
-				//const float by = mouse.y + drag_oy;
-				//const float cx = dcu*dc_p1.x + (1 - dcu)*dc_p2.x;
-				//const float cy = dcu*dc_p1.y + (1 - dcu)*dc_p2.y;
-				//const float ax = bx + (bx - cx)/dcrat;
-				//const float ay = by + (by - cy)/dcrat;
-				
+				if(dc_p1.weight == dc_p1.quad_control_point.weight && dc_p1.quad_control_point.weight == dc_p2.weight)
+				{
+					QuadraticBezier::calc_abc(
+						dc_p1.x, dc_p1.y, dc_p2.x, dc_p2.y,
+						dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
+						ax, ay, cx, cy);
+				}
 				// Rational.
-				const float br = dcr;
-				const float bx = (mouse.x + drag_ox) * br;
-				const float by = (mouse.y + drag_oy) * br;
-				const float cr = dcu*dc_p1.weight + (1 - dcu)*dc_p2.weight;
-				const float cx = (dcu*dc_p1.x*dc_p1.weight + (1 - dcu)*dc_p2.x*dc_p2.weight);
-				const float cy = (dcu*dc_p1.y*dc_p1.weight + (1 - dcu)*dc_p2.y*dc_p2.weight);
-				const float ar = br + (br - cr)/dcrat;
-				const float ax = (bx + (bx - cx)/dcrat)/ar;
-				const float ay = (by + (by - cy)/dcrat)/ar;
+				else
+				{
+					QuadraticBezier::calc_abc(
+						dc_p1.x, dc_p1.y, dc_p1.weight, dc_p2.x, dc_p2.y, dc_p2.weight,
+						dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
+						ax, ay, ar, cx, cy, cr);
+				}
 				
 				float x1 = 0;
 				float y1 = 0;
@@ -765,7 +750,7 @@ class script : MultiCurveDebugColourCallback
 				
 				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, ax, ay, 1*zoom_factor, 0x99ffffff);
 				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, ax, ay, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, cx/cr, cy/cr, ax, ay, 1*zoom_factor, 0x99ffffff);
+				g.draw_line_world(22, 23, cx, cy, ax, ay, 1*zoom_factor, 0x99ffffff);
 			}
 			else if(curve.type == CubicBezier)
 			{
@@ -846,16 +831,16 @@ class script : MultiCurveDebugColourCallback
 					y1 = y2;
 				}
 				
-				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x/v1r, v1y/v1r, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, v1x/v1r, v1y/v1r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, v2x/v2r, v2y/v2r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x/v2r, v2y/v2r, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, e1x/e1r, e1y/e1r, e2x/e2r, e2y/e2r, 1*zoom_factor, 0x99ff2222);
-				g.draw_line_world(22, 23, cx/cr, cy/cr, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				float bbr = (1-dct) * e1r + dct * e2r;
-				float bbx = ((1-dct) * e1x + dct * e2x)/bbr;
-				float bby = ((1-dct) * e1y + dct * e2y)/bbr;
-				draw_dot(g, 22, 23, bbx, bby, 2*zoom_factor, 0xff00ff00, 45);
+				//g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x/v1r, v1y/v1r, 1*zoom_factor, 0x99ffffff);
+				//g.draw_line_world(22, 23, v1x/v1r, v1y/v1r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				//g.draw_line_world(22, 23, v2x/v2r, v2y/v2r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				//g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x/v2r, v2y/v2r, 1*zoom_factor, 0x99ffffff);
+				//g.draw_line_world(22, 23, e1x/e1r, e1y/e1r, e2x/e2r, e2y/e2r, 1*zoom_factor, 0x99ff2222);
+				//g.draw_line_world(22, 23, cx/cr, cy/cr, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
+				//float bbr = (1-dct) * e1r + dct * e2r;
+				//float bbx = ((1-dct) * e1x + dct * e2x)/bbr;
+				//float bby = ((1-dct) * e1y + dct * e2y)/bbr;
+				//draw_dot(g, 22, 23, bbx, bby, 2*zoom_factor, 0xff00ff00, 45);
 			}
 		}
 	}

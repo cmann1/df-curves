@@ -1,5 +1,6 @@
 #include '../lib/math/math.cpp';
 
+/** Handles logic for dragging, mirroring, and resetting curve control points. */
 class CurveControlPointDrag
 {
 	
