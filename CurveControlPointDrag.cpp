@@ -23,7 +23,7 @@ class CurveControlPointDrag
 	
 	bool start_drag(
 		MultiCurve@ curve,
-		CurveControlPoint@ point, const float x, const float y)
+		CurveControlPoint@ point, const float x, const float y, const int dir=-1)
 	{
 		vertex_index = curve.vertices.findByRef(point.vertex);
 		if(vertex_index == -1)
@@ -43,16 +43,23 @@ class CurveControlPointDrag
 		
 		if(curve.type == QuadraticBezier)
 		{
-			mirror_vertex_index = mod(segment_index - 1, curve.vertex_count);
+			mirror_vertex_index = mod(segment_index + dir, curve.vertex_count);
 			@mirror_point = @curve.vertices[mirror_vertex_index].quad_control_point;
 			float dx, dy;
-			mirror_delta(dx, dy);
+			mirror_delta(dx, dy, mirror_point);
 			angle = angle_between(dx, dy, point.x, point.y);
-			mirror_length = sqrt(dx * dx + dy * dy);
+			mirror_length = magnitude(dx, dy);
+			
+			if(dir > 0)
+			{
+				@vertex = curve.vertices[mirror_vertex_index];
+				mirror_delta(dx, dy, mirror_point);
+				mirror_length = magnitude(dx, dy);
+			}
 			
 			if(curve.closed || vertex_index < curve.vertex_count - 1)
 			{
-				@axis = @curve.vertices[(vertex_index + 1) % curve.vertex_count].quad_control_point;
+				@axis = @curve.vertices[mod(vertex_index - dir, curve.vertex_count)].quad_control_point;
 			}
 		}
 		else if(curve.type == CubicBezier)
@@ -62,7 +69,7 @@ class CurveControlPointDrag
 			segment_index = mod(@point == @point.vertex.cubic_control_point_1 ? vertex_index - 1 : vertex_index, curve.vertex_count);
 			mirror_vertex_index = mod(segment_index + (@point == @point.vertex.cubic_control_point_1 ? 1 : -1), curve.vertex_count);
 			angle = angle_between(mirror_point.x, mirror_point.y, point.x, point.y);
-			mirror_length = sqrt(mirror_point.x * mirror_point.x + mirror_point.y * mirror_point.y);
+			mirror_length = magnitude(mirror_point.x, mirror_point.y);
 		}
 		
 		if(@mirror_point != null)
@@ -88,7 +95,10 @@ class CurveControlPointDrag
 		this.y = y;
 		point.x = x + offset_x;
 		point.y = y + offset_y;
-		length = sqrt(point.x * point.x + point.y * point.y);
+		
+		float dx, dy;
+		mirror_delta(dx, dy);
+		length = magnitude(dx, dy);
 		
 		if(curve.type == QuadraticBezier && @axis != null && constrain_to_axis)
 		{
@@ -109,8 +119,7 @@ class CurveControlPointDrag
 		
 		if(mirror != MaintainAngle && @mirror_point != null)
 		{
-			float dx, dy;
-			mirror_delta(dx, dy);
+			mirror_delta(dx, dy, mirror_point);
 			angle = angle_between(dx, dy, point.x, point.y);
 		}
 		
@@ -129,16 +138,19 @@ class CurveControlPointDrag
 					new_length = mirror_length;
 					break;
 				case Length:
-					new_length = sqrt(point.x * point.x + point.y * point.y);
+					mirror_delta(dx, dy);
+					new_length = magnitude(dx, dy);
 					mirror_length = new_length;
 					break;
 				case LengthRatio:
-					new_length = sqrt(point.x * point.x + point.y * point.y) * mirror_length_ratio;
+					mirror_delta(dx, dy);
+					new_length = magnitude(dx, dy) * mirror_length_ratio;
 					mirror_length = new_length;
 					break;
 			}
 			
-			const float new_angle = atan2(point.y, point.x) - (maintain_angle ? angle : PI);
+			mirror_delta(dx, dy);
+			const float new_angle = atan2(dy, dx) - (maintain_angle ? angle : PI);
 			mirror_point.x = cos(new_angle) * new_length;
 			mirror_point.y = sin(new_angle) * new_length;
 			
@@ -149,14 +161,14 @@ class CurveControlPointDrag
 				
 				if(mirror != LengthRatio)
 				{
-					float dx, dy;
-					mirror_delta(dx, dy);
-					new_length = sqrt(dx * dx + dy * dy);
+					mirror_delta(dx, dy, mirror_point);
+					new_length = magnitude(dx, dy);
 				}
 			}
 			else if(mirror != LengthRatio)
 			{
-				new_length = sqrt(mirror_point.x * mirror_point.x + mirror_point.y * mirror_point.y);
+				mirror_delta(dx, dy, mirror_point);
+				new_length = magnitude(dx, dy);
 			}
 			
 			if(mirror != LengthRatio)
@@ -203,8 +215,8 @@ class CurveControlPointDrag
 		}
 		
 		@point = null;
-		@mirror_point = null;
 		@vertex = null;
+		@mirror_point = null;
 		@axis = null;
 		vertex_index = -1;
 		mirror_vertex_index = -1;
@@ -212,17 +224,19 @@ class CurveControlPointDrag
 		return true;
 	}
 	
-	void mirror_delta(float &out dx, float &out dy)
+	void mirror_delta(float &out dx, float &out dy, CurveControlPoint@ point=null)
 	{
-		if(@mirror_point.vertex == @vertex)
+		@point = @point == null ? this.point : point;
+		
+		if(@point.vertex == @vertex)
 		{
-			dx = mirror_point.x;
-			dy = mirror_point.y;
+			dx = point.x;
+			dy = point.y;
 		}
 		else
 		{
-			dx = mirror_point.x + mirror_point.vertex.x - vertex.x;
-			dy = mirror_point.y + mirror_point.vertex.y - vertex.y;
+			dx = point.x + point.vertex.x - vertex.x;
+			dy = point.y + point.vertex.y - vertex.y;
 		}
 	}
 	

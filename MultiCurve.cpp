@@ -1570,8 +1570,13 @@ class MultiCurve
 			}
 			else if(_type == QuadraticBezier && type != Smooth && set_mirror)
 			{
-				CurveControlPoint@ p2 = @vert(index - 1).quad_control_point;
+				CurveControlPoint@ p2 = @vert(index, -1).quad_control_point;
+				if(p2.type == Smooth)
+				{
+					p2.type = Manual;
+				}
 				
+				@p2 = @vert(index, 1).quad_control_point;
 				if(p2.type == Smooth)
 				{
 					p2.type = Manual;
@@ -1733,11 +1738,16 @@ class MultiCurve
 		if(_type == CubicBezier && @point != @point.vertex.cubic_control_point_1 && @point != @point.vertex.cubic_control_point_2)
 			return;
 		
-		CurveControlPointDrag@ drag = @drag_control_points[0];
-		if(!drag.start_drag(this, point, x, y))
+		if(!drag_control_points[0].start_drag(this, point, x, y))
 			return;
 		
 		drag_control_points_count = 1;
+		
+		if(_type == QuadraticBezier)
+		{
+			drag_control_points[1].start_drag(this, point, x, y, 1);
+			drag_control_points_count++;
+		}
 	}
 	
 	bool do_drag_control_point(const float x, const float y, const ControlPointMirrorType mirror=Angle, const bool constrain_to_axis=false)
@@ -1745,9 +1755,13 @@ class MultiCurve
 		if(drag_control_points_count == 0)
 			return false;
 		
-		CurveControlPointDrag@ drag = @drag_control_points[0];
-		if(!drag.do_drag(this, x, y, mirror, constrain_to_axis))
+		if(!drag_control_points[0].do_drag(this, x, y, mirror, drag_control_points_count == 1 && constrain_to_axis))
 			return false;
+		
+		if(drag_control_points_count == 2)
+		{
+			drag_control_points[1].do_drag(this, x, y, mirror, drag_control_points_count == 1 && constrain_to_axis);
+		}
 		
 		return true;
 	}
@@ -1759,8 +1773,12 @@ class MultiCurve
 		
 		drag_control_points_count = 0;
 		
-		CurveControlPointDrag@ drag = @drag_control_points[0];
-		if(!drag.stop_drag(this, accept))
+		if(drag_control_points_count == 2)
+		{
+			drag_control_points[1].stop_drag(this, accept);
+		}
+		
+		if(!drag_control_points[0].stop_drag(this, accept))
 			return false;
 		
 		return true;
