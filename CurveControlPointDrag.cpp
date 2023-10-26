@@ -3,6 +3,8 @@
 class CurveControlPointDrag
 {
 	
+	bool drag_vertex;
+	
 	CurveControlPoint@ point;
 	CurveVertex@ vertex;
 	float x, y;
@@ -12,6 +14,8 @@ class CurveControlPointDrag
 	float length;
 	int vertex_index;
 	int segment_index;
+	CurveControlType point_type;
+	CurveControlType vertex_type;
 	
 	CurveControlPoint@ mirror_point;
 	float mirror_dx, mirror_dy;
@@ -19,6 +23,7 @@ class CurveControlPointDrag
 	int mirror_vertex_index;
 	float mirror_length;
 	float mirror_length_ratio;
+	CurveControlType mirror_point_type;
 	
 	CurveControlPoint@ axis;
 	
@@ -41,6 +46,8 @@ class CurveControlPointDrag
 		if(vertex_index == -1)
 			return false;
 		
+		drag_vertex = false;
+		
 		segment_index = vertex_index;
 		@this.point = point;
 		@vertex = point.vertex;
@@ -50,6 +57,8 @@ class CurveControlPointDrag
 		start_y = point.y;
 		offset_x = point.x - x;
 		offset_y = point.y - y;
+		point_type = point.type;
+		vertex_type = vertex.type;
 		
 		length = sqrt(point.x * point.x + point.y * point.y);
 		
@@ -89,6 +98,8 @@ class CurveControlPointDrag
 			mirror_start_x = mirror_point.x;
 			mirror_start_y = mirror_point.y;
 			mirror_length_ratio = length != 0 ? mirror_length / length : 0;
+			
+			mirror_point_type = mirror_point.type;
 		}
 		
 		return true;
@@ -215,7 +226,7 @@ class CurveControlPointDrag
 		
 		if(!accept)
 		{
-			cancel_drag(curve, point);
+			cancel_drag(curve);
 		}
 		
 		clear_drag();
@@ -236,6 +247,8 @@ class CurveControlPointDrag
 		if(vertex_index == -1)
 			return false;
 		
+		drag_vertex = true;
+		
 		segment_index = vertex_index;
 		@this.vertex = vertex;
 		this.x = x;
@@ -244,6 +257,7 @@ class CurveControlPointDrag
 		start_y = vertex.y;
 		offset_x = vertex.x - x;
 		offset_y = vertex.y - y;
+		vertex_type = vertex.type;
 		
 		if(curve.type == QuadraticBezier && (curve.closed || vertex_index > 0 && vertex_index < curve.vertex_count - 1))
 		{
@@ -253,6 +267,8 @@ class CurveControlPointDrag
 			mirror_start_y = mirror_point.y;
 			mirror_dx = mirror_point.x + mirror_point.vertex.x - vertex.x;
 			mirror_dy = mirror_point.y + mirror_point.vertex.y - vertex.y;
+			
+			mirror_point_type = mirror_point.type;
 		}
 		
 		return true;
@@ -293,7 +309,7 @@ class CurveControlPointDrag
 		
 		if(!accept)
 		{
-			cancel_drag(curve, vertex);
+			cancel_drag(curve);
 		}
 		
 		clear_drag();
@@ -301,19 +317,31 @@ class CurveControlPointDrag
 		return true;
 	}
 	
-	private void cancel_drag(MultiCurve@ curve, CurveControlPoint@ p)
+	private void cancel_drag(MultiCurve@ curve)
 	{
-		p.x = start_x;
-		p.y = start_y;
+		if(@point != null)
+		{
+			point.x = start_x;
+			point.y = start_y;
+			point.type = point_type;
+		}
+		if(drag_vertex && @vertex != null)
+		{
+			vertex.x = start_x;
+			vertex.y = start_y;
+			vertex.type = vertex_type;
+		}
 		
 		if(@mirror_point != null)
 		{
 			mirror_point.x = mirror_start_x;
 			mirror_point.y = mirror_start_y;
 			
+			mirror_point.type = mirror_point_type;
+			
 			if(mirror_vertex_index != segment_index)
 			{
-				curve.invalidate(mirror_vertex_index);
+				curve.invalidate(mirror_vertex_index, true);
 			}
 		}
 		

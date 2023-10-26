@@ -426,14 +426,10 @@ class script : MultiCurveDebugColourCallback
 			
 			if(curve.type == QuadraticBezier)
 			{
-				curve.set_control_type(hover_vertex.quad_control_point, Square, false);
-				curve.set_control_type(@curve.vert(hover_vertex, -1).quad_control_point, Square, false);
 				@drag_point = @hover_vertex.quad_control_point;
 			}
 			else
 			{
-				curve.set_control_type(hover_vertex.cubic_control_point_1, Square, false);
-				curve.set_control_type(hover_vertex.cubic_control_point_2, Square, false);
 				@drag_point = @hover_vertex.cubic_control_point_2;
 			}
 			
@@ -441,6 +437,18 @@ class script : MultiCurveDebugColourCallback
 			drag_force_mirror = true;
 			curve.start_drag_control_point(drag_point, hover_vertex.x + drag_point.x, hover_vertex.y + drag_point.y);
 			state = DragVertex;
+			
+			if(curve.type == QuadraticBezier)
+			{
+				curve.set_control_type(hover_vertex.quad_control_point, Square, false);
+				curve.set_control_type(@curve.vert(hover_vertex, -1).quad_control_point, Square, false);
+			}
+			else
+			{
+				curve.set_control_type(hover_vertex.cubic_control_point_1, Square, false);
+				curve.set_control_type(hover_vertex.cubic_control_point_2, Square, false);
+			}
+			
 			return;
 		}
 		
