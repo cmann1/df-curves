@@ -1,3 +1,5 @@
+#include '../lib/math/math.cpp';
+
 #include 'cubic_projection_identity.cpp';
 #include 'cubic_projection_identity_rational.cpp';
 #include 'quadratic_projection_identity.cpp';
@@ -9,6 +11,7 @@ class CurveDrag
 	
 	bool busy;
 	bool is_linear;
+	CurveDragType drag_type;
 	
 	MultiCurve@ curve;
 	CurveType type;
@@ -25,11 +28,16 @@ class CurveDrag
 	float e1x, e1y, e2x, e2y;
 	float e1r, e2r;
 	
+	float axis1x, axis1y;
+	float axis2x, axis2y;
+	float offset1x, offset1y;
+	float offset2x, offset2y;
+	
 	array<CurvePointW> b_spline_values(2);	
 	array<CurvePoint> b_spline_offsets(2);	
 	int b_spline_index_1, b_spline_index_2;
 	
-	bool start(MultiCurve@ curve, const int segment, const float t, const float x, const float y)
+	bool start(MultiCurve@ curve, const int segment, const float t, const float x, const float y, const CurveDragType drag_type=Advanced)
 	{
 		if(busy)
 			return false;
@@ -43,6 +51,7 @@ class CurveDrag
 			return false;
 		
 		busy = true;
+		this.drag_type = drag_type;
 		this.x = x;
 		this.y = y;
 		
@@ -63,6 +72,33 @@ class CurveDrag
 				type = QuadraticBezier;
 			}
 		}
+		else
+		{
+			@cp1 = @p1.quad_control_point;
+		}
+		
+		if(drag_type != Advanced)
+		{
+			if(type == QuadraticBezier)
+			{
+				axis1x = cp1.x;
+				axis1y = cp1.y;
+				offset1x = cp1.x - (x - p1.x);
+				offset1y = cp1.y - (y - p1.y);
+			}
+			else
+			{
+				axis1x = cp1.x;
+				axis1y = cp1.y;
+				axis2x = cp2.x;
+				axis2y = cp2.y;
+				offset1x = cp1.x - (x - p1.x);
+				offset1y = cp1.y - (y - p1.y);
+				offset2x = cp2.x - (x - p2.x);
+				offset2y = cp2.y - (y - p2.y);
+			}
+			return true;
+		}
 		
 		if(type == QuadraticBezier)
 			QuadraticBezier::calc_abc_ratio(t, u, ratio);
@@ -73,10 +109,6 @@ class CurveDrag
 		
 		if(type == QuadraticBezier)
 		{
-			if(curve.type == QuadraticBezier)
-			{
-				@cp1 = @p1.quad_control_point;
-			}
 			is_rational = p1.weight != cp1.weight || cp1.weight != p2.weight;
 		}
 		else
@@ -117,6 +149,36 @@ class CurveDrag
 		
 		this.x = x;
 		this.y = y;
+		
+		if(drag_type == Direct || type == QuadraticBezier)
+		{
+			if(type == QuadraticBezier)
+			{
+				cp1.x = x + offset1x - p1.x;
+				cp1.y = y + offset1y - p1.y;
+			}
+			else
+			{
+				cp1.x = x + offset1x - p1.x;
+				cp1.y = y + offset1y - p1.y;
+				cp2.x = x + offset2x - p2.x;
+				cp2.y = y + offset2y - p2.y;
+			}
+			return true;
+		}
+		else if(drag_type == Slide)
+		{
+			if(type == QuadraticBezier)
+			{
+				project(x - p1.x + offset1x, y - p1.y + offset1y, axis1x, axis1y, cp1.x, cp1.y);
+			}
+			else
+			{
+				project(x - p1.x + offset1x, y - p1.y + offset1y, axis1x, axis1y, cp1.x, cp1.y);
+				project(x - p2.x + offset2x, y - p2.y + offset2y, axis2x, axis2y, cp2.x, cp2.y);
+			}
+			return true;
+		}
 		
 		if(type == QuadraticBezier)
 		{

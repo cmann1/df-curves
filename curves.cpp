@@ -20,6 +20,7 @@ class script : MultiCurveDebugColourCallback
 	[persist] bool render_arc_lengths = false;
 	[persist] bool render_segment_bboxes = true;
 	[persist] float max_mouse_distance = 0;
+	[option,Direct,Slide,Advanced] CurveDragType curve_drag_type = CurveDragType::Advanced;
 	
 	scene@ g;
 	input_api@ input;
@@ -100,7 +101,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = BSpline;
+		curve.type = CubicBezier;
 		
 		recreate_spline();
 		
@@ -228,6 +229,17 @@ class script : MultiCurveDebugColourCallback
 		if(check_pressed(VK::OemComma))
 		{
 			render_arc_lengths = !render_arc_lengths;
+			editor_sync_vars_menu();
+		}
+		if(check_pressed(VK::SemiColon))
+		{
+			switch(curve_drag_type)
+			{
+				case Direct: curve_drag_type = Slide; break;
+				case Slide: curve_drag_type = Advanced; break;
+				default: curve_drag_type = Direct; break;
+			}
+			display_text_at_curve('Drag type: ' + get_drag_type_name(curve_drag_type), 30);
 			editor_sync_vars_menu();
 		}
 		
@@ -371,7 +383,7 @@ class script : MultiCurveDebugColourCallback
 		}
 		
 		// Change vertex type.
-		if(mouse.left_press && shift_down && (check_hover_point() || closest_point.hover))
+		if(mouse.left_press && !alt_down && shift_down && (check_hover_point() || closest_point.hover))
 		{
 			CurveControlType new_type;
 			
@@ -527,7 +539,7 @@ class script : MultiCurveDebugColourCallback
 		{
 			drag_ox = closest_point.x - mouse.x;
 			drag_oy = closest_point.y - mouse.y;
-			curve.start_drag_curve(closest_point.i, closest_point.t, mouse.x + drag_ox, mouse.y + drag_oy);
+			curve.start_drag_curve(closest_point.i, closest_point.t, mouse.x + drag_ox, mouse.y + drag_oy, curve_drag_type);
 			state = DragCurve;
 		}
 	}
@@ -655,7 +667,7 @@ class script : MultiCurveDebugColourCallback
 			return;
 		}
 		
-		if(curve.do_drag_curve(mouse.x + drag_ox, mouse.y + drag_oy, !alt_down))
+		if(curve.do_drag_curve(mouse.x + drag_ox, mouse.y + drag_oy, !alt_down && !shift_down))
 		{
 			curve_changed = Validate;
 		}
@@ -888,6 +900,18 @@ class script : MultiCurveDebugColourCallback
 		display_txt_x = x;
 		display_txt_y = y;
 		display_txt_timer = time;
+	}
+	
+	private string get_drag_type_name(const CurveDragType type)
+	{
+		switch(curve_drag_type)
+		{
+			case Direct: return 'Direct';
+			case Slide: return 'Slide';
+			case Advanced: return 'Advanced';
+		}
+		
+		return 'Unknown';
 	}
 	
 	private bool check(const int vk) { return !is_polling_keyboard && input.key_check_vk(vk); }

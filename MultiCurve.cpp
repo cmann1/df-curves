@@ -20,6 +20,7 @@
 
 #include 'CurveControlPointDrag.cpp';
 #include 'CurveDrag.cpp';
+#include 'CurveDragType.cpp';
 #include 'MultiCuveSubdivisionSettings.cpp';
 
 /** A higher level wrapper designed for editing/manipulating different types of curves. */
@@ -1713,7 +1714,7 @@ class MultiCurve
 	  * Make sure to call `stop_drag_curve` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
-	bool start_drag_curve(const int segment, const float t, const float x, const float y)
+	bool start_drag_curve(const int segment, const float t, const float x, const float y, const CurveDragType drag_type=Advanced)
 	{
 		if(drag_control_points_count != 0)
 			return false;
@@ -1721,15 +1722,15 @@ class MultiCurve
 		CurveVertex @p1 = vert(segment);
 		CurveVertex @p2 = vert(segment + 1);
 		
-		CurveType drag_type = _type;
-		switch(drag_type)
+		CurveType real_type = _type;
+		switch(real_type)
 		{
 			case QuadraticBezier:
 			{
 				CurveControlPoint@ cp1 = p1.quad_control_point;
 				if(cp1.type == Square)
 				{
-					drag_type = Linear;
+					real_type = Linear;
 				}
 			} break;
 			case CubicBezier:
@@ -1738,11 +1739,11 @@ class MultiCurve
 				CurveControlPoint@ cp2 = p2.cubic_control_point_1;
 				if(cp1.type == Square && cp2.type == Square)
 				{
-					drag_type = Linear;
+					real_type = Linear;
 				}
 				else if(cp1.type == Square || cp2.type == Square)
 				{
-					drag_type = QuadraticBezier;
+					real_type = QuadraticBezier;
 				}
 			} break;
 			case BSpline:
@@ -1757,10 +1758,10 @@ class MultiCurve
 				return true;
 		}
 		
-		if(!drag_curve.start(this, segment, t, x, y))
+		if(!drag_curve.start(this, segment, t, x, y, drag_type))
 			return false;
 		
-		if(drag_type == QuadraticBezier)
+		if(real_type == QuadraticBezier)
 		{
 			drag_control_points[0].start_drag(this, drag_curve.cp1, x, y);
 			drag_control_points[1].start_drag(this, drag_curve.cp1, x, y, 1);
