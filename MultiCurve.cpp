@@ -27,9 +27,6 @@
 class MultiCurve
 {
 	
-	// TODO: Dragging/molding curves.
-	// TODO: 	Photoshop style dragging
-	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
 	
