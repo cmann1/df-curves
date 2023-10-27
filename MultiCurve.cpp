@@ -26,8 +26,7 @@
 class MultiCurve
 {
 	
-	// TODO: Dragging/molding curves.
-	// TODO: 	Photoshop style dragging
+	// TODO: Dragging/molding curves - Photoshop style dragging
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -1716,23 +1715,52 @@ class MultiCurve
 	  * @param y The y position the drag was initiated from (usually the mouse). */
 	bool start_drag_curve(const int segment, const float t, const float x, const float y)
 	{
-		if(drag_curve.busy || drag_control_points_count != 0)
-			return false;
-		if(t <= 0 || t >= 1)
-			return false;
-		if(segment < 0 || segment > vertex_count - (_closed ? 1 : 2))
+		if(drag_control_points_count != 0)
 			return false;
 		
-		return drag_curve.start(this, segment, t);
+		if(!drag_curve.start(this, segment, t, x, y))
+			return false;
+		
+		if(_type == QuadraticBezier)
+		{
+			drag_control_points[0].start_drag(this, drag_curve.cp1, x, y);
+			drag_control_points[1].start_drag(this, drag_curve.cp1, x, y, 1);
+		}
+		else
+		{
+			drag_control_points[0].start_drag(this, drag_curve.cp1, x, y);
+			drag_control_points[1].start_drag(this, drag_curve.cp2, x, y);
+		}
+		
+		return true;
 	}
 	
-	bool do_drag_curve(const float x, const float y)
+	bool do_drag_curve(const float x, const float y, const bool update_mirrored_control_points=true)
 	{
+		if(!drag_curve.update(x, y))
+			return false;
+		
+		if(update_mirrored_control_points)
+		{
+			drag_control_points[0].do_drag(this, x, y, ControlPointMirrorType::Angle, false, false);
+			drag_control_points[1].do_drag(this, x, y, ControlPointMirrorType::Angle, false, false);
+		}
+		else
+		{
+			invalidate(drag_curve.segment, true);
+		}
+		
 		return true;
 	}
 	
 	bool stop_drag_curve(const bool accept=true)
 	{
+		if(!drag_curve.stop())
+			return false;
+		
+		drag_control_points[0].stop_drag(this, accept);
+		drag_control_points[1].stop_drag(this, accept);
+		
 		return true;
 	}
 	

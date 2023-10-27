@@ -525,10 +525,7 @@ class script : MultiCurveDebugColourCallback
 		// Drag curve.
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
-			drag_ox = closest_point.x - mouse.x;
-			drag_oy = closest_point.y - mouse.y;
-			setup_drag_curve();
-			
+			curve.start_drag_curve(closest_point.i, closest_point.t, mouse.x + drag_ox, mouse.y + drag_oy);
 			state = DragCurve;
 		}
 	}
@@ -644,168 +641,21 @@ class script : MultiCurveDebugColourCallback
 		display_txt_y = mouse.y - 5 * zoom_factor;
 	}
 	
-	void setup_drag_curve()
-	{
-		dct = closest_point.t;
-		dcr = curve.eval_ratio(closest_point.i, closest_point.t);
-		@dc_p1 = curve.vert(closest_point.i);
-		@dc_p2 = curve.vert(closest_point.i + 1);
-		
-		@dc_cp1 = dc_p1.cubic_control_point_2;
-		@dc_cp2 = dc_p2.cubic_control_point_1;
-		
-		const float u = 1 - dct;
-		
-		if(curve.type == QuadraticBezier)
-			QuadraticBezier::calc_abc_ratio(dct, dcu, dcrat);
-		else
-			CubicBezier::calc_abc_ratio(dct, dcu, dcrat);
-		
-		if(curve.type == CubicBezier)
-		{
-			// Non-rational.
-			if(dc_p1.weight == dc_cp1.weight && dc_cp1.weight == dc_cp2.weight && dc_cp2.weight == dc_p2.weight)
-			{
-				CubicBezier::calc_abc_tangent(
-					dc_p1.x, dc_p1.y,
-					dc_p1.x + dc_cp1.x, dc_p1.y + dc_cp1.y,
-					dc_p2.x + dc_cp2.x, dc_p2.y + dc_cp2.y,
-					dc_p2.x, dc_p2.y,
-					dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
-					dce1x, dce1y, dce2x, dce2y);
-			}
-			// Rational.
-			else
-			{
-				CubicBezier::calc_abc_tangent(
-					dc_p1.x, dc_p1.y, dc_p1.weight,
-					dc_p1.x + dc_cp1.x, dc_p1.y + dc_cp1.y, dc_cp1.weight,
-					dc_p2.x + dc_cp2.x, dc_p2.y + dc_cp2.y, dc_cp2.weight,
-					dc_p2.x, dc_p2.y, dc_p2.weight,
-					dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
-					dce1x, dce1y, dce1r, dce2x, dce2y, dce2r);
-			}
-		}
-	}
-	
-	float dct;
-	float dcu;
-	float dcr;
-	float dcrat;
-	CurveVertex@ dc_p1, dc_p2;
-	CurveControlPoint@ dc_cp1, dc_cp2;
-	float dce1x, dce1y, dce2x, dce2y;
-	float dce1r, dce2r;
 	void state_drag_curve()
 	{
 		if(!mouse.left_down || esc_down)
 		{
+			if(curve.stop_drag_curve(!esc_down))
+			{
+				curve_changed = Validate;
+			}
 			state = Idle;
 			return;
 		}
 		
-		//if(mouse.moved)
+		if(curve.do_drag_curve(mouse.x + drag_ox, mouse.y + drag_oy, !alt_down))
 		{
-			if(curve.type == QuadraticBezier)
-			{
-				float ax, ay, ar, cx, cy, cr;
-				
-				// Non-rational.
-				if(dc_p1.weight == dc_p1.quad_control_point.weight && dc_p1.quad_control_point.weight == dc_p2.weight)
-				{
-					QuadraticBezier::calc_abc(
-						dc_p1.x, dc_p1.y, dc_p2.x, dc_p2.y,
-						dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
-						ax, ay, cx, cy);
-				}
-				// Rational.
-				else
-				{
-					QuadraticBezier::calc_abc(
-						dc_p1.x, dc_p1.y, dc_p1.weight, dc_p2.x, dc_p2.y, dc_p2.weight,
-						dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
-						ax, ay, ar, cx, cy, cr);
-				}
-				
-				float x1 = 0;
-				float y1 = 0;
-				for(int i = 0; i <= 50; i++)
-				{
-					const float t = float(i) / 50;
-					float x2, y2;
-					QuadraticBezier::eval_point(
-						dc_p1.x, dc_p1.y, ax, ay, dc_p2.x, dc_p2.y,
-						dc_p1.weight, dc_p1.quad_control_point.weight, dc_p2.weight,
-						t, x2, y2);
-					
-					if(i > 0)
-					{
-						g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
-					}
-					
-					x1 = x2;
-					y1 = y2;
-				}
-				
-				g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, ax, ay, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, ax, ay, 1*zoom_factor, 0x99ffffff);
-				g.draw_line_world(22, 23, cx, cy, ax, ay, 1*zoom_factor, 0x99ffffff);
-			}
-			else if(curve.type == CubicBezier)
-			{
-				float c1x, c1y, c1r;
-				float c2x, c2y, c2r;
-				
-				// Non-rational.
-				if(dc_p1.weight == dc_cp1.weight && dc_cp1.weight == dc_cp2.weight && dc_cp2.weight == dc_p2.weight)
-				{
-					CubicBezier::calc_from_abc_tangent(
-						dc_p1.x, dc_p1.y, dc_p2.x, dc_p2.y,
-						dce1x, dce1y, dce2x, dce2y,
-						dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy,
-						c1x, c1y, c2x, c2y);
-				}
-				// Rational.
-				else
-				{
-					CubicBezier::calc_from_abc_tangent(
-						dc_p1.x, dc_p1.y, dc_p1.weight, dc_p2.x, dc_p2.y, dc_p2.weight,
-						dce1x, dce1y, dce1r, dce2x, dce2y, dce2r,
-						dct, dcu, dcrat, mouse.x + drag_ox, mouse.y + drag_oy, dcr,
-						c1x, c1y, c1r, c2x, c2y, c2r);
-				}
-				
-				float x1 = 0;
-				float y1 = 0;
-				for(int i = 0; i <= 50; i++)
-				{
-					const float t = float(i) / 50;
-					float x2, y2;
-					CubicBezier::eval_point(
-						dc_p1.x, dc_p1.y, c1x, c1y, c2x, c2y, dc_p2.x, dc_p2.y,
-						dc_p1.weight, dc_cp1.weight, dc_cp2.weight, dc_p2.weight,
-						t, x2, y2);
-					
-					if(i > 0)
-					{
-						g.draw_line_world(22, 23, x1, y1, x2, y2, 1*zoom_factor, 0xffff0000);
-					}
-					
-					x1 = x2;
-					y1 = y2;
-				}
-				
-				//g.draw_line_world(22, 23, dc_p1.x, dc_p1.y, v1x/v1r, v1y/v1r, 1*zoom_factor, 0x99ffffff);
-				//g.draw_line_world(22, 23, v1x/v1r, v1y/v1r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				//g.draw_line_world(22, 23, v2x/v2r, v2y/v2r, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				//g.draw_line_world(22, 23, dc_p2.x, dc_p2.y, v2x/v2r, v2y/v2r, 1*zoom_factor, 0x99ffffff);
-				//g.draw_line_world(22, 23, e1x/e1r, e1y/e1r, e2x/e2r, e2y/e2r, 1*zoom_factor, 0x99ff2222);
-				//g.draw_line_world(22, 23, cx/cr, cy/cr, ax/ar, ay/ar, 1*zoom_factor, 0x99ffffff);
-				//float bbr = (1-dct) * e1r + dct * e2r;
-				//float bbx = ((1-dct) * e1x + dct * e2x)/bbr;
-				//float bby = ((1-dct) * e1y + dct * e2y)/bbr;
-				//draw_dot(g, 22, 23, bbx, bby, 2*zoom_factor, 0xff00ff00, 45);
-			}
+			curve_changed = Validate;
 		}
 	}
 	
