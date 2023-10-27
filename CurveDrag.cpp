@@ -137,7 +137,7 @@ class CurveDrag
 			{
 				CubicBezier::calc_from_abc_tangent(
 					p1.x, p1.y, p1.weight, p2.x, p2.y, p2.weight,
-					e1x, e1y, e2x, e2y, e2y, e2r,
+					e1x, e1y, e1r, e2x, e2y, e2r,
 					t, u, ratio, x, y, br,
 					cp1x, cp1y, cp1r, cp2x, cp2y, cp2r);
 			}
