@@ -13,7 +13,6 @@ class CurveDrag
 	MultiCurve@ curve;
 	CurveType type;
 	float x, y;
-	float offset_x, offset_y;
 	int segment;
 	float t;
 	CurveVertex@ p1, p2;
@@ -26,9 +25,15 @@ class CurveDrag
 	float e1x, e1y, e2x, e2y;
 	float e1r, e2r;
 	
+	array<CurvePointW> b_spline_values(2);	
+	array<CurvePoint> b_spline_offsets(2);	
+	int b_spline_index_1, b_spline_index_2;
+	
 	bool start(MultiCurve@ curve, const int segment, const float t, const float x, const float y)
 	{
 		if(busy)
+			return false;
+		if(@curve == null)
 			return false;
 		if(curve.type != QuadraticBezier && curve.type != CubicBezier)
 			return false;
@@ -176,6 +181,106 @@ class CurveDrag
 		@p2 = null;
 		@cp1 = null;
 		@cp2 = null;
+		
+		return true;
+	}
+	
+	bool start_b_spline(MultiCurve@ curve, const int segment, const float t, const float x, const float y)
+	{
+		if(busy)
+			return false;
+		if(@curve == null)
+			return false;
+		if(curve.type != BSpline)
+			return false;
+		if(t < 0 || t > 1)
+			return false;
+		if(segment < 0 || segment > curve.vertex_count - (curve.closed ? 1 : 2))
+			return false;
+		
+		busy = true;
+		this.x = x;
+		this.y = y;
+		
+		@this.curve = curve;
+		type = curve.type;
+		this.segment = segment;
+		this.t = t;
+		
+		b_spline_index_1 = -1;
+		b_spline_index_2 =  1;
+		b_spline_index_1 += segment;
+		b_spline_index_2 += segment;
+		const int count = b_spline_index_2 - b_spline_index_1 + 1;
+		while(int(b_spline_values.length) < count)
+		{
+			b_spline_values.resize(b_spline_values.length * 2);
+			b_spline_offsets.resize(b_spline_values.length);
+		}
+		
+		for(int i = b_spline_index_1; i <= b_spline_index_2; i++)
+		{
+			const int vi = mod(i, curve.vertex_count);
+			CurveVertex@ v = curve.vertices[vi];
+			CurvePointW@ w = b_spline_values[i - b_spline_index_1];
+			CurvePoint@ o = b_spline_offsets[i - b_spline_index_1];
+			w.x = v.x;
+			w.y = v.y;
+			w.w = 1;
+			o.x = v.x - x;
+			o.y = v.y - y;
+		}
+		
+		return true;
+	}
+	
+	bool update_b_spline(const float x, const float y)
+	{
+		if(!busy)
+			return false;
+		if(x == this.x && y == this.y)
+			return false;
+		
+		this.x = x;
+		this.y = y;
+		
+		for(int i = b_spline_index_1; i <= b_spline_index_2; i++)
+		{
+			const int vi = mod(i, curve.vertex_count);
+			CurveVertex@ v = curve.vertices[vi];
+			CurvePointW@ w = b_spline_values[i - b_spline_index_1];
+			CurvePoint@ o = b_spline_offsets[i - b_spline_index_1];
+			
+			v.x = w.x * (1 - w.w) + (x + o.x) * w.w;
+			v.y = w.y * (1 - w.w) + (y + o.y) * w.w;
+			
+			curve.invalidate(vi);
+		}
+		
+		return true;
+	}
+	
+	bool stop_b_spline(const bool accept)
+	{
+		if(!busy)
+			return false;
+		
+		if(!accept)
+		{
+			for(int i = b_spline_index_1; i <= b_spline_index_2; i++)
+			{
+				const int vi = mod(i, curve.vertex_count);
+				CurveVertex@ v = curve.vertices[vi];
+				CurvePointW@ w = b_spline_values[i - b_spline_index_1];
+				
+				v.x = w.x;
+				v.y = w.y;
+				
+				curve.invalidate(vi);
+			}
+		}
+		
+		busy = false;
 		
 		return true;
 	}

@@ -100,7 +100,7 @@ class script : MultiCurveDebugColourCallback
 		update_curve_precision();
 		
 		curve.closed = true;
-		curve.type = CubicBezier;
+		curve.type = BSpline;
 		
 		recreate_spline();
 		

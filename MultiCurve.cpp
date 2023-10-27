@@ -27,7 +27,6 @@ class MultiCurve
 {
 	
 	// TODO: Dragging/molding curves.
-	// TODO: 	Drag degree vertices b splines?
 	// TODO: 	Photoshop style dragging
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
@@ -1746,19 +1745,16 @@ class MultiCurve
 					drag_type = QuadraticBezier;
 				}
 			} break;
+			case BSpline:
+				return drag_curve.start_b_spline(this, segment, t, x, y);
 			case Linear:
 			case CatmullRom:
-				drag_type = Linear;
-				break;
-		}
-		
-		if(drag_type == Linear)
-		{
-			drag_curve.busy = true;
-			drag_curve.is_linear = true;
-			drag_control_points[0].start_drag_vertex(this, p1, x, y);
-			drag_control_points[1].start_drag_vertex(this, p2, x, y);
-			return true;
+			default:
+				drag_curve.busy = true;
+				drag_curve.is_linear = true;
+				drag_control_points[0].start_drag_vertex(this, p1, x, y);
+				drag_control_points[1].start_drag_vertex(this, p2, x, y);
+				return true;
 		}
 		
 		if(!drag_curve.start(this, segment, t, x, y))
@@ -1780,11 +1776,19 @@ class MultiCurve
 	
 	bool do_drag_curve(const float x, const float y, const bool update_mirrored_control_points=true)
 	{
-		if(drag_curve.busy && drag_curve.is_linear)
+		if(!drag_curve.busy)
+			return false;
+		
+		if(drag_curve.is_linear)
 		{
 			drag_control_points[0].do_drag_vertex(this, x, y);
 			drag_control_points[1].do_drag_vertex(this, x, y);
 			return true;
+		}
+		
+		if(drag_curve.type == BSpline)
+		{
+			return drag_curve.update_b_spline(x, y);
 		}
 		
 		if(!drag_curve.update(x, y))
@@ -1805,13 +1809,21 @@ class MultiCurve
 	
 	bool stop_drag_curve(const bool accept=true)
 	{
-		if(drag_curve.busy && drag_curve.is_linear)
+		if(!drag_curve.busy)
+			return false;
+		
+		if(drag_curve.is_linear)
 		{
 			drag_curve.busy = false;
 			drag_curve.is_linear = false;
 			drag_control_points[0].stop_drag_vertex(this, accept);
 			drag_control_points[1].stop_drag_vertex(this, accept);
 			return true;
+		}
+		
+		if(drag_curve.type == BSpline)
+		{
+			return drag_curve.stop_b_spline(accept);
 		}
 		
 		if(!drag_curve.stop())
@@ -1904,6 +1916,30 @@ class MultiCurve
 		return b_spline.get_adjusted_segment_index(
 			_b_spline_degree, _b_spline_clamped, _closed,
 			segment, t);
+	}
+	
+	/** Returns the relative range of segments which may be affect when modifying a single vertex based on the curve type and settings. */
+	void get_affected_vertex_offsets(int &out o1, int &out o2)
+	{
+		o1 = 0;
+		o2 = 0;
+		
+		switch(_type)
+		{
+			case CurveType::BSpline:
+				b_spline.get_affected_vertex_offsets(vertex_count, _b_spline_degree, _closed, o1, o2);
+				break;
+			case CurveType::CatmullRom:
+				o1 = -2;
+				o2 = 1;
+				break;
+			case CurveType::QuadraticBezier:
+			case CurveType::CubicBezier:
+			case CurveType::Linear:
+			default:
+				o1 = -1;
+				break;
+		}
 	}
 	
 	// -- Bounding box methods --
@@ -2136,29 +2172,6 @@ class MultiCurve
 		return segment >= 0
 			? (segment + (t > 0 && t < 1 ? t : t <= 0 ? 0 : 1)) / (_closed ? vertex_count : vertex_count - 1)
 			: t;
-	}
-	
-	private void get_affected_vertex_offsets(int &out o1, int &out o2)
-	{
-		o1 = 0;
-		o2 = 0;
-		
-		switch(_type)
-		{
-			case CurveType::BSpline:
-				b_spline.get_affected_vertex_offsets(vertex_count, _b_spline_degree, _closed, o1, o2);
-				break;
-			case CurveType::CatmullRom:
-				o1 = -2;
-				o2 = 1;
-				break;
-			case CurveType::QuadraticBezier:
-			case CurveType::CubicBezier:
-			case CurveType::Linear:
-			default:
-				o1 = -1;
-				break;
-		}
 	}
 	
 }
