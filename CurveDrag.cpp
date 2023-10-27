@@ -36,6 +36,8 @@ class CurveDrag
 			return false;
 		
 		busy = true;
+		this.x = x;
+		this.y = y;
 		
 		@this.curve = curve;
 		this.segment = segment;
