@@ -26,7 +26,9 @@
 class MultiCurve
 {
 	
-	// TODO: Dragging/molding curves - Photoshop style dragging
+	// TODO: Dragging/molding curves.
+	// TODO: 	Drag degree vertices b splines?
+	// TODO: 	Photoshop style dragging
 	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
@@ -93,6 +95,12 @@ class MultiCurve
 	
 	private Curve::EvalFunc@ eval_func_def;
 	private Curve::EvalPointFunc@ eval_point_func_def;
+	
+	// -- Editing/dragging stuff
+	
+	private CurveDrag drag_curve;
+	private array<CurveControlPointDrag> drag_control_points(2);
+	private int drag_control_points_count;
 	
 	MultiCurve()
 	{
@@ -1089,7 +1097,7 @@ class MultiCurve
 		// Quadratic fallback.
 		if(p2.type == Square || p3.type == Square)
 		{
-			const CurveControlPoint@ qp2 = p2.type == Square ? p4.cubic_control_point_1 : p1.cubic_control_point_2;
+			const CurveControlPoint@ qp2 = p2.type == Square ? @p4.cubic_control_point_1 : @p1.cubic_control_point_2;
 			const CurveControlPoint@ p0 = p2.type == Square ? p4 : p1;
 			
 			// Non-rational.
@@ -1098,7 +1106,7 @@ class MultiCurve
 			
 			// Rational.
 			return QuadraticBezier::eval_ratio(
-				p1.x, p1.y, p0.x + qp2.x, p0.y + qp2.y, p4.x, p4.y,
+				p1.x, p1.y, p0.x + p0.x, p0.y + p0.y, p4.x, p4.y,
 				p1.weight, qp2.weight, p4.weight,
 				ti);
 		}
@@ -1606,13 +1614,6 @@ class MultiCurve
 		}
 	}
 	
-	// TODO: MOVE
-	// -- Editing/dragging stuff
-	
-	CurveDrag drag_curve;
-	array<CurveControlPointDrag> drag_control_points(2);
-	int drag_control_points_count;
-	
 	/** Make sure to call `stop_drag_vertex` when done.
 	  * @param x The x position the drag was initiated from (usually the mouse).
 	  * @param y The y position the drag was initiated from (usually the mouse). */
@@ -1718,10 +1719,52 @@ class MultiCurve
 		if(drag_control_points_count != 0)
 			return false;
 		
+		CurveVertex @p1 = vert(segment);
+		CurveVertex @p2 = vert(segment + 1);
+		
+		CurveType drag_type = _type;
+		switch(drag_type)
+		{
+			case QuadraticBezier:
+			{
+				CurveControlPoint@ cp1 = p1.quad_control_point;
+				if(cp1.type == Square)
+				{
+					drag_type = Linear;
+				}
+			} break;
+			case CubicBezier:
+			{
+				CurveControlPoint@ cp1 = p1.cubic_control_point_2;
+				CurveControlPoint@ cp2 = p2.cubic_control_point_1;
+				if(cp1.type == Square && cp2.type == Square)
+				{
+					drag_type = Linear;
+				}
+				else if(cp1.type == Square || cp2.type == Square)
+				{
+					drag_type = QuadraticBezier;
+				}
+			} break;
+			case Linear:
+			case CatmullRom:
+				drag_type = Linear;
+				break;
+		}
+		
+		if(drag_type == Linear)
+		{
+			drag_curve.busy = true;
+			drag_curve.is_linear = true;
+			drag_control_points[0].start_drag_vertex(this, p1, x, y);
+			drag_control_points[1].start_drag_vertex(this, p2, x, y);
+			return true;
+		}
+		
 		if(!drag_curve.start(this, segment, t, x, y))
 			return false;
 		
-		if(_type == QuadraticBezier)
+		if(drag_type == QuadraticBezier)
 		{
 			drag_control_points[0].start_drag(this, drag_curve.cp1, x, y);
 			drag_control_points[1].start_drag(this, drag_curve.cp1, x, y, 1);
@@ -1737,6 +1780,13 @@ class MultiCurve
 	
 	bool do_drag_curve(const float x, const float y, const bool update_mirrored_control_points=true)
 	{
+		if(drag_curve.busy && drag_curve.is_linear)
+		{
+			drag_control_points[0].do_drag_vertex(this, x, y);
+			drag_control_points[1].do_drag_vertex(this, x, y);
+			return true;
+		}
+		
 		if(!drag_curve.update(x, y))
 			return false;
 		
@@ -1755,6 +1805,15 @@ class MultiCurve
 	
 	bool stop_drag_curve(const bool accept=true)
 	{
+		if(drag_curve.busy && drag_curve.is_linear)
+		{
+			drag_curve.busy = false;
+			drag_curve.is_linear = false;
+			drag_control_points[0].stop_drag_vertex(this, accept);
+			drag_control_points[1].stop_drag_vertex(this, accept);
+			return true;
+		}
+		
 		if(!drag_curve.stop())
 			return false;
 		

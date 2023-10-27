@@ -525,6 +525,8 @@ class script : MultiCurveDebugColourCallback
 		// Drag curve.
 		if(mouse.left_press && @hover_point == null && closest_point.hover)
 		{
+			drag_ox = closest_point.x - mouse.x;
+			drag_oy = closest_point.y - mouse.y;
 			curve.start_drag_curve(closest_point.i, closest_point.t, mouse.x + drag_ox, mouse.y + drag_oy);
 			state = DragCurve;
 		}

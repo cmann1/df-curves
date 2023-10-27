@@ -8,8 +8,10 @@ class CurveDrag
 {
 	
 	bool busy;
+	bool is_linear;
 	
 	MultiCurve@ curve;
+	CurveType type;
 	float x, y;
 	float offset_x, offset_y;
 	int segment;
@@ -40,27 +42,40 @@ class CurveDrag
 		this.y = y;
 		
 		@this.curve = curve;
+		type = curve.type;
 		this.segment = segment;
 		this.t = t;
 		@p1 = curve.vert(segment);
 		@p2 = curve.vert(segment + 1);
 		
-		if(curve.type == QuadraticBezier)
+		if(type == CubicBezier)
+		{
+			@cp1 = @p1.cubic_control_point_2;
+			@cp2 = @p2.cubic_control_point_1;
+			if(cp1.type == Square || cp2.type == Square)
+			{
+				@cp1 = cp1.type == Square ? cp2 : cp1;
+				type = QuadraticBezier;
+			}
+		}
+		
+		if(type == QuadraticBezier)
 			QuadraticBezier::calc_abc_ratio(t, u, ratio);
 		else
 			CubicBezier::calc_abc_ratio(t, u, ratio);
 		
 		br = curve.eval_ratio(segment, t);
 		
-		if(curve.type == QuadraticBezier)
+		if(type == QuadraticBezier)
 		{
-			@cp1 = @p1.quad_control_point;
+			if(curve.type == QuadraticBezier)
+			{
+				@cp1 = @p1.quad_control_point;
+			}
 			is_rational = p1.weight != cp1.weight || cp1.weight != p2.weight;
 		}
 		else
 		{
-			@cp1 = @p1.cubic_control_point_2;
-			@cp2 = @p2.cubic_control_point_1;
 			is_rational = p1.weight != cp1.weight || cp1.weight != cp2.weight || cp2.weight != p2.weight;
 			
 			if(!is_rational)
@@ -98,7 +113,7 @@ class CurveDrag
 		this.x = x;
 		this.y = y;
 		
-		if(curve.type == QuadraticBezier)
+		if(type == QuadraticBezier)
 		{
 			float ax, ay, ar, cx, cy, cr;
 			
@@ -117,8 +132,8 @@ class CurveDrag
 					ax, ay, ar, cx, cy, cr);
 			}
 			
-			cp1.x = ax - p1.x;
-			cp1.y = ay - p1.y;
+			cp1.x = ax - cp1.vertex.x;
+			cp1.y = ay - cp1.vertex.y;
 		}
 		else
 		{
