@@ -9,14 +9,14 @@ namespace CubicBezier
 	  * https://discord.com/channels/83037671227658240/342175833089245184/1158941595228450867
 	  * https://www.desmos.com/calculator/mxt9wq6kzn
 	  * 
-	  * @param samples How many points along the curve to sample to find the roots. Increase to increase the accuracy of the resulting boudning box.
+	  * @param samples How many points along the curve to sample to find the roots. Increase to increase the accuracy of the resulting bounding box.
 	  * @param padding Allows expanding the resulting bounding box on all four side to account for possible inaccuracies. */
 	void bounding_box(
 		const float p1x, const float p1y, const float p2x, const float p2y,
 		const float p3x, const float p3y, const float p4x, const float p4y,
 		const float r1, const float r2, const float r3, const float r4,
 		float &out x1, float &out y1, float &out x2, float &out y2,
-		const int samples=6, const float padding=0.5)
+		const int samples=12, const float padding=0.5)
 	{
 		x1 = (p1x < p4x ? p1x : p4x) - padding;
 		y1 = (p1y < p4y ? p1y : p4y) - padding;

@@ -27,6 +27,11 @@
 class MultiCurve
 {
 	
+	// TODO: Transformin (translate/scale/rotate) all points.
+	// TODO: ? Multi select vertices.
+	// TODO: 	Drag/trasnform
+	// TODO: Copy entire MultiCurve to/from.
+	
 	[option,Linear,QuadraticBezier,CubicBezier,CatmullRom,BSpline]
 	private CurveType _type = CubicBezier;
 	
@@ -2044,7 +2049,7 @@ class MultiCurve
 		}
 	}
 	
-	private void calc_bounding_box_cubic_bezier(const int samples=6, const float padding=0.5)
+	private void calc_bounding_box_cubic_bezier(const int samples=12, const float padding=0.5)
 	{
 		const int end = _closed ? vertex_count : vertex_count - 1;
 		for(int i = 0; i < end; i++)

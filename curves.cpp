@@ -864,7 +864,7 @@ class script : MultiCurveDebugColourCallback
 	
 	private void update_curve_precision()
 	{
-		MultiCuveSubdivisionSettings@  settings = curve.subdivision_settings;
+		MultiCuveSubdivisionSettings@ settings = curve.subdivision_settings;
 		
 		if(low_precision)
 		{
