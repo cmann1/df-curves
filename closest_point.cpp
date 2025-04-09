@@ -5,7 +5,7 @@ namespace Curve
 	  * @param max_distance If > 0, only points closer than this will be returned. Can also potentially reduce the amount of work needed
 	  *   by skipping segments that are out of range with simple bounds checks.
 	  * @param threshold When the distance between tested points becomes smaller than this, stop looking.
-	  * @param arc_length_interpolation If true can provide more accurate reults near loops or where the arc subdivisions do not have enough resolution
+	  * @param arc_length_interpolation If true can provide more accurate results near loops or where the arc subdivisions do not have enough resolution
 	  *   at the cost of more curve evaluations.
 	  *   First it finds the closest point on the linear arc segments, samples the curve at the interpolated t value, and projects that point back onto the
 	  *   normal vector giving a much better guess at how close a segment is to the desired point.
