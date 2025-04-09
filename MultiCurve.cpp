@@ -2087,7 +2087,7 @@ class MultiCurve
 				}
 				else
 				{
-					if(p1.weight == p2.weight && p2.weight == p3.weight)
+					if(p1.weight == p2.weight && p2.weight == p3.weight && p3.weight == p4.weight)
 					{
 						CubicBezier::bounding_box(
 							p1.x, p1.y, p1.x + p2.x, p1.y + p2.y,
