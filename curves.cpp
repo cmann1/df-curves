@@ -2,8 +2,8 @@
 #include '../lib/debug/Debug.cpp';
 #include '../lib/drawing/common.cpp';
 #include '../lib/input/Mouse.cpp';
-#include '../lib/enums/GVB.cpp';
-#include '../lib/enums/VK.cpp';
+#include '../lib/input/GVB.cpp';
+#include '../lib/input/VK.cpp';
 
 #include 'CurveTypeUtils.cpp';
 #include 'MultiCurve.cpp';
